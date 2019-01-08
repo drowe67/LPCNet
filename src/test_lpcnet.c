@@ -46,10 +46,13 @@ int main(int argc, char **argv) {
 	exit(1);
     }
 
-    fout = fopen(argv[2], "wb");
-    if (fout == NULL) {
-	fprintf(stderr, "Can't open %s\n", argv[2]);
-	exit(1);
+    if (strcmp(argv[2], "-") == 0) fout = stdout;
+    else {
+        fout = fopen(argv[2], "wb");
+        if (fout == NULL) {
+            fprintf(stderr, "Can't open %s\n", argv[2]);
+            exit(1);
+        }
     }
 
     while (1) {
@@ -62,6 +65,7 @@ int main(int argc, char **argv) {
         RNN_CLEAR(&features[18], 18);
         lpcnet_synthesize(net, pcm, features, FRAME_SIZE);
         fwrite(pcm, sizeof(pcm[0]), FRAME_SIZE, fout);
+        if (fout == stdout) fflush(stdout);
     }
     fclose(fin);
     fclose(fout);

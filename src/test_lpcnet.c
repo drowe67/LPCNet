@@ -40,12 +40,15 @@ int main(int argc, char **argv) {
         fprintf(stderr, "usage: test_lpcnet <features.f32> <output.pcm>\n");
         return 0;
     }
-    fin = fopen(argv[1], "rb");
-    if (fin == NULL) {
-	fprintf(stderr, "Can't open %s\n", argv[1]);
-	exit(1);
+    if (strcmp(argv[1], "-") == 0) fin = stdin;
+    else {
+        fin = fopen(argv[1], "rb");
+        if (fin == NULL) {
+            fprintf(stderr, "Can't open %s\n", argv[1]);
+            exit(1);
+        }
     }
-
+    
     if (strcmp(argv[2], "-") == 0) fout = stdout;
     else {
         fout = fopen(argv[2], "wb");

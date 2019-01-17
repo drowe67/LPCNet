@@ -20,10 +20,13 @@
 #define MAX_STAGES     5
 #define MAX_ENTRIES    4096
 
-/*
-   how to load in quantisers
-   could be multiple stages, comma delimited list?
- */
+int quantise(const float * cb, float vec[], float w[], int k, int m, float *se);
+void quant_pred(float vec_out[],  /* prev quant vector, and output */
+                float vec_in[],
+                float pred,
+                int num_stages,
+                float vq[][NB_BANDS*MAX_ENTRIES],
+                int m[]);
 
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
@@ -59,6 +62,7 @@ int main(int argc, char *argv[]) {
             /* list of comma delimited file names */
             strcpy(fnames, optarg);
             p = fnames;
+            num_stages = 0;
             do {
                 assert(num_stages < MAX_STAGES);
                 strcpy(fn, p);
@@ -74,9 +78,9 @@ int main(int argc, char *argv[]) {
                     fprintf(stderr, "Couldn't open: %s\n", fn);
                     exit(1);
                 }
-                num_stages = 0;
                 m[num_stages] = 0;
                 while (fread(features, sizeof(float), NB_BANDS, fq) == NB_BANDS) m[num_stages]++;
+                assert(m[num_stages] <= MAX_ENTRIES);
                 fprintf(stderr, "%d entries of vectors width %d\n", m[num_stages], NB_BANDS);
                 rewind(fq);                       
                 int rd = fread(&vq[num_stages], sizeof(float), m[num_stages]*NB_BANDS, fq);
@@ -86,7 +90,7 @@ int main(int argc, char *argv[]) {
             } while(comma);
             break;
         default:
-            fprintf(stderr,"usage: %s [-d decimation] [-q quantfile1,quantfile2,....]", argv[0]);
+            fprintf(stderr,"usage: %s [-d decimation] [-q quantfile1,quantfile2,....]\n", argv[0]);
             exit(1);
         }
     }
@@ -99,6 +103,8 @@ int main(int argc, char *argv[]) {
     for(d=0; d<2; d++)
         for(i=0; i<NB_BANDS; i++)
             features_lin[d][i] = 0.0;
+    for(i=0; i<NB_BANDS; i++)
+        features_quant[i] = 0.0;
     
     fin = stdin;
     fout = stdout;
@@ -146,6 +152,7 @@ int main(int argc, char *argv[]) {
 
             /* optional quantisation */
             if (num_stages) {
+                quant_pred(features_quant, features, 0.9, num_stages, vq, m);
             }
             else {
                 for(i=0; i<NB_BANDS; i++)
@@ -159,8 +166,10 @@ int main(int argc, char *argv[]) {
             }
 
             /* pass (quantised) frame though */
-            for(i=0; i<NB_BANDS; i++)
+            for(i=0; i<NB_BANDS; i++) {
                 features_out[i] = features_lin[0][i];
+                sum_sq_err += pow(10.0*(features_out[i]-features_prev[0][i]), 2.0); n++;
+            }
         }
         else {
             for(i=0; i<NB_FEATURES; i++)
@@ -195,3 +204,94 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "var: %f sd: %f n: %d\n", var, sqrt(var), n);
     fclose(fin); fclose(fout);
 }
+
+void pv(char s[], float v[]) {
+    int i;
+    fprintf(stderr, "%s",s);
+    for(i=0; i<NB_BANDS; i++)
+            fprintf(stderr, "%4.2f ", v[i]);
+    fprintf(stderr, "\n");            
+}
+
+void quant_pred(float vec_out[],  /* prev quant vector, and output */
+                float vec_in[],
+                float pred,
+                int num_stages,
+                float vq[][NB_BANDS*MAX_ENTRIES],
+                int m[])
+{
+    float err[NB_BANDS], w[NB_BANDS], se, se1, se2;
+    int i,s,ind;
+
+    pv("\nvec_in: ", vec_in);
+    pv("vec_out: ", vec_out);
+    se1 = 0.0;
+    for(i=0; i<NB_BANDS; i++) {
+        err[i] = 10.0*(vec_in[i] - pred*vec_out[i]);
+        //err[i] = vq[0][NB_BANDS+i];
+        se1 += err[i]*err[i];
+        vec_out[i] = pred*vec_out[i];
+        w[i] = 1.0;
+    }
+    se1 /= NB_BANDS;
+    pv("err: ", err);
+    for(s=0; s<num_stages; s++) {
+        ind = quantise(&vq[s][0], err, w, NB_BANDS, m[s], &se);
+        pv("entry: ", &vq[s][ind*NB_BANDS]);
+        se2 = 0.0;
+        for(i=0; i<NB_BANDS; i++) {
+            err[i] -= vq[s][ind*NB_BANDS+i];
+            se2 += err[i]*err[i];
+            vec_out[i] += vq[s][ind*NB_BANDS+i]/10.0;
+        }
+        se2 /= NB_BANDS;
+        fprintf(stderr, "se1: %f se2: %f s: %d/%d m[s]: %d ind: %d\n", se1, se2, s, num_stages, m[s], ind);
+        pv("err: ", err);
+        pv("vec_out: ",vec_out);
+    }
+}
+
+/*---------------------------------------------------------------------------*\
+
+  quantise
+
+  Quantises vec by choosing the nearest vector in codebook cb, and
+  returns the vector index.  The squared error of the quantised vector
+  is added to se.
+
+\*---------------------------------------------------------------------------*/
+
+int quantise(const float * cb, float vec[], float w[], int k, int m, float *se)
+/* float   cb[][K];	current VQ codebook		*/
+/* float   vec[];	vector to quantise		*/
+/* float   w[];         weighting vector                */
+/* int	   k;		dimension of vectors		*/
+/* int     m;		size of codebook		*/
+/* float   *se;		accumulated squared error 	*/
+{
+   float   e;		/* current error		*/
+   long	   besti;	/* best index so far		*/
+   float   beste;	/* best error so far		*/
+   long	   j;
+   int     i;
+   float   diff;
+
+   besti = 0;
+   beste = 1E32;
+   for(j=0; j<m; j++) {
+	e = 0.0;
+	for(i=0; i<k; i++) {
+	    diff = cb[j*k+i]-vec[i];
+	    e += powf(diff*w[i],2.0);
+	}
+	if (e < beste) {
+	    beste = e;
+	    besti = j;
+	}
+   }
+
+   *se += beste;
+
+   return(besti);
+}
+

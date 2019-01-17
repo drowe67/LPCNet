@@ -20,7 +20,7 @@ ifneq ($(NEON),0)
 CFLAGS+=-mfpu=neon -march=armv8-a -mtune=cortex-a53
 endif
 
-all: dump_data test_lpcnet test_vec
+all: dump_data test_lpcnet test_vec quant_feat
 
 dump_data_objs := src/dump_data.o src/freq.o src/kiss_fft.o src/pitch.o src/celt_lpc.o
 dump_data_deps := $(dump_data_objs:.o=.d)
@@ -43,11 +43,18 @@ test_vec: $(test_vec_objs)
 
 -include $(test_vec_deps)
 
+quant_feat_objs := src/quant_feat.o src/freq.o src/kiss_fft.o src/celt_lpc.o src/pitch.o
+quant_fea_deps := $(test_lpcnet_objs:.o=.d)
+quant_feat: $(quant_feat_objs)
+	gcc -o $@ $(CFLAGS) $(quant_feat_objs) -lm
+
+-include $(quant_feat_deps)
+
 test: test_vec
 	./test_vec
 
 clean:
-	rm -f dump_data test_lpcnet test_vec
+	rm -f dump_data test_lpcnet test_vec quant_feat
 	rm -f $(dump_data_objs) $(dump_data_deps) 
 	rm -f $(test_lpcnet_objs) $(test_lpcnet_deps) 
 	rm -f $(test_vec_objs) $(test_vec_deps) 

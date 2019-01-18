@@ -263,15 +263,24 @@ int main(int argc, char **argv) {
     fprintf(stderr, "  or   %s -test <speech> <features out>\n", argv[0]);
     return 1;
   }
-  f1 = fopen(argv[2], "r");
-  if (f1 == NULL) {
-    fprintf(stderr,"Error opening input .s16 16kHz speech input file: %s\n", argv[2]);
-    exit(1);
+
+  if (strcmp(argv[2], "-") == 0)
+      f1 = stdin;
+  else {
+      f1 = fopen(argv[2], "r");
+      if (f1 == NULL) {
+          fprintf(stderr,"Error opening input .s16 16kHz speech input file: %s\n", argv[2]);
+          exit(1);
+      }
   }
-  ffeat = fopen(argv[3], "w");
-  if (ffeat == NULL) {
-    fprintf(stderr,"Error opening output feature file: %s\n", argv[3]);
-    exit(1);
+  if (strcmp(argv[3], "-") == 0)
+      ffeat = stdout;
+  else {
+      ffeat = fopen(argv[3], "w");
+      if (ffeat == NULL) {
+          fprintf(stderr,"Error opening output feature file: %s\n", argv[3]);
+          exit(1);
+      }
   }
   if (training) {
     fpcm = fopen(argv[4], "w");

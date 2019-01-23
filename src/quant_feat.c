@@ -1,9 +1,10 @@
 /*
- quant_feat.c
+  quant_feat.c
+  David Rowe Jan 2019
 
- Tool for processing a .f32 file of LPCNet features to simulate quantisation.
+  Tool for processing a .f32 file of LPCNet features to simulate quantisation.
 
- Quantises and decimates/interpolate LPCNet features on stdin, and sends output to stdout.
+  Quantises and decimates/interpolates LPCNet features on stdin, and sends output to stdout.
 */
 
 #include <assert.h>
@@ -20,13 +21,16 @@
 #define MAX_STAGES     5
 #define MAX_ENTRIES    4096
 
+int verbose = 0;
+FILE *fsv = NULL;
+
 int quantise(const float * cb, float vec[], float w[], int k, int m, float *se);
 void quant_pred(float vec_out[],  /* prev quant vector, and output */
                 float vec_in[],
                 float pred,
                 int num_stages,
-                float vq[][NB_BANDS*MAX_ENTRIES],
-                int m[]);
+                float vq[],
+                int m[], int k);
 
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
@@ -40,10 +44,11 @@ int main(int argc, char *argv[]) {
     int d,i,n = 0;
     float fract;
 
-    int c;
+    int c, first = 0,k=NB_BANDS;
     int num_stages = 0;
-    float vq[MAX_STAGES][NB_BANDS*MAX_ENTRIES];
+    float vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
     int   m[MAX_STAGES];
+    float pred = 0.9;
     
     char fnames[256];
     char fn[256];
@@ -52,11 +57,28 @@ int main(int argc, char *argv[]) {
 
     opterr = 0;
 
-    while ((c = getopt (argc, argv, "d:q:")) != -1) {
+    while ((c = getopt (argc, argv, "d:q:vs:f:p:")) != -1) {
         switch (c) {
+        case 'f':
+            /* start VQ at band first+1 */
+            first = atoi(optarg);
+            k = NB_BANDS-first;
+            fprintf(stderr, "first = %d k = %d\n", first, k);
+            break;
+        case 's':
+            /* text file to dump error (variance) per stage */
+            fsv = fopen(optarg, "wt"); assert(fsv != NULL);            
+            break;
+        case 'v':
+            verbose = 1;
+            break;
         case 'd':
             dec = atoi(optarg);
             fprintf(stderr, "dec = %d\n", dec);
+            break;
+        case 'p':
+            pred = atof(optarg);
+            fprintf(stderr, "pred = %f\n", pred);
             break;
         case 'q':
             /* list of comma delimited file names */
@@ -79,12 +101,12 @@ int main(int argc, char *argv[]) {
                     exit(1);
                 }
                 m[num_stages] = 0;
-                while (fread(features, sizeof(float), NB_BANDS, fq) == NB_BANDS) m[num_stages]++;
+                while (fread(features, sizeof(float), k, fq) == (size_t)k) m[num_stages]++;
                 assert(m[num_stages] <= MAX_ENTRIES);
-                fprintf(stderr, "%d entries of vectors width %d\n", m[num_stages], NB_BANDS);
+                fprintf(stderr, "%d entries of vectors width %d\n", m[num_stages], k);
                 rewind(fq);                       
-                int rd = fread(&vq[num_stages], sizeof(float), m[num_stages]*NB_BANDS, fq);
-                assert(rd == m[num_stages]*NB_BANDS);
+                int rd = fread(&vq[num_stages*k*MAX_ENTRIES], sizeof(float), m[num_stages]*k, fq);
+                assert(rd == m[num_stages]*k);
                 num_stages++;
                 fclose(fq);
             } while(comma);
@@ -124,23 +146,23 @@ int main(int argc, char *argv[]) {
     */
     
     /* dec == 3:
-        In.:          f3        f4          f5       f6       f7
+        In.:          f3        f4          f5        f6       f7
         Out: ....     f0  2f0/3 + f3/3  f0/3 + 2f2/3  f3  2f3/3 + f6/3
 
         features_prev
-        3             f3        f4          f5       f6       f7
-        2             f2        f3          f4       f5       f6     
-        1             f1        f2          f3       f4       f5
-        0             f0        f1          f2       f3       f4
+        3             f3        f4          f5        f6       f7
+        2             f2        f3          f4        f5       f6     
+        1             f1        f2          f3        f4       f5
+        0             f0        f1          f2        f3       f4
 
         features_lin
-        1             f3        f3          f3       f6       f6
-        0             f0        f0          f0       f3       f3
+        1             f3        f3          f3        f6       f6
+        0             f0        f0          f0        f3       f3
     */
 
-    /* If quantiser enabled, prediction is betwwen every dec vectors */
 
     while(fread(features, sizeof(float), NB_FEATURES, fin) == NB_FEATURES) {
+
         /* maintain delay line of unquantised features for partial quantisation and distortion measure */
         for(d=0; d<dec; d++)
             for(i=0; i<NB_FEATURES; i++)
@@ -152,11 +174,14 @@ int main(int argc, char *argv[]) {
 
             /* optional quantisation */
             if (num_stages) {
-                quant_pred(features_quant, features, 0.9, num_stages, vq, m);
+                quant_pred(&features_quant[first], &features[first], pred, num_stages, vq, m, k);
+                for(i=0; i<first; i++)
+                    features_quant[i] = features[i];
             }
             else {
-                for(i=0; i<NB_BANDS; i++)
+                for(i=0; i<NB_BANDS; i++) {
                     features_quant[i] = features[i];
+                }
             }
 
             /* update linear interpolation arrays */
@@ -168,8 +193,17 @@ int main(int argc, char *argv[]) {
             /* pass (quantised) frame though */
             for(i=0; i<NB_BANDS; i++) {
                 features_out[i] = features_lin[0][i];
-                sum_sq_err += pow(10.0*(features_out[i]-features_prev[0][i]), 2.0); n++;
             }
+
+            /* measure quantisation error power (variance).  The
+               dec/interp also adds significant distortion however we
+               are just counting quantiser distortion here. */
+
+            for(i=0; i<NB_BANDS; i++) {
+                sum_sq_err += pow(10.0*(features_out[i]-features_prev[0][i]), 2.0);
+                n++;
+            }
+
         }
         else {
             for(i=0; i<NB_FEATURES; i++)
@@ -179,9 +213,6 @@ int main(int argc, char *argv[]) {
             for(i=0; i<NB_BANDS; i++) {
                 fract = (float)d/(float)dec;
                 features_out[i] = (1.0-fract)*features_lin[0][i] + fract*features_lin[1][i];
-                //features_out[i] = features_prev[0][i];
-                sum_sq_err += pow(10.0*(features_out[i]-features_prev[0][i]), 2.0);
-                n++;
             }
 
             /* set up LPCs from interpolated cepstrals */
@@ -191,64 +222,68 @@ int main(int argc, char *argv[]) {
             
             features_out[2*NB_BANDS]   = features_prev[0][2*NB_BANDS];   /* original undecimated pitch      */
             features_out[2*NB_BANDS+1] = features_prev[0][2*NB_BANDS+1]; /* original undecimated gain       */
-            features_out[2*NB_BANDS+2] = log10(g);                       /* original undecimated LPC energy */
+            features_out[2*NB_BANDS+2] = log10(g);                       /* LPC energy                      */
         }
         f++;
-        
+                
         fwrite(features_out, sizeof(float), NB_FEATURES, fout);
         fflush(stdin);
         fflush(stdout);
     }
 
-    float var = sum_sq_err/(n*NB_BANDS);
+    float var = sum_sq_err/n;
     fprintf(stderr, "var: %f sd: %f n: %d\n", var, sqrt(var), n);
-    fclose(fin); fclose(fout);
+    fclose(fin); fclose(fout); if (fsv != NULL) fclose(fsv);
 }
 
 void pv(char s[], float v[]) {
     int i;
-    fprintf(stderr, "%s",s);
-    for(i=0; i<NB_BANDS; i++)
+    if (verbose) {
+        fprintf(stderr, "%s",s);
+        for(i=0; i<NB_BANDS; i++)
             fprintf(stderr, "%4.2f ", v[i]);
-    fprintf(stderr, "\n");            
+        fprintf(stderr, "\n");
+    }
 }
 
 void quant_pred(float vec_out[],  /* prev quant vector, and output */
                 float vec_in[],
                 float pred,
                 int num_stages,
-                float vq[][NB_BANDS*MAX_ENTRIES],
-                int m[])
+                float vq[],
+                int m[], int k)
 {
-    float err[NB_BANDS], w[NB_BANDS], se, se1, se2;
+    float err[k], w[k], se, se1, se2;
     int i,s,ind;
 
     pv("\nvec_in: ", vec_in);
     pv("vec_out: ", vec_out);
     se1 = 0.0;
-    for(i=0; i<NB_BANDS; i++) {
+    for(i=0; i<k; i++) {
         err[i] = 10.0*(vec_in[i] - pred*vec_out[i]);
-        //err[i] = vq[0][NB_BANDS+i];
         se1 += err[i]*err[i];
         vec_out[i] = pred*vec_out[i];
         w[i] = 1.0;
     }
-    se1 /= NB_BANDS;
+    se1 /= k;
     pv("err: ", err);
+    if (fsv != NULL) fprintf(fsv, "%f\t%f\t", vec_in[0],se1);
     for(s=0; s<num_stages; s++) {
-        ind = quantise(&vq[s][0], err, w, NB_BANDS, m[s], &se);
-        pv("entry: ", &vq[s][ind*NB_BANDS]);
+        ind = quantise(&vq[s*k*MAX_ENTRIES], err, w, k, m[s], &se);
+        pv("entry: ", &vq[s+k*MAX_ENTRIES+ind*k]);
         se2 = 0.0;
-        for(i=0; i<NB_BANDS; i++) {
-            err[i] -= vq[s][ind*NB_BANDS+i];
+        for(i=0; i<k; i++) {
+            err[i] -= vq[s*k*MAX_ENTRIES+ind*k+i];
             se2 += err[i]*err[i];
-            vec_out[i] += vq[s][ind*NB_BANDS+i]/10.0;
+            vec_out[i] += vq[s*k*MAX_ENTRIES+ind*k+i]/10.0;
         }
-        se2 /= NB_BANDS;
-        fprintf(stderr, "se1: %f se2: %f s: %d/%d m[s]: %d ind: %d\n", se1, se2, s, num_stages, m[s], ind);
+        se2 /= k;
+        if (fsv != NULL) fprintf(fsv, "%f\t", se2);
+        if (verbose) fprintf(stderr, "se1: %f se2: %f s: %d/%d m[s]: %d ind: %d\n", se1, se2, s, num_stages, m[s], ind);
         pv("err: ", err);
         pv("vec_out: ",vec_out);
     }
+    if (fsv != NULL) fprintf(fsv, "\n");
 }
 
 /*---------------------------------------------------------------------------*\

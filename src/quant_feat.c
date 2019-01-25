@@ -22,8 +22,9 @@
 
 #define NB_FEATURES    55
 #define NB_BANDS       18
-#define MAX_STAGES     5    /* max number of VQ stages         */
-#define MAX_ENTRIES    4096 /* max number of vectors per stage */
+#define MAX_STAGES     5    /* max number of VQ stages                */
+#define MAX_ENTRIES    4096 /* max number of vectors per stage        */
+#define NOUTLIERS      5    /* range of outiles to track in 1dB steps */
 
 int verbose = 0;
 FILE *fsv = NULL;
@@ -191,8 +192,16 @@ int main(int argc, char *argv[]) {
        0             f0        f0          f0        f3       f3
     */
 
-
+    long noutliers[NOUTLIERS];
+    for(i=0; i<NOUTLIERS; i++)
+        noutliers[i] = 0;
+    int qv = 0;
+    
     while(fread(features, sizeof(float), NB_FEATURES, fin) == NB_FEATURES) {
+
+        /* convert to dB */
+        for(i=0; i<NB_FEATURES; i++)
+            features[i] *= 10.0;
 
         /* optionally load external pitch est sample and replace pitch feature */
         if (fpitch != NULL) {
@@ -225,7 +234,7 @@ int main(int argc, char *argv[]) {
                 }
                 if (uniform_step != 0.0) {
                     for(i=0; i<NB_BANDS; i++) {
-                        features_quant[i] = uniform_step*round(10.0*features[i]/uniform_step)/10.0;
+                        features_quant[i] = uniform_step*round(features[i]/uniform_step);
                         //fprintf(stderr, "%d %f %f\n", i, features[i], features_quant[i]);
                     }
                 }
@@ -251,11 +260,15 @@ int main(int argc, char *argv[]) {
                dec/interp also adds significant distortion however we
                are just counting quantiser distortion here. */
 
+            float e = 0.0;
             for(i=0; i<NB_BANDS; i++) {
-                sum_sq_err += pow(10.0*(features_out[i]-features_prev[0][i]), 2.0);
-                n++;
+                e += pow(features_out[i]-features_prev[0][i], 2.0);
             }
-
+            sum_sq_err += e; n+= NB_BANDS;
+            for (i=0; i<NOUTLIERS; i++)
+                if (sqrt(e/NB_BANDS) > (float)(i+1.0)) noutliers[i]++;
+            qv++;
+            
             features_out[2*NB_BANDS+2] = features_prev[0][2*NB_BANDS];  /* pass through LPC energy */
 
         } else {
@@ -280,14 +293,25 @@ int main(int argc, char *argv[]) {
         features_out[2*NB_BANDS]   = features_prev[0][2*NB_BANDS];   /* original undecimated pitch      */
         features_out[2*NB_BANDS+1] = features_prev[0][2*NB_BANDS+1]; /* original undecimated gain       */
         f++;
-                
+
+        /* convert from dB */
+        for(i=0; i<NB_FEATURES; i++)
+            features_out[i] *= 1/10.0;
+
         fwrite(features_out, sizeof(float), NB_FEATURES, fout);
         fflush(stdin);
         fflush(stdout);
     }
 
     float var = sum_sq_err/n;
-    fprintf(stderr, "var: %f sd: %f n: %d\n", var, sqrt(var), n);
+    fprintf(stderr, "var: %f sd: %f n: %d", var, sqrt(var), n);
+    fprintf(stderr, " outliers > ");
+    for (i=0; i<NOUTLIERS; i++)
+        fprintf(stderr, "%d/", i+1);
+    fprintf(stderr, " dB = ");
+    for (i=0; i<NOUTLIERS; i++)
+        fprintf(stderr, "%5.4f/", (float)noutliers[i]/qv);
+    fprintf(stderr, "\n");
     fclose(fin); fclose(fout); if (fsv != NULL) fclose(fsv); if(fpitch != NULL) fclose(fpitch);
 }
 
@@ -318,7 +342,7 @@ void quant_pred(float vec_out[],  /* prev quant vector, and output */
     pv("vec_out: ", vec_out);
     se1 = 0.0;
     for(i=0; i<k; i++) {
-        err[i] = 10.0*(vec_in[i] - pred*vec_out[i]);
+        err[i] = (vec_in[i] - pred*vec_out[i]);
         se1 += err[i]*err[i];
         vec_out[i] = pred*vec_out[i];
         w[i] = 1.0;
@@ -333,7 +357,7 @@ void quant_pred(float vec_out[],  /* prev quant vector, and output */
         for(i=0; i<k; i++) {
             err[i] -= vq[s*k*MAX_ENTRIES+ind*k+i];
             se2 += err[i]*err[i];
-            vec_out[i] += vq[s*k*MAX_ENTRIES+ind*k+i]/10.0;
+            vec_out[i] += vq[s*k*MAX_ENTRIES+ind*k+i];
         }
         se2 /= k;
         if (fsv != NULL) fprintf(fsv, "%f\t", se2);

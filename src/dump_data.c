@@ -297,11 +297,11 @@ int main(int argc, char **argv) {
     float E=0;
     int silent;
     for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
-    fread(tmp, sizeof(short), FRAME_SIZE, f1);
-    if (feof(f1)) {
+    int nread = fread(tmp, sizeof(short), FRAME_SIZE, f1);
+    if (nread != FRAME_SIZE) {
       if (!training) break;
       rewind(f1);
-      fread(tmp, sizeof(short), FRAME_SIZE, f1);
+      nread = fread(tmp, sizeof(short), FRAME_SIZE, f1);
       one_pass_completed = 1;
     }
     for (i=0;i<FRAME_SIZE;i++) E += tmp[i]*(float)tmp[i];

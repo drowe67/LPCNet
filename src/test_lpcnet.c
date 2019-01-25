@@ -62,8 +62,8 @@ int main(int argc, char **argv) {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_FEATURES];
         short pcm[FRAME_SIZE];
-        fread(in_features, sizeof(features[0]), NB_TOTAL_FEATURES, fin);
-        if (feof(fin)) break;
+        int nread = fread(in_features, sizeof(features[0]), NB_TOTAL_FEATURES, fin);
+        if (nread != NB_TOTAL_FEATURES) break;
         RNN_COPY(features, in_features, NB_FEATURES);
         RNN_CLEAR(&features[18], 18);
         lpcnet_synthesize(net, pcm, features, FRAME_SIZE);

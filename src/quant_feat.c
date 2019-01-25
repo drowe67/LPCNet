@@ -2,24 +2,28 @@
   quant_feat.c
   David Rowe Jan 2019
 
-  Tool for processing a .f32 file of LPCNet features to simulate quantisation.
+  Tool for processing a .f32 file of LPCNet features to simulate quantisation:
 
-  Quantises and decimates/interpolates LPCNet features on stdin, and sends output to stdout.
+  1/ Can decimate cepstrals to 20/30/40/... ms update rate and
+  liniearly interpolate back up to 10ms
+  2/ Quantise using multistage VQs
+  3/ Replace the LPCNet pitch estimate with estimates from external files
+  4/ Works from stdin -> stdout to facilitate streaming real time simulations.
 */
 
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <unistd.h>
+#include <getopt.h>
 
 #include "common.h"
 #include "freq.h"
 
 #define NB_FEATURES    55
 #define NB_BANDS       18
-#define MAX_STAGES     5
-#define MAX_ENTRIES    4096
+#define MAX_STAGES     5    /* max number of VQ stages         */
+#define MAX_ENTRIES    4096 /* max number of vectors per stage */
 
 int verbose = 0;
 FILE *fsv = NULL;
@@ -36,15 +40,12 @@ int main(int argc, char *argv[]) {
     FILE *fin, *fout;
     float features[NB_FEATURES], features_out[NB_FEATURES];
     int f = 0, dec = 2;
-    /* delay line so we can pass some features (like pitch and voicing) through unmodified */
-    /* adjacent vectors used for linear interpolation */
-    float features_lin[2][NB_BANDS];
     float features_quant[NB_BANDS];
     float sum_sq_err = 0.0;
     int d,i,n = 0;
     float fract;
 
-    int c, first = 0,k=NB_BANDS;
+    int c, first = 0, k=NB_BANDS;
     int num_stages = 0;
     float vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
     int   m[MAX_STAGES];
@@ -55,9 +56,25 @@ int main(int argc, char *argv[]) {
     char *comma, *p;
     FILE *fq;
 
-    opterr = 0;
+    FILE *fpitch = NULL;
+    float Fs = 16000.0;
+    float uniform_step = 0.0;
+    
+    static struct option long_options[] = {
+        {"decimate", required_argument, 0, 'd'},
+        {"extpitch", required_argument, 0, 'e'},
+        {"first",    required_argument, 0, 'f'},
+        {"pred",     required_argument, 0, 'p'},
+        {"quant",    required_argument, 0, 'q'},
+        {"stagevar", required_argument, 0, 's'},
+        {"uniform",  required_argument, 0, 'u'},
+        {"verbose",  no_argument,       &verbose, 1},
+        {0, 0, 0, 0}
+    };
 
-    while ((c = getopt (argc, argv, "d:q:vs:f:p:")) != -1) {
+    int opt_index = 0;
+
+    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'f':
             /* start VQ at band first+1 */
@@ -69,12 +86,14 @@ int main(int argc, char *argv[]) {
             /* text file to dump error (variance) per stage */
             fsv = fopen(optarg, "wt"); assert(fsv != NULL);            
             break;
-        case 'v':
-            verbose = 1;
-            break;
         case 'd':
             dec = atoi(optarg);
             fprintf(stderr, "dec = %d\n", dec);
+            break;
+        case 'e':
+            /* external pitch estimate, one F0 est (Hz) per line of text file */
+            fpitch = fopen(optarg, "rt"); assert(fpitch != NULL);            
+            fprintf(stderr, "ext pitch F0 file: %s\n", optarg);
             break;
         case 'p':
             pred = atof(optarg);
@@ -111,14 +130,26 @@ int main(int argc, char *argv[]) {
                 fclose(fq);
             } while(comma);
             break;
+        case 'u':
+            uniform_step = atof(optarg);
+            fprintf(stderr, "uniform quant step size: %3.2f dB\n", uniform_step);
+            break;
         default:
-            fprintf(stderr,"usage: %s [-d decimation] [-q quantfile1,quantfile2,....]\n", argv[0]);
+            fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n  [-q --quant quantfile1,quantfile2,....]\n", argv[0]);
+            fprintf(stderr,"  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
+            fprintf(stderr,"  [-e --extpitch ExtPitchFile]\n  [-u --uniform stepSizedB]\n");
             exit(1);
         }
     }
-  
-    float features_prev[dec+1][NB_FEATURES];
+
+    fprintf(stderr, "dec: %d pred: %3.2f", dec, pred);
+    fprintf(stderr, "\n");
     
+    /* delay line so we can pass some features (like pitch and voicing) through unmodified */
+    float features_prev[dec+1][NB_FEATURES];
+     /* adjacent vectors used for linear interpolation */
+    float features_lin[2][NB_BANDS];
+   
     for(d=0; d<dec+1; d++)
         for(i=0; i<NB_FEATURES; i++)
             features_prev[d][i] = 0.0;
@@ -132,37 +163,49 @@ int main(int argc, char *argv[]) {
     fout = stdout;
 
     /* dec == 2:
-        In.:          f2     f3     f4    f5     f6
-        Out:          f0 (f0+f2)/2) f2 (f2+f4)/2 f4 ....
+       In.:          f2     f3     f4    f5     f6
+       Out:          f0 (f0+f2)/2) f2 (f2+f4)/2 f4 ....
 
-        features_prev
-        2             f2     f3     f4    f5     f6     
-        1             f1     f2     f3    f4     f5
-        0             f0     f1     f2    f3     f4
+       features_prev
+       2             f2     f3     f4    f5     f6     
+       1             f1     f2     f3    f4     f5
+       0             f0     f1     f2    f3     f4
 
-        features_lin
-        1             f2     f2     f4    f4     f6
-        0             f0     f0     f2    f2     f4
+       features_lin
+       1             f2     f2     f4    f4     f6
+       0             f0     f0     f2    f2     f4
     */
     
     /* dec == 3:
-        In.:          f3        f4          f5        f6       f7
-        Out: ....     f0  2f0/3 + f3/3  f0/3 + 2f2/3  f3  2f3/3 + f6/3
+       In.:          f3        f4          f5        f6       f7
+       Out: ....     f0  2f0/3 + f3/3  f0/3 + 2f2/3  f3  2f3/3 + f6/3
 
-        features_prev
-        3             f3        f4          f5        f6       f7
-        2             f2        f3          f4        f5       f6     
-        1             f1        f2          f3        f4       f5
-        0             f0        f1          f2        f3       f4
+       features_prev
+       3             f3        f4          f5        f6       f7
+       2             f2        f3          f4        f5       f6     
+       1             f1        f2          f3        f4       f5
+       0             f0        f1          f2        f3       f4
 
-        features_lin
-        1             f3        f3          f3        f6       f6
-        0             f0        f0          f0        f3       f3
+       features_lin
+       1             f3        f3          f3        f6       f6
+       0             f0        f0          f0        f3       f3
     */
 
 
     while(fread(features, sizeof(float), NB_FEATURES, fin) == NB_FEATURES) {
 
+        /* optionally load external pitch est sample and replace pitch feature */
+        if (fpitch != NULL) {
+            float f0;
+            if (fscanf(fpitch,"%f\n", &f0)) {
+                float pitch_index = 2.0*Fs/f0;
+                features[2*NB_BANDS] = 0.01*(pitch_index-200.0);
+                //fprintf(stderr,"%f %f %f\n", f0, pitch_index, features[2*NB_BANDS]);
+            }
+            else
+                fprintf(stderr, "f0 not read\n");
+        }
+                
         /* maintain delay line of unquantised features for partial quantisation and distortion measure */
         for(d=0; d<dec; d++)
             for(i=0; i<NB_FEATURES; i++)
@@ -171,12 +214,21 @@ int main(int argc, char *argv[]) {
             features_prev[dec][i] = features[i];
         
         if ((f % dec) == 0) {
+            /* non-interpolated frame ----------------------------------------*/
 
             /* optional quantisation */
-            if (num_stages) {
-                quant_pred(&features_quant[first], &features[first], pred, num_stages, vq, m, k);
-                for(i=0; i<first; i++)
-                    features_quant[i] = features[i];
+            if (num_stages || (uniform_step != 0.0)) {
+                if (num_stages) {
+                    quant_pred(&features_quant[first], &features[first], pred, num_stages, vq, m, k);
+                    for(i=0; i<first; i++)
+                        features_quant[i] = features[i];
+                }
+                if (uniform_step != 0.0) {
+                    for(i=0; i<NB_BANDS; i++) {
+                        features_quant[i] = uniform_step*round(10.0*features[i]/uniform_step)/10.0;
+                        //fprintf(stderr, "%d %f %f\n", i, features[i], features_quant[i]);
+                    }
+                }
             }
             else {
                 for(i=0; i<NB_BANDS; i++) {
@@ -204,8 +256,11 @@ int main(int argc, char *argv[]) {
                 n++;
             }
 
-        }
-        else {
+            features_out[2*NB_BANDS+2] = features_prev[0][2*NB_BANDS];  /* pass through LPC energy */
+
+        } else {
+            /* interpolated frame ----------------------------------------*/
+            
             for(i=0; i<NB_FEATURES; i++)
                 features_out[i] = 0.0;
             /* interpolate frame */
@@ -217,13 +272,13 @@ int main(int argc, char *argv[]) {
 
             /* set up LPCs from interpolated cepstrals */
             float g = lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
-
-            /* pass some features through at the original (undecimated) sample rate for now */
-            
-            features_out[2*NB_BANDS]   = features_prev[0][2*NB_BANDS];   /* original undecimated pitch      */
-            features_out[2*NB_BANDS+1] = features_prev[0][2*NB_BANDS+1]; /* original undecimated gain       */
-            features_out[2*NB_BANDS+2] = log10(g);                       /* LPC energy                      */
+            features_out[2*NB_BANDS+2] = log10(g);  /* LPC energy comes from interpolated ceptrals */
         }
+        
+        /* pass some features through at the original (undecimated) sample rate for now */
+            
+        features_out[2*NB_BANDS]   = features_prev[0][2*NB_BANDS];   /* original undecimated pitch      */
+        features_out[2*NB_BANDS+1] = features_prev[0][2*NB_BANDS+1]; /* original undecimated gain       */
         f++;
                 
         fwrite(features_out, sizeof(float), NB_FEATURES, fout);
@@ -233,8 +288,11 @@ int main(int argc, char *argv[]) {
 
     float var = sum_sq_err/n;
     fprintf(stderr, "var: %f sd: %f n: %d\n", var, sqrt(var), n);
-    fclose(fin); fclose(fout); if (fsv != NULL) fclose(fsv);
+    fclose(fin); fclose(fout); if (fsv != NULL) fclose(fsv); if(fpitch != NULL) fclose(fpitch);
 }
+
+
+// print vector debug function
 
 void pv(char s[], float v[]) {
     int i;
@@ -294,7 +352,7 @@ void quant_pred(float vec_out[],  /* prev quant vector, and output */
   returns the vector index.  The squared error of the quantised vector
   is added to se.
 
-\*---------------------------------------------------------------------------*/
+  \*---------------------------------------------------------------------------*/
 
 int quantise(const float * cb, float vec[], float w[], int k, int m, float *se)
 /* float   cb[][K];	current VQ codebook		*/
@@ -304,16 +362,16 @@ int quantise(const float * cb, float vec[], float w[], int k, int m, float *se)
 /* int     m;		size of codebook		*/
 /* float   *se;		accumulated squared error 	*/
 {
-   float   e;		/* current error		*/
-   long	   besti;	/* best index so far		*/
-   float   beste;	/* best error so far		*/
-   long	   j;
-   int     i;
-   float   diff;
+    float   e;		/* current error		*/
+    long	   besti;	/* best index so far		*/
+    float   beste;	/* best error so far		*/
+    long	   j;
+    int     i;
+    float   diff;
 
-   besti = 0;
-   beste = 1E32;
-   for(j=0; j<m; j++) {
+    besti = 0;
+    beste = 1E32;
+    for(j=0; j<m; j++) {
 	e = 0.0;
 	for(i=0; i<k; i++) {
 	    diff = cb[j*k+i]-vec[i];
@@ -323,10 +381,10 @@ int quantise(const float * cb, float vec[], float w[], int k, int m, float *se)
 	    beste = e;
 	    besti = j;
 	}
-   }
+    }
 
-   *se += beste;
+    *se += beste;
 
-   return(besti);
+    return(besti);
 }
 

@@ -5,7 +5,7 @@
   Tool for processing a .f32 file of LPCNet features to simulate quantisation:
 
   1/ Can decimate cepstrals to 20/30/40/... ms update rate and
-  liniearly interpolate back up to 10ms
+     liniearly interpolate back up to 10ms
   2/ Quantise using multistage VQs
   3/ Replace the LPCNet pitch estimate with estimates from external files
   4/ Works from stdin -> stdout to facilitate streaming real time simulations.
@@ -19,6 +19,7 @@
 
 #include "common.h"
 #include "freq.h"
+#include "mbest.h"
 
 #define NB_FEATURES    55
 #define NB_BANDS       18
@@ -30,12 +31,21 @@ int verbose = 0;
 FILE *fsv = NULL;
 
 int quantise(const float * cb, float vec[], float w[], int k, int m, float *se);
+
 void quant_pred(float vec_out[],  /* prev quant vector, and output */
                 float vec_in[],
                 float pred,
                 int num_stages,
                 float vq[],
                 int m[], int k);
+
+void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output */
+                      float vec_in[],
+                      float pred,
+                      int num_stages,
+                      float vq[],
+                      int m[], int k,
+                      int mbest_survivors);
 
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
@@ -60,16 +70,18 @@ int main(int argc, char *argv[]) {
     FILE *fpitch = NULL;
     float Fs = 16000.0;
     float uniform_step = 0.0;
+    int   mbest_survivors = 0;
     
     static struct option long_options[] = {
         {"decimate", required_argument, 0, 'd'},
         {"extpitch", required_argument, 0, 'e'},
         {"first",    required_argument, 0, 'f'},
+        {"mbest",    required_argument, 0, 'm'},
         {"pred",     required_argument, 0, 'p'},
         {"quant",    required_argument, 0, 'q'},
         {"stagevar", required_argument, 0, 's'},
         {"uniform",  required_argument, 0, 'u'},
-        {"verbose",  no_argument,       &verbose, 1},
+        {"verbose",  no_argument,       0, 'v'},
         {0, 0, 0, 0}
     };
 
@@ -95,6 +107,10 @@ int main(int argc, char *argv[]) {
             /* external pitch estimate, one F0 est (Hz) per line of text file */
             fpitch = fopen(optarg, "rt"); assert(fpitch != NULL);            
             fprintf(stderr, "ext pitch F0 file: %s\n", optarg);
+            break;
+        case 'm':
+            mbest_survivors = atoi(optarg);
+            fprintf(stderr, "mbest_survivors = %d\n",  mbest_survivors);
             break;
         case 'p':
             pred = atof(optarg);
@@ -135,15 +151,18 @@ int main(int argc, char *argv[]) {
             uniform_step = atof(optarg);
             fprintf(stderr, "uniform quant step size: %3.2f dB\n", uniform_step);
             break;
-        default:
+        case 'v':
+            verbose = 1;
+            break;
+         default:
             fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n  [-q --quant quantfile1,quantfile2,....]\n", argv[0]);
-            fprintf(stderr,"  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
-            fprintf(stderr,"  [-e --extpitch ExtPitchFile]\n  [-u --uniform stepSizedB]\n");
+            fprintf(stderr,"  [-m --mbest survivors]\n  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
+            fprintf(stderr,"  [-e --extpitch ExtPitchFile]\n  [-u --uniform stepSizedB]\n [ -v --verbose]\n");
             exit(1);
         }
     }
 
-    fprintf(stderr, "dec: %d pred: %3.2f", dec, pred);
+    fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d", dec, pred, num_stages, mbest_survivors);
     fprintf(stderr, "\n");
     
     /* delay line so we can pass some features (like pitch and voicing) through unmodified */
@@ -228,7 +247,14 @@ int main(int argc, char *argv[]) {
             /* optional quantisation */
             if (num_stages || (uniform_step != 0.0)) {
                 if (num_stages) {
-                    quant_pred(&features_quant[first], &features[first], pred, num_stages, vq, m, k);
+                    if (mbest_survivors) {
+                        /* mbest predictive VQ */
+                        quant_pred_mbest(&features_quant[first], &features[first], pred, num_stages, vq, m, k, mbest_survivors);
+                    }
+                    else {
+                        /* standard predictive VQ */
+                        quant_pred(&features_quant[first], &features[first], pred, num_stages, vq, m, k);
+                    }
                     for(i=0; i<first; i++)
                         features_quant[i] = features[i];
                 }
@@ -366,6 +392,99 @@ void quant_pred(float vec_out[],  /* prev quant vector, and output */
         pv("vec_out: ",vec_out);
     }
     if (fsv != NULL) fprintf(fsv, "\n");
+}
+
+// mbest algorithm version
+
+void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output */
+                      float vec_in[],
+                      float pred,
+                      int num_stages,
+                      float vq[],
+                      int m[], int k,
+                      int mbest_survivors)
+{
+    float err[k], w[k], se1, se2;
+    int i,j,s,s1,ind;
+    
+    struct MBEST *mbest_stage[num_stages];
+    int index[num_stages];
+    float target[k];
+    
+    for(i=0; i<num_stages; i++) {
+        mbest_stage[i] = mbest_create(mbest_survivors, num_stages);
+        index[i] = 0;
+    }
+
+    /* predict based on last frame */
+    
+    se1 = 0.0;
+    for(i=0; i<k; i++) {
+        err[i] = (vec_in[i] - pred*vec_out[i]);
+        se1 += err[i]*err[i];
+        vec_out[i] = pred*vec_out[i];
+        w[i] = 1.0;
+    }
+    se1 /= k;
+    
+    /* now quantise err[] using multi-stage mbest search, preserving
+       mbest_survivors at each stage */
+    
+    mbest_search(vq, err, w, k, m[0], mbest_stage[0], index);
+    if (verbose) MBEST_PRINT("Stage 1:", mbest_stage[0]);
+    
+    for(s=1; s<num_stages; s++) {
+
+        /* for each candidate in previous stage, try to find best vector in next stage */
+        for (j=0; j<mbest_survivors; j++) {
+            /* indexes that lead us this far */
+            for(s1=0; s1<s; s1++) {
+                index[s1+1] = mbest_stage[s-1]->list[j].index[s1];
+            }
+            /* target is residual err[] vector given path to this candidate */
+            for(i=0; i<k; i++)
+                target[i] = err[i];
+            for(s1=0; s1<s; s1++) {
+                ind = index[s-s1];
+                if (verbose) fprintf(stderr, "   s: %d s1: %d s-s1: %d ind: %d\n", s,s1,s-s1,ind);
+                for(i=0; i<k; i++) {
+                    target[i] -= vq[s1*k*MAX_ENTRIES+ind*k+i];
+                }
+            }
+            pv("   target: ", target);
+            mbest_search(&vq[s*k*MAX_ENTRIES], target, w, k, m[s], mbest_stage[s], index);
+        }
+        char str[80]; sprintf(str,"Stage %d:", s+1);
+        if (verbose) MBEST_PRINT(str, mbest_stage[s]);
+    }
+
+    /* OK put it all back together using best survivor */
+
+    pv("\n  vec_in: ", vec_in);
+    pv("  vec_out: ", vec_out);
+    pv("    err: ", err);
+    if (fsv != NULL) fprintf(fsv, "%f\t%f\t", vec_in[0],se1);
+    if (verbose) fprintf(stderr, "    se1: %f\n", se1);
+   
+    for(s=0; s<num_stages; s++) {
+        ind = mbest_stage[num_stages-1]->list[0].index[num_stages-1-s];
+        se2 = 0.0;
+        for(i=0; i<k; i++) {
+            err[i] -= vq[s*k*MAX_ENTRIES+ind*k+i];
+            vec_out[i] += vq[s*k*MAX_ENTRIES+ind*k+i];
+            se2 += err[i]*err[i];
+        }
+        se2 /= k;
+        if (fsv != NULL) fprintf(fsv, "%f\t", se2);
+        pv("    err: ", err);
+        if (verbose) fprintf(stderr, "    se2: %f\n", se2);
+    }
+    pv("  vec_out: ",vec_out);
+
+    if (fsv != NULL) fprintf(fsv, "\n");
+    
+    for(i=0; i<num_stages; i++)
+        mbest_destroy(mbest_stage[i]);
 }
 
 /*---------------------------------------------------------------------------*\

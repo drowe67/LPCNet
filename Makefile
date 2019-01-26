@@ -1,7 +1,7 @@
 # Makefile for LPCNet
 
 CC=gcc
-CFLAGS+=-Wall -W -Wextra -Wno-unused-function -O3 -g -I../include 
+CFLAGS+=-Wall -W -Wextra -Wno-unused-function -O3 -g -I../include -MD
 
 AVX2:=$(shell cat /proc/cpuinfo | grep -c avx2)
 AVX:=$(shell cat /proc/cpuinfo | grep -c avx)
@@ -43,8 +43,8 @@ test_vec: $(test_vec_objs)
 
 -include $(test_vec_deps)
 
-quant_feat_objs := src/quant_feat.o src/freq.o src/kiss_fft.o src/celt_lpc.o src/pitch.o
-quant_fea_deps := $(test_lpcnet_objs:.o=.d)
+quant_feat_objs := src/quant_feat.o src/freq.o src/kiss_fft.o src/celt_lpc.o src/pitch.o src/mbest.o
+quant_feat_deps := $(quant_feat_objs:.o=.d)
 quant_feat: $(quant_feat_objs)
 	gcc -o $@ $(CFLAGS) $(quant_feat_objs) -lm
 
@@ -58,3 +58,4 @@ clean:
 	rm -f $(dump_data_objs) $(dump_data_deps) 
 	rm -f $(test_lpcnet_objs) $(test_lpcnet_deps) 
 	rm -f $(test_vec_objs) $(test_vec_deps) 
+	rm -f $(quant_feat_objs) $(quant_feat_deps) 

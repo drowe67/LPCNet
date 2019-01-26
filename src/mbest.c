@@ -7,6 +7,9 @@
   Multistage vector quantiser search algorithm that keeps multiple
   candidates from each stage.
 
+  TODO: A unit test with contrived examples.  This is a complex algorithm and
+        I am afraid I may have missed something subtle.
+
 \*---------------------------------------------------------------------------*/
 
 /*

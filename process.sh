@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/bash -x
 # process.sh
 # David Rowe Jan 2019
 #
@@ -13,8 +13,8 @@ WAV_INPATH=$HOME/Desktop/deep/quant
 WAV_OUTPATH=$HOME/tmp/lpcnet_out
 
 PATH=$PATH:$CODEC2_PATH
-
 WAV_FILES="birch glue oak separately wanted wia"
+STATS=$WAV_OUTPATH/stats.txt
 
 # check we can find wave files
 for f in $WAV_INFILES
@@ -29,7 +29,18 @@ if [ ! -e $CODEC2_PATH/c2enc ]; then
     echo "$CODEC2_PATH/c2enc not found"
 fi
 
+#
+# OK lets start processing ------------------------------------------------
+#
+
 mkdir -p $WAV_OUTPATH
+rm -f $STATS
+
+# cp in originals
+for f in $WAV_FILES
+do
+    cp $WAV_INPATH/$f.wav $WAV_OUTPATH/$f.wav
+done
 
 # Unquantised, baseline analysis-synthesis model, 10ms updates
 for f in $WAV_FILES
@@ -41,39 +52,46 @@ done
 # 3dB uniform quantiser, 10ms updates
 for f in $WAV_FILES
 do
+    label=$(printf "3dB uniform %-10s" "$f")
     sox $WAV_INPATH/$f.wav -t raw - | ./dump_data -test - - | \
-    ./quant_feat -d 1 --uniform 3 | ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_2_3dB'.wav
+    ./quant_feat -l "$label" -d 1 --uniform 3 2>>$STATS | ./test_lpcnet - - | \
+    sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_2_3dB'.wav
+                                                           
 done
 
 # decimate features to 20ms updates, then lineary interpolate back up to 10ms updates
 for f in $WAV_FILES
 do
     sox $WAV_INPATH/$f.wav -t raw - | ./dump_data -test - - | \
-        ./quant_feat -d 2 | ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_3_20ms'.wav
+        ./quant_feat -d 2 | ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_3_20ms'.wav 
+        
 done
 
 # 33 bit 3 stage VQ searched with mbest algorithm, 20ms updates
 for f in $WAV_FILES
 do
+    label=$(printf "33 bit 20ms %-10s" "$f")
     sox $WAV_INPATH/$f.wav -t raw - | ./dump_data -test - - | \
-        ./quant_feat -d 2 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 | \
-        ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_4_33bit_20ms'.wav
+    ./quant_feat -l "$label" -d 2 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 2>>$STATS | \
+    ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_4_33bit_20ms'.wav
 done
 
 # 33 bit 3 stage VQ searched with mbest algorithm, 30ms updates
 for f in $WAV_FILES
 do
+    label=$(printf "33 bit 30ms %-10s" "$f")
     sox $WAV_INPATH/$f.wav -t raw - | ./dump_data -test - - | \
-        ./quant_feat -d 2 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 | \
+        ./quant_feat -l "$label" -d 3 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 2>>$STATS | \
         ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_5_33bit_30ms'.wav
 done
 
 # 44 bit 4 stage VQ searched with mbest algorithm, 30ms updates
 for f in $WAV_FILES
 do
+    label=$(printf "44 bit 30ms %-10s" "$f")
     sox $WAV_INPATH/$f.wav -t raw - | ./dump_data -test - - | \
-        ./quant_feat -d 2 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32,pred2_stage4.f32 | \
-        ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_6_44bit_30ms'.wav
+    ./quant_feat -l "$label" -d 3 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32,pred2_stage4.f32 2>>$STATS | \
+    ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_6_44bit_30ms'.wav
 done
 
 # Codec 2 and simulated SSB (10dB SNR, AWGN channel, 10Hz freq offset) reference samples

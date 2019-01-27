@@ -71,11 +71,13 @@ int main(int argc, char *argv[]) {
     float Fs = 16000.0;
     float uniform_step = 0.0;
     int   mbest_survivors = 0;
+    char label[80] = "";
     
     static struct option long_options[] = {
         {"decimate", required_argument, 0, 'd'},
         {"extpitch", required_argument, 0, 'e'},
         {"first",    required_argument, 0, 'f'},
+        {"label",    required_argument, 0, 'l'},
         {"mbest",    required_argument, 0, 'm'},
         {"pred",     required_argument, 0, 'p'},
         {"quant",    required_argument, 0, 'q'},
@@ -87,7 +89,7 @@ int main(int argc, char *argv[]) {
 
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'f':
             /* start VQ at band first+1 */
@@ -107,6 +109,10 @@ int main(int argc, char *argv[]) {
             /* external pitch estimate, one F0 est (Hz) per line of text file */
             fpitch = fopen(optarg, "rt"); assert(fpitch != NULL);            
             fprintf(stderr, "ext pitch F0 file: %s\n", optarg);
+            break;
+        case 'l':
+            /* text label to pront with results */
+            strcpy(label, optarg);
             break;
         case 'm':
             mbest_survivors = atoi(optarg);
@@ -156,8 +162,9 @@ int main(int argc, char *argv[]) {
             break;
          default:
             fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n  [-q --quant quantfile1,quantfile2,....]\n", argv[0]);
+            fprintf(stderr,"  [-l --label txtLabel]\n");
             fprintf(stderr,"  [-m --mbest survivors]\n  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
-            fprintf(stderr,"  [-e --extpitch ExtPitchFile]\n  [-u --uniform stepSizedB]\n [ -v --verbose]\n");
+            fprintf(stderr,"  [-e --extpitch ExtPitchFile]\n  [-u --uniform stepSizedB]\n  [ -v --verbose]\n");
             exit(1);
         }
     }
@@ -330,13 +337,13 @@ int main(int argc, char *argv[]) {
     }
 
     float var = sum_sq_err/n;
-    fprintf(stderr, "var: %f sd: %f n: %d", var, sqrt(var), n);
+    fprintf(stderr, "RESULTS %s var: %4.3f sd: %4.3f n: %4d", label, var, sqrt(var), n);
     fprintf(stderr, " outliers > ");
     for (i=0; i<NOUTLIERS; i++)
-        fprintf(stderr, "%d/", i+1);
+        fprintf(stderr, "%d ", i+1);
     fprintf(stderr, " dB = ");
     for (i=0; i<NOUTLIERS; i++)
-        fprintf(stderr, "%5.4f/", (float)noutliers[i]/qv);
+        fprintf(stderr, "%5.4f ", (float)noutliers[i]/qv);
     fprintf(stderr, "\n");
     fclose(fin); fclose(fout); if (fsv != NULL) fclose(fsv); if(fpitch != NULL) fclose(fpitch);
 }

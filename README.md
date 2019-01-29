@@ -74,6 +74,7 @@ Binary files for these experiments [here](http://rowetel.com/downloads/deep/lpcn
 Install GNU Octave (if thats your thing).
 
 Extract a feature file, fire up Octave, and mesh plot the 18 cepstrals for the first 100 frame (1 second):
+
 ```
 $ ./dump_data -test speech_orig_16k.s16 speech_orig_16k_features.f32
 $ cd src
@@ -87,7 +88,9 @@ octave:4> mesh(f(1:100,1:18))
 
 Listen to the effects of 4dB step uniform quantisation on cepstrals:
 
-'''$ cat ~/Downloads/wia.wav | ./dump_data -test - - | ./quant_feat -u 4 | ./test_lpcnet - - | play -q -r 16000 -s -2 -t raw -'''
+```
+$ cat ~/Downloads/wia.wav | ./dump_data -test - - | ./quant_feat -u 4 | ./test_lpcnet - - | play -q -r 16000 -s -2 -t raw -
+```
 
 This lets us listen to the effect of quantisation error.  Once we think it sounds OK, we can compute the variance (average squared quantiser error). A 4dB step size means the error PDF is uniform in the range of -2 to +2 dB.  A uniform PDF has variance of (b-a)^2/12, so (2--2)^2/12 = 1.33 dB^2.  We can then try to design a quantiser (e.g. multi-stage VQ) to achieve that variance.
 
@@ -95,25 +98,25 @@ This lets us listen to the effect of quantisation error.  Once we think it sound
 
 Checkout and build [codec2-dev from SVN](http://rowetel.com/codec2.html):
 
-'''
+```
 $ svn co https://svn.code.sf.net/p/freetel/code/codec2-dev
 $ cd codec2-dev && mkdir build_linux && cd build_linux && cmake ../ && make
-'''
+```
 
 In train_pred2.sh, adjust PATH for the location of codec2-dev on your machine.
 
 Generate 5E6 vectors using the -train option on dump_data to apply a bunch of different filters, then run the predictive VQ training script
-'''
+```
 $ cd LPCNet
 $ ./dump_data -train all_speech.s16 all_speech_features_5e6.f32 /dev/null
 $ ./train_pred2.sh
-'''
+```
 
 ## Mbest VQ search
 
 Keeps M best candidates after each stage:
 
-'''cat ~/Downloads/speech_orig_16k.s16 | ./dump_data -test - - | ./quant_feat --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 > /dev/null'''
+```cat ~/Downloads/speech_orig_16k.s16 | ./dump_data -test - - | ./quant_feat --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 > /dev/null```
 
 In this example, the VQ error variance was reduced from 2.68 to 2.28 dB^2 (I think equivalent to 3 bits), and the number of outliers >2dB reduced from 15% to 10%.
 

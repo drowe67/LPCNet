@@ -7,14 +7,16 @@
 # 3. Generate a HTML table of samples for convenient replay on the web.
 # 4. Generate a HTML table of distortion metrics.
 
-# set these two paths to suit your system
+# set these paths to suit your system
 CODEC2_PATH=$HOME/codec2-dev/build_linux/src
 WAV_INPATH=$HOME/Desktop/deep/quant
-WAV_OUTPATH=$HOME/tmp/lpcnet_out
+OUTPATH=$HOME/tmp/lpcnet_out
 
+WAV_OUTPATH=$OUTPATH/wav
 PATH=$PATH:$CODEC2_PATH
+STATS=$OUTPATH/stats.txt
+HTML=$OUTPATH/lpcnet_results.html
 WAV_FILES="birch glue oak separately wanted wia"
-STATS=$WAV_OUTPATH/stats.txt
 
 # check we can find wave files
 for f in $WAV_INFILES
@@ -28,7 +30,7 @@ done
 if [ ! -e $CODEC2_PATH/c2enc ]; then
     echo "$CODEC2_PATH/c2enc not found"
 fi
-
+: '
 #
 # OK lets start processing ------------------------------------------------
 #
@@ -39,20 +41,20 @@ rm -f $STATS
 # cp in originals
 for f in $WAV_FILES
 do
-    cp $WAV_INPATH/$f.wav $WAV_OUTPATH/$f.wav
+    cp $WAV_INPATH/$f.wav $WAV_OUTPATH/$f_0_orig.wav
 done
 
 # Unquantised, baseline analysis-synthesis model, 10ms updates
 for f in $WAV_FILES
 do
     sox $WAV_INPATH/$f.wav -t raw - | ./dump_data -test - - | \
-    ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_1uq'.wav
+    ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_1_uq'.wav
 done
 
 # 3dB uniform quantiser, 10ms updates
 for f in $WAV_FILES
 do
-    label=$(printf "3dB uniform %-10s" "$f")
+    label=$(printf "3dB %-10s" "$f")
     sox $WAV_INPATH/$f.wav -t raw - | ./dump_data -test - - | \
     ./quant_feat -l "$label" -d 1 --uniform 3 2>>$STATS | ./test_lpcnet - - | \
     sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_2_3dB'.wav
@@ -70,7 +72,7 @@ done
 # 33 bit 3 stage VQ searched with mbest algorithm, 20ms updates
 for f in $WAV_FILES
 do
-    label=$(printf "33 bit 20ms %-10s" "$f")
+    label=$(printf "33bit_20ms %-10s" "$f")
     sox $WAV_INPATH/$f.wav -t raw - | ./dump_data -test - - | \
     ./quant_feat -l "$label" -d 2 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 2>>$STATS | \
     ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_4_33bit_20ms'.wav
@@ -79,7 +81,7 @@ done
 # 33 bit 3 stage VQ searched with mbest algorithm, 30ms updates
 for f in $WAV_FILES
 do
-    label=$(printf "33 bit 30ms %-10s" "$f")
+    label=$(printf "33bit_30ms %-10s" "$f")
     sox $WAV_INPATH/$f.wav -t raw - | ./dump_data -test - - | \
         ./quant_feat -l "$label" -d 3 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 2>>$STATS | \
         ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_5_33bit_30ms'.wav
@@ -88,7 +90,7 @@ done
 # 44 bit 4 stage VQ searched with mbest algorithm, 30ms updates
 for f in $WAV_FILES
 do
-    label=$(printf "44 bit 30ms %-10s" "$f")
+    label=$(printf "44bit_30ms %-10s" "$f")
     sox $WAV_INPATH/$f.wav -t raw - | ./dump_data -test - - | \
     ./quant_feat -l "$label" -d 3 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32,pred2_stage4.f32 2>>$STATS | \
     ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_6_44bit_30ms'.wav
@@ -106,7 +108,93 @@ do
         cohpsk_ch - - -35 --Fs 8000 -f 10 --ssbfilt 1 |  \
     sox -r 8000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_8_ssb_10dB'.wav
 done
+'
+#
+# Create a HTML table of samples ----------------------------------------------------
+#
 
-# HTML table of samples
-# HTML table of results
 
+cat << EOF > $HTML
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+  <title>LPCNet Samples</title>
+  <style type="text/css">
+  <body>table {
+    table-layout: fixed ;
+    width: 100% ; 
+  }
+  td {
+    width: 10% ;
+  } 
+  </style>
+</head>
+<body>
+EOF
+
+printf "<table>\n" >> $HTML
+
+function heading_row {
+    w=$(echo $WAV_FILES | cut -d ' ' -f 1)
+    headings=$(ls $WAV_OUTPATH/$w* | sed -r "s/.*$w.[[:digit:]]_//" | sed -r 's/.wav//')
+    printf "<tr>\n  <th align="left">Sample</th>\n" >> $HTML
+    for h in $headings
+    do
+        printf "  <th>%s</th>\n" $h >> $HTML
+    done
+    printf "</tr>\n" >> $HTML
+}
+
+heading_row
+
+# for each wave file, create a row
+
+for f in $WAV_FILES
+do
+    files=$(ls $WAV_OUTPATH/$f*);
+    printf "<tr>\n  <td>%s</td>\n" $f >> $HTML
+    for w in $files
+    do
+        b=$(basename $w)
+        printf "  <td align="center"><a href=\"wav/%s\">play</a></td>\n" $b >> $HTML
+    done
+    printf "</tr>\n" >> $HTML
+done
+
+# HTML table of results ---------------------------------------------------------
+
+function table_of_values {
+    printf "<table>\n" >> $HTML
+
+    heading_row
+
+    # for each wave file, create a row
+
+    for f in $WAV_FILES
+    do
+        files=$(ls $WAV_OUTPATH/$f*);
+        printf "<tr>\n  <td>%s</td>\n" $f >> $HTML
+        for h in $headings
+        do
+            # extract variance from stats file
+            if [ "$1" = "var" ]; then
+                s=$(cat $STATS | sed -n "s/RESULTS $h $f.*var: \(.*\) sd.*/\1/p")
+            fi
+            if [ "$1" = "sd" ]; then
+                s=$(cat $STATS | sed -n "s/RESULTS $h $f.*sd: \(.*\) n.*/\1/p")
+            fi
+            printf "  <td align="center">%s %s</td>\n" $s >> $HTML
+        done
+        printf "</tr>\n" >> $HTML
+    done
+
+    printf "</table>\n</body>\n</html>\n" >> $HTML
+}
+
+table_of_values "var"
+table_of_values "sd"
+
+
+
+# grep results line of stats file, extracting 
+# sd=$(cat $STATS | sed -n "s/RESULTS $h $f.*sd: \(.*\) n.*/\1/p")

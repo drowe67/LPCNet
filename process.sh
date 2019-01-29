@@ -16,6 +16,7 @@ WAV_OUTPATH=$OUTPATH/wav
 PATH=$PATH:$CODEC2_PATH
 STATS=$OUTPATH/stats.txt
 HTML=$OUTPATH/lpcnet_results.html
+PNG_OUTPATH=$OUTPATH/png
 WAV_FILES="birch glue oak separately wanted wia"
 
 # check we can find wave files
@@ -30,18 +31,19 @@ done
 if [ ! -e $CODEC2_PATH/c2enc ]; then
     echo "$CODEC2_PATH/c2enc not found"
 fi
-: '
+
 #
 # OK lets start processing ------------------------------------------------
 #
-
+: '
 mkdir -p $WAV_OUTPATH
+mkdir -p $PNG_OUTPATH
 rm -f $STATS
 
 # cp in originals
 for f in $WAV_FILES
 do
-    cp $WAV_INPATH/$f.wav $WAV_OUTPATH/$f_0_orig.wav
+    cp $WAV_INPATH/$f.wav $WAV_OUTPATH/$f'_0_orig.wav'
 done
 
 # Unquantised, baseline analysis-synthesis model, 10ms updates
@@ -108,12 +110,12 @@ do
         cohpsk_ch - - -35 --Fs 8000 -f 10 --ssbfilt 1 |  \
     sox -r 8000 -t .s16 -c 1 - $WAV_OUTPATH/$f'_8_ssb_10dB'.wav
 done
-'
+
 #
 # Create a HTML table of samples ----------------------------------------------------
 #
 
-
+'
 cat << EOF > $HTML
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <html>
@@ -133,6 +135,7 @@ cat << EOF > $HTML
 EOF
 
 printf "<table>\n" >> $HTML
+printf "<caption>Samples</caption>\n" >> $HTML
 
 function heading_row {
     w=$(echo $WAV_FILES | cut -d ' ' -f 1)
@@ -160,14 +163,16 @@ do
     done
     printf "</tr>\n" >> $HTML
 done
+printf "</table><p>\n" >> $HTML
 
 # HTML table of results ---------------------------------------------------------
 
 function table_of_values {
     printf "<table>\n" >> $HTML
+    printf "<caption>%s</caption>\n" "$2" >> $HTML
 
     heading_row
-
+    #headings1="3dB 33bit_20ms 33bit_30ms"
     # for each wave file, create a row
 
     for f in $WAV_FILES
@@ -183,16 +188,37 @@ function table_of_values {
             if [ "$1" = "sd" ]; then
                 s=$(cat $STATS | sed -n "s/RESULTS $h $f.*sd: \(.*\) n.*/\1/p")
             fi
-            printf "  <td align="center">%s %s</td>\n" $s >> $HTML
+            if [ "$s" = "" ]; then
+               s="-"
+            fi
+            if [ $1 = "outliers" ]; then
+                outliers=$(cat $STATS | sed -n "s/RESULTS $h $f.*dB = \(.*\)/\1/p")
+                if [ ! "$outliers" = "" ]; then
+                    png=$PNG_OUTPATH/$f'_'$h'.png'
+                    cmd="graphics_toolkit ('gnuplot'); barh([$outliers],'hist'); axis([0 1 0 5]); print(\"$png\",'-dpng','-S100,100')"
+                    #cmd="barh([$outliers],'hist');print(\"$png\",'-dpng','-S100,100')"
+                    octave --no-gui -qf --eval "$cmd"
+                    b=$(basename $png)
+                    printf "  <td align=center><img src=\"png/%s\" ></img></td>\n" $b >> $HTML
+                    #printf "  <td align=center>%s</td>\n" $b >> $HTML
+                else
+                    printf "  <td></td>\n" >> $HTML                    
+                fi
+            else
+                printf "  <td align="center">%s</td>\n" $s >> $HTML
+            fi
         done
         printf "</tr>\n" >> $HTML
     done
 
-    printf "</table>\n</body>\n</html>\n" >> $HTML
+    printf "</table><p>\n" >> $HTML
 }
 
-table_of_values "var"
-table_of_values "sd"
+table_of_values "var" "Variance"
+table_of_values "sd"  "Standard Deviation"
+table_of_values "outliers" "Outliers"
+
+printf "</body>\n</html>\n" >> $HTML
 
 
 

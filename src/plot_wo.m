@@ -1,3 +1,8 @@
+% plot_wo.m
+% David Rowe Jan 2019
+%
+% Octave script to plot pitch countours from different estimators
+
 nb_lpcnet_features=55;
 nb_lpcnet_bands=18;
 nb_codec2_features=16+3+16;
@@ -11,10 +16,6 @@ feat_codec2=load_f32("../speech_orig_16k_codec2_features.f32", nb_codec2_feature
 pitch_index_lpcnet = 100*feat_lpcnet(:,2*nb_lpcnet_bands+1) + 200;
 f0_lpcnet = 2*Fs ./ pitch_index_lpcnet;
 f0_codec2 = Fs*feat_codec2(:,16+1+1)/(2*pi);
-% plot_wo.m
-% David Rowe Jan 2019
-%
-% Octave script to plot pitch countours from different estimators
 
 pitch_silk=load("../../silk_pitch.txt");
 f0_silk=Fs./pitch_silk;

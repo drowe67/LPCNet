@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
 
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:m:", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'f':
             /* start VQ at band first+1 */
@@ -298,8 +298,11 @@ int main(int argc, char *argv[]) {
                 e += pow(features_out[i]-features_prev[0][i], 2.0);
             }
             sum_sq_err += e; n+= NB_BANDS;
-            for (i=0; i<NOUTLIERS; i++)
-                if (sqrt(e/NB_BANDS) > (float)(i+1.0)) noutliers[i]++;
+            for (i=NOUTLIERS; i>=0; i--)
+                if (sqrt(e/NB_BANDS) > (float)(i+1.0)) {
+                    noutliers[i]++;
+                    break;
+                }
             qv++;
             
             features_out[2*NB_BANDS+2] = features_prev[0][2*NB_BANDS];  /* pass through LPC energy */
@@ -382,7 +385,7 @@ void quant_pred(float vec_out[],  /* prev quant vector, and output */
     }
     se1 /= k;
     pv("err: ", err);
-    if (fsv != NULL) fprintf(fsv, "%f\t%f\t", vec_in[0],se1);
+    if (fsv != NULL) fprintf(fsv, "%f\t%f\t", vec_in[0],sqrt(se1));
     for(s=0; s<num_stages; s++) {
         ind = quantise(&vq[s*k*MAX_ENTRIES], err, w, k, m[s], &se);
         pv("entry: ", &vq[s+k*MAX_ENTRIES+ind*k]);
@@ -393,7 +396,7 @@ void quant_pred(float vec_out[],  /* prev quant vector, and output */
             vec_out[i] += vq[s*k*MAX_ENTRIES+ind*k+i];
         }
         se2 /= k;
-        if (fsv != NULL) fprintf(fsv, "%f\t", se2);
+        if (fsv != NULL) fprintf(fsv, "%f\t", sqrt(se2));
         if (verbose) fprintf(stderr, "se1: %f se2: %f s: %d/%d m[s]: %d ind: %d\n", se1, se2, s, num_stages, m[s], ind);
         pv("err: ", err);
         pv("vec_out: ",vec_out);
@@ -470,7 +473,7 @@ void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output */
     pv("\n  vec_in: ", vec_in);
     pv("  vec_out: ", vec_out);
     pv("    err: ", err);
-    if (fsv != NULL) fprintf(fsv, "%f\t%f\t", vec_in[0],se1);
+    if (fsv != NULL) fprintf(fsv, "%f\t%f\t", vec_in[0],sqrt(se1));
     if (verbose) fprintf(stderr, "    se1: %f\n", se1);
    
     for(s=0; s<num_stages; s++) {
@@ -482,7 +485,7 @@ void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output */
             se2 += err[i]*err[i];
         }
         se2 /= k;
-        if (fsv != NULL) fprintf(fsv, "%f\t", se2);
+        if (fsv != NULL) fprintf(fsv, "%f\t", sqrt(se2));
         pv("    err: ", err);
         if (verbose) fprintf(stderr, "    se2: %f\n", se2);
     }

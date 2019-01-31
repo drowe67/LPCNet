@@ -225,8 +225,8 @@ int main(int argc, char *argv[]) {
     
     while(fread(features, sizeof(float), NB_FEATURES, fin) == NB_FEATURES) {
 
-        /* convert to dB */
-        for(i=0; i<NB_FEATURES; i++)
+        /* convert cepstrals to dB */
+        for(i=0; i<NB_BANDS; i++)
             features[i] *= 10.0;
 
         /* optionally load external pitch est sample and replace pitch feature */
@@ -235,7 +235,7 @@ int main(int argc, char *argv[]) {
             if (fscanf(fpitch,"%f\n", &f0)) {
                 float pitch_index = 2.0*Fs/f0;
                 features[2*NB_BANDS] = 0.01*(pitch_index-200.0);
-                //fprintf(stderr,"%f %f %f\n", f0, pitch_index, features[2*NB_BANDS]);
+                //fprintf(stderr,"%d: %f %f %f\n", f, f0, pitch_index, features[2*NB_BANDS]);
             }
             else
                 fprintf(stderr, "f0 not read\n");
@@ -305,7 +305,7 @@ int main(int argc, char *argv[]) {
                 }
             qv++;
             
-            features_out[2*NB_BANDS+2] = features_prev[0][2*NB_BANDS];  /* pass through LPC energy */
+            features_out[2*NB_BANDS+2] = features_prev[0][2*NB_BANDS+2];  /* pass through LPC energy */
 
         } else {
             /* interpolated frame ----------------------------------------*/
@@ -330,8 +330,8 @@ int main(int argc, char *argv[]) {
         features_out[2*NB_BANDS+1] = features_prev[0][2*NB_BANDS+1]; /* original undecimated gain       */
         f++;
 
-        /* convert from dB */
-        for(i=0; i<NB_FEATURES; i++)
+        /* convert cespstrals back from dB */
+        for(i=0; i<NB_BANDS; i++)
             features_out[i] *= 1/10.0;
 
         fwrite(features_out, sizeof(float), NB_FEATURES, fout);

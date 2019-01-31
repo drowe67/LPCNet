@@ -39,6 +39,7 @@
 #include "arch.h"
 #include "celt_lpc.h"
 #include <assert.h>
+#include <getopt.h>
 
 
 #define PITCH_MIN_PERIOD 32
@@ -256,39 +257,75 @@ int main(int argc, char **argv) {
   float noise_std=0;
   int training = -1;
   st = rnnoise_create();
-  if (argc == 5 && strcmp(argv[1], "-train")==0) training = 1;
-  if (argc == 4 && strcmp(argv[1], "-test")==0) training = 0;
-  if (training == -1) {
-    fprintf(stderr, "usage: %s -train <speech> <features out> <pcm out>\n", argv[0]);
-    fprintf(stderr, "  or   %s -test <speech> <features out>\n", argv[0]);
-    return 1;
-  }
 
-  if (strcmp(argv[2], "-") == 0)
+  int o = 0;
+  int opt_idx = 0;
+  while( o != -1 ) {
+      static struct option long_opts[] = {
+          {"help",      no_argument,      0, 'h'},
+          {"train",     no_argument,      0, 'r'},
+          {"test",      no_argument,      0, 't'},
+          {0, 0, 0, 0}
+      };
+        
+      o = getopt_long(argc,argv,"",long_opts,&opt_idx);
+        
+      switch(o){
+      case 'r':
+          training = 1;
+          break;
+      case 't':
+          training = 0;
+          break;
+      case 'h':
+      case '?':
+          goto helpmsg;
+          break;
+      }
+  }
+  int dx = optind;
+    
+  if (training == -1) goto helpmsg;
+
+  if ( (training && (argc - dx) < 3) || (!training && (argc - dx) < 2)) {
+      fprintf(stderr, "Too few arguments\n");
+      goto helpmsg;
+  }
+    
+  if ( argc - dx > 3 ) {
+      fprintf(stderr, "Too many arguments\n");
+  helpmsg:
+      fprintf(stderr, "usage: %s --train <speech> <features out> <pcm out>\n", argv[0]);
+      fprintf(stderr, "  or   %s --test <speech> <features out>\n", argv[0]);
+      exit(1);
+  }
+    
+  if (strcmp(argv[dx], "-") == 0)
       f1 = stdin;
   else {
-      f1 = fopen(argv[2], "r");
+      f1 = fopen(argv[dx], "r");
       if (f1 == NULL) {
-          fprintf(stderr,"Error opening input .s16 16kHz speech input file: %s\n", argv[2]);
+          fprintf(stderr,"Error opening input .s16 16kHz speech input file: %s\n", argv[dx]);
           exit(1);
       }
   }
-  if (strcmp(argv[3], "-") == 0)
+  if (strcmp(argv[dx+1], "-") == 0)
       ffeat = stdout;
   else {
-      ffeat = fopen(argv[3], "w");
+      ffeat = fopen(argv[dx+1], "w");
       if (ffeat == NULL) {
-          fprintf(stderr,"Error opening output feature file: %s\n", argv[3]);
+          fprintf(stderr,"Error opening output feature file: %s\n", argv[dx+1]);
           exit(1);
       }
   }
   if (training) {
-    fpcm = fopen(argv[4], "w");
-    if (fpcm == NULL) {
-      fprintf(stderr,"Error opening output PCM file: %s\n", argv[4]);
-      exit(1);
-    }
+      fpcm = fopen(argv[dx+2], "w");
+      if (fpcm == NULL) {
+          fprintf(stderr,"Error opening output PCM file: %s\n", argv[dx+2]);
+          exit(1);
+      }
   }
+
   while (1) {
     kiss_fft_cpx X[FREQ_SIZE], P[WINDOW_SIZE];
     float Ex[NB_BANDS], Ep[NB_BANDS];

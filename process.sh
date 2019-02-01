@@ -5,7 +5,7 @@
 # 1. Process an input set of wave files using LPCNet under a variety of conditions.
 # 2. Name output files to make them convenient to listen to in a file manager.
 # 3. Generate a HTML table of samples for convenient replay on the web.
-# 4. Generate a HTML table of distortion metrics.
+# 4. Generate a bunch of other HTML files and PNGs.
 
 # set these paths to suit your system
 CODEC2_PATH=$HOME/codec2-dev/build_linux/src
@@ -53,7 +53,7 @@ done
 # Unquantised, baseline analysis-synthesis model, 10ms updates
 for f in $WAV_FILES
 do
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data -test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
     ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_1_uq'.wav
 done
 
@@ -61,7 +61,7 @@ done
 for f in $WAV_FILES
 do
     label=$(printf "3dB %-10s" "$f")
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data -test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
     ./quant_feat -l "$label" -d 1 --uniform 3 2>>$STATS | ./test_lpcnet - - | \
     sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_2_3dB'.wav
                                                            
@@ -70,7 +70,7 @@ done
 # decimate features to 20ms updates, then lineary interpolate back up to 10ms updates
 for f in $WAV_FILES
 do
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data -test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
         ./quant_feat -d 2 | ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_3_20ms'.wav 
         
 done
@@ -79,7 +79,7 @@ done
 for f in $WAV_FILES
 do
     label=$(printf "33bit_20ms %-10s" "$f")
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data -test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
     ./quant_feat -l "$label" -d 2 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 -s $SV_PATH/$f'_4_33bit_20ms'.txt  2>>$STATS | \
     ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_4_33bit_20ms'.wav
 done
@@ -88,7 +88,7 @@ done
 for f in $WAV_FILES
 do
     label=$(printf "33bit_30ms %-10s" "$f")
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data -test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
         ./quant_feat -l "$label" -d 3 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 -s $SV_PATH/$f'_5_33bit_30ms'.txt 2>>$STATS | \
         ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_5_33bit_30ms'.wav
 done
@@ -97,7 +97,7 @@ done
 for f in $WAV_FILES
 do
     label=$(printf "44bit_30ms %-10s" "$f")
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data -test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
     ./quant_feat -l "$label" -d 3 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32,pred2_stage4.f32 -s $SV_PATH/$f'_6_44bit_30ms'.txt 2>>$STATS | \
     ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_6_44bit_30ms'.wav
 done
@@ -148,12 +148,12 @@ function heading_row {
     printf "</tr>\n" >> $HTML
 }
 
-heading_row
-
 # for each wave file, create a row
 
 printf "<table>\n" >> $HTML
 printf "<caption>Samples</caption>\n" >> $HTML
+
+heading_row
 
 for f in $WAV_FILES
 do
@@ -254,8 +254,9 @@ printf "<tr>\n" >> $HTML
 for f in $WAV_FILES
 do
     sox $WAVIN_PATH/$f.wav -t raw $F32_PATH/$f.raw
-    ./dump_data -test $F32_PATH/$f.raw $F32_PATH/$f.f32
-    octave --no-gui -p src -qf src/plot_speech_pitch.m $F32_PATH/$f.raw  $F32_PATH/$f.f32 $PNG_PATH/$f'_pitch.png' ${mx[count]}
+    ./dump_data --test $F32_PATH/$f.raw $F32_PATH/$f.f32
+    ./dump_data --test --c2pitch $F32_PATH/$f.raw $F32_PATH/$f'_c2'.f32
+    octave --no-gui -p src -qf src/plot_speech_pitch.m $F32_PATH/$f.raw  $F32_PATH/$f.f32 $F32_PATH/$f'_c2'.f32 $PNG_PATH/$f'_pitch.png' ${mx[count]}
     count=$(( $count + 1 ))
     b=$f'_pitch.png'
     printf "  <td align="center"><a href=\"png/%s\"><img width=100 height=100 src=\"png/%s\" /></a></td>\n" $b $b >> $HTML

@@ -15,16 +15,21 @@ graphics_toolkit ("gnuplot")
 
 arg_list = argv ();
 if nargin == 0
-  printf("\nusage: %s rawSpeechFile featureFile PNGname f0AxisMax\n\n", program_name());
+  printf("\nusage: %s rawSpeechFile featureFile featureFile_c2 PNGname f0AxisMax\n\n", program_name());
   exit(0);
 end
 
 fn_raw = arg_list{1};
 fn_feat = arg_list{2};
+fn_feat_c2 = arg_list{3};
 
 feat=load_f32(fn_feat, nb_lpcnet_features);
 pitch_index_lpcnet = 100*feat(:,2*nb_lpcnet_bands+1) + 200;
 f0 = 2*Fs ./ pitch_index_lpcnet;
+
+feat_c2=load_f32(fn_feat_c2, nb_lpcnet_features);
+pitch_index_c2 = 100*feat_c2(:,2*nb_lpcnet_bands+1) + 200;
+f0_c2 = 2*Fs ./ pitch_index_c2;
 
 fs=fopen(fn_raw,"rb");
 s = fread(fs,Inf,"short");
@@ -44,12 +49,15 @@ subplot(212,"position",[0.1 0.05 0.8 0.7]);
 st = Fsp*st_sec; en = Fsp*en_sec;
 t = st_sec:1/Fsp:en_sec-1/Fsp;
 plot(t,f0(st+1:en),'b;F0 Hz;');
+hold on;
+plot(t,f0_c2(st+1:en),'g;F0 Hz CODEC 2;');
+hold off;
 ylabel('F0 Hz')
 
 % adjust scale to make plot clearer
-mx = str2num(arg_list{4})
+mx = str2num(arg_list{5})
 axis([st_sec en_sec 50 mx])
 
 str=sprintf("-S%d,700",floor(1200*length(s)/(2*Fs)))
-print(arg_list{3},'-dpng',str)
+print(arg_list{4},'-dpng',str)
 

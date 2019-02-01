@@ -259,6 +259,7 @@ int main(int argc, char **argv) {
   float noise_std=0;
   int training = -1;
   int c2pitch_en = 0;
+  int nvec = 5000000;
   
   st = rnnoise_create();
 
@@ -266,19 +267,25 @@ int main(int argc, char **argv) {
   int opt_idx = 0;
   while( o != -1 ) {
       static struct option long_opts[] = {
+          {"c2pitch",   no_argument,      0, 'c'},
           {"help",      no_argument,      0, 'h'},
+          {"nvec",      required_argument,0, 'n'},
           {"train",     no_argument,      0, 'r'},
           {"test",      no_argument,      0, 't'},
-          {"c2pitch",   no_argument,      0, 'c'},
           {0, 0, 0, 0}
       };
         
-      o = getopt_long(argc,argv,"",long_opts,&opt_idx);
+      o = getopt_long(argc,argv,"chn:rt",long_opts,&opt_idx);
         
       switch(o){
       case 'r':
           training = 1;
           break;
+      case 'n':
+	  nvec = atoi(optarg);
+	  assert(nvec > 0);
+	  fprintf(stderr, "nvec: %d\n", nvec);
+	  break;
       case 't':
           training = 0;
           break;
@@ -303,8 +310,11 @@ int main(int argc, char **argv) {
   if ( argc - dx > 3 ) {
       fprintf(stderr, "Too many arguments\n");
   helpmsg:
-      fprintf(stderr, "usage: %s --train <speech> <features out> <pcm out>\n", argv[0]);
-      fprintf(stderr, "  or   %s --test <speech> <features out>\n", argv[0]);
+      fprintf(stderr, "usage: %s --train [options] <speech> <features out> <pcm out>\n", argv[0]);
+      fprintf(stderr, "  or   %s --test [options] <speech> <features out>\n", argv[0]);
+      fprintf(stderr, "\nOptions:\n");
+      fprintf(stderr, "  -c --c2pitch  Codec 2 pitch estimator\n");
+      fprintf(stderr, "  -n --nvec     Number of training vectors to generate\n");
       exit(1);
   }
     
@@ -378,7 +388,7 @@ int main(int argc, char **argv) {
       }
       last_silent = silent;
     }
-    if (count*FRAME_SIZE_5MS>=10000000 && one_pass_completed) break;
+    if (count>=nvec && one_pass_completed) break;
     if (training && ++gain_change_count > 2821) {
       float tmp;
       speech_gain = pow(10., (-20+(rand()%40))/20.);

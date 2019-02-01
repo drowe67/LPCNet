@@ -20,12 +20,12 @@ ifneq ($(NEON),0)
 CFLAGS+=-mfpu=neon -march=armv8-a -mtune=cortex-a53
 endif
 
-all: dump_data test_lpcnet test_vec quant_feat
+all: dump_data test_lpcnet test_vec quant_feat tcodec2_pitch
 
-dump_data_objs := src/dump_data.o src/freq.o src/kiss_fft.o src/pitch.o src/celt_lpc.o
+dump_data_objs := src/dump_data.o src/freq.o src/kiss_fft.o src/pitch.o src/celt_lpc.o src/codec2_pitch.o
 dump_data_deps := $(dump_data_objs:.o=.d)
 dump_data: $(dump_data_objs)
-	gcc -o $@ $(CFLAGS) $(dump_data_objs) -lm
+	gcc -o $@ $(CFLAGS) $(dump_data_objs) -lm -lcodec2
 
 -include $dump_data_deps(_deps)
 
@@ -49,6 +49,13 @@ quant_feat: $(quant_feat_objs)
 	gcc -o $@ $(CFLAGS) $(quant_feat_objs) -lm
 
 -include $(quant_feat_deps)
+
+tcodec2_pitch_objs := src/tcodec2_pitch.o src/codec2_pitch.o
+tcodec2_pitch_deps := $(tcodec2_pitch_objs:.o=.d)
+tcodec2_pitch: $(tcodec2_pitch_objs)
+	gcc -o $@ $(CFLAGS) $(tcodec2_pitch_objs) -lm -lcodec2
+
+-include $t(codec2_pitch_deps)
 
 test: test_vec
 	./test_vec

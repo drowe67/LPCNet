@@ -38,6 +38,7 @@
 #include "pitch.h"
 #include "arch.h"
 #include "celt_lpc.h"
+#include "codec2_pitch.h"
 #include <assert.h>
 #include <getopt.h>
 
@@ -107,7 +108,7 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const f
   compute_band_energy(Ex, X);
 }
 
-static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P,
+static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P, CODEC2_PITCH *c2pitch_st,
                                   float *Ex, float *Ep, float *Exp, float *features, const float *in) {
   int i;
   float E = 0;
@@ -123,6 +124,13 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
   RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
   RNN_COPY(pitch_buf, &st->pitch_buf[0], PITCH_BUF_SIZE);
+
+  // run Codec 2 pitch est here before buf overwritten
+  int c2pitch_index;
+  float c2_f0;
+  if (c2pitch_st != NULL)
+      c2pitch_index = codec2_pitch_est(c2pitch_st, pitch_buf, &c2_f0);
+
   pitch_downsample(pitch_buf, PITCH_BUF_SIZE);
   pitch_search(pitch_buf+PITCH_MAX_PERIOD, pitch_buf, PITCH_FRAME_SIZE<<1,
                (PITCH_MAX_PERIOD-3*PITCH_MIN_PERIOD)<<1, &pitch_index);
@@ -158,6 +166,9 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
   for (i=0;i<NB_BANDS;i++) printf("%f ", Ly[i]);
   printf("\n");
 #endif
+
+  fprintf(stderr, "%f %d %d\n", c2_f0, c2pitch_index, pitch_index);
+
   features[2*NB_BANDS] = .01*(pitch_index-200);
   features[2*NB_BANDS+1] = gain;
   features[2*NB_BANDS+2] = log10(g);
@@ -256,6 +267,8 @@ int main(int argc, char **argv) {
   DenoiseState *st;
   float noise_std=0;
   int training = -1;
+  int c2pitch = 0;
+  
   st = rnnoise_create();
 
   int o = 0;
@@ -265,6 +278,7 @@ int main(int argc, char **argv) {
           {"help",      no_argument,      0, 'h'},
           {"train",     no_argument,      0, 'r'},
           {"test",      no_argument,      0, 't'},
+          {"c2pitch",   no_argument,      0, 'c'},
           {0, 0, 0, 0}
       };
         
@@ -276,6 +290,9 @@ int main(int argc, char **argv) {
           break;
       case 't':
           training = 0;
+          break;
+      case 'c':
+          c2pitch = 1;
           break;
       case 'h':
       case '?':
@@ -326,6 +343,10 @@ int main(int argc, char **argv) {
       }
   }
 
+  CODEC2_PITCH *c2pitch_st = NULL;
+  if (c2pitch)
+      c2pitch_st = codec2_pitch_create();
+  
   while (1) {
     kiss_fft_cpx X[FREQ_SIZE], P[WINDOW_SIZE];
     float Ex[NB_BANDS], Ep[NB_BANDS];
@@ -380,7 +401,7 @@ int main(int argc, char **argv) {
       x[i] *= g;
     }
     for (i=0;i<FRAME_SIZE;i++) x[i] += rand()/(float)RAND_MAX - .5;
-    compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
+    compute_frame_features(st, X, P, c2pitch_st, Ex, Ep, Exp, features, x);
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);
     /* PCM is delayed by 1/2 frame to make the features centered on the frames. */
     for (i=0;i<FRAME_SIZE-TRAINING_OFFSET;i++) pcm[i+TRAINING_OFFSET] = float2short(x[i]);
@@ -393,6 +414,7 @@ int main(int argc, char **argv) {
   fclose(f1);
   fclose(ffeat);
   if (fpcm) fclose(fpcm);
+  if (c2pitch) codec2_pitch_destroy(c2pitch_st);
   rnnoise_destroy(st);
   return 0;
 }

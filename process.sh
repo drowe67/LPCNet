@@ -10,7 +10,12 @@
 # set these paths to suit your system
 CODEC2_PATH=$HOME/codec2-dev/build_linux/src
 WAVIN_PATH=$HOME/Desktop/deep/quant
-OUTPATH=$HOME/tmp/lpcnet_out
+
+# OUTPATH=$HOME/tmp/lpcnet_out
+if [ -z "${OUTPATH}" ]; then
+    echo "please set OUTPATH"
+    exit 1
+fi
 
 WAVOUT_PATH=$OUTPATH/wav
 PATH=$PATH:$CODEC2_PATH
@@ -67,7 +72,7 @@ do
                                                            
 done
 
-# decimate features to 20ms updates, then lineary interpolate back up to 10ms updates
+# decimate features to 20ms updates, then linearly interpolate back up to 10ms updates
 for f in $WAV_FILES
 do
     sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
@@ -135,6 +140,44 @@ cat << EOF > $HTML
   </style>
 </head>
 <body>
+
+<table>
+<col width="10%">
+<col width="70%">
+<caption>Glossary</caption>
+<tr><th align="left">Term</th><th align="left">Description</th></tr>
+<tr><td>Orig</td><td>Original source input speech</td></tr>
+<tr><td>UQ</td><td>Baseline LPCNet synthesis using unquantised features</td></tr>
+<tr><td>3dB</td><td>Cesptral features uniform quantiser with 3dB steps</td></tr>
+<tr>
+  <td>20ms</td>
+  <td>Cesptral features decimated to 20ms frame rate, linear interpolation back to 10ms</td>
+</tr>
+<tr>
+  <td>33bit_20ms</td>
+  <td>3 stage VQ of prediction error, 11 bits/stage, at 20ms frame rate</td>
+</tr>
+<tr>
+  <td>33bit_30ms</td>
+  <td>Same 33 bit VQ, but decimated down to 30ms rate</td>
+</tr>
+<tr>
+  <td>44bit_40ms</td>
+  <td>4 stage VQ, at 30ms update rate</td>
+</tr>
+<tr>
+  <td>c2_2400</td>
+  <td>Codec 2 at 2400 bits/s</td>
+</tr>
+<tr>
+  <td>ssb_10dB</td>
+  <td>Analog Single Sideband at a Signal/Noise ratio (in 3000 Hz) of 10dB.  Band 
+      limited to 300-2600Hz.  At similar SNR with an appropriate modem we can send 
+      error free 2000 bit/s coded speech.
+  </td>
+</tr>
+</table>
+<p>
 EOF
 
 function heading_row {

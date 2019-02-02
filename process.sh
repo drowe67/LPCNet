@@ -6,6 +6,9 @@
 # 2. Name output files to make them convenient to listen to in a file manager.
 # 3. Generate a HTML table of samples for convenient replay on the web.
 # 4. Generate a bunch of other HTML files and PNGs.
+#
+# usage: OUTPATH=!/your/output/path ./process.sh
+# usage: OUTPATH=!/your/output/path OUTPATHB=!/your/output/pathB ./process.sh
 
 # set these paths to suit your system
 CODEC2_PATH=$HOME/codec2-dev/build_linux/src
@@ -58,7 +61,7 @@ done
 # Unquantised, baseline analysis-synthesis model, 10ms updates
 for f in $WAV_FILES
 do
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
     ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_1_uq'.wav
 done
 
@@ -66,7 +69,7 @@ done
 for f in $WAV_FILES
 do
     label=$(printf "3dB %-10s" "$f")
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
     ./quant_feat -l "$label" -d 1 --uniform 3 2>>$STATS | ./test_lpcnet - - | \
     sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_2_3dB'.wav
                                                            
@@ -75,7 +78,7 @@ done
 # decimate features to 20ms updates, then linearly interpolate back up to 10ms updates
 for f in $WAV_FILES
 do
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
         ./quant_feat -d 2 | ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_3_20ms'.wav 
         
 done
@@ -84,7 +87,7 @@ done
 for f in $WAV_FILES
 do
     label=$(printf "33bit_20ms %-10s" "$f")
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
     ./quant_feat -l "$label" -d 2 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 -s $SV_PATH/$f'_4_33bit_20ms'.txt  2>>$STATS | \
     ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_4_33bit_20ms'.wav
 done
@@ -93,7 +96,7 @@ done
 for f in $WAV_FILES
 do
     label=$(printf "33bit_30ms %-10s" "$f")
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
         ./quant_feat -l "$label" -d 3 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32 -s $SV_PATH/$f'_5_33bit_30ms'.txt 2>>$STATS | \
         ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_5_33bit_30ms'.wav
 done
@@ -102,7 +105,7 @@ done
 for f in $WAV_FILES
 do
     label=$(printf "44bit_30ms %-10s" "$f")
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
     ./quant_feat -l "$label" -d 3 --mbest 5 -q pred2_stage1.f32,pred2_stage2.f32,pred2_stage3.f32,pred2_stage4.f32 -s $SV_PATH/$f'_6_44bit_30ms'.txt 2>>$STATS | \
     ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_6_44bit_30ms'.wav
 done
@@ -205,7 +208,13 @@ do
     for w in $files
     do
         b=$(basename $w)
-        printf "  <td align="center"><a href=\"wav/%s\">play</a></td>\n" $b >> $HTML
+        if [ -z "${OUTPATHB}" ]; then
+            # no comparison
+            printf "  <td align="center"><a href=\"wav/%s\">play</a></td>\n" $b >> $HTML
+        else
+            # compare with another process.sh run            
+            printf "  <td align="center"><a href=\"wav/%s\">play</a> (<a href=\"%s\">playB</a>) </td>\n" $b $OUTPATHB/wav/$b >> $HTML
+        fi
     done
     printf "</tr>\n" >> $HTML
 done
@@ -306,7 +315,6 @@ do
 done
 printf "</tr>\n" >> $HTML
 printf "</table><p>\n" >> $HTML
-
 
 table_of_values "quant" "Quantiser Error Countours"
 

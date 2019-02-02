@@ -72,11 +72,17 @@ int main(int argc, char *argv[]) {
     float uniform_step = 0.0;
     int   mbest_survivors = 0;
     char label[80] = "";
-    
+    /* experimental limits for dctLy[0], first cepstral */
+    float lower_limit = -200.0;
+    float upper_limit =  200.00;
+    /* weight applied to first cepstral */
+    float weight = 1.0;    
+
     static struct option long_options[] = {
         {"decimate", required_argument, 0, 'd'},
         {"extpitch", required_argument, 0, 'e'},
         {"first",    required_argument, 0, 'f'},
+        {"hard",     required_argument, 0, 'h'},
         {"label",    required_argument, 0, 'l'},
         {"mbest",    required_argument, 0, 'm'},
         {"pred",     required_argument, 0, 'p'},
@@ -84,12 +90,13 @@ int main(int argc, char *argv[]) {
         {"stagevar", required_argument, 0, 's'},
         {"uniform",  required_argument, 0, 'u'},
         {"verbose",  no_argument,       0, 'v'},
+        {"weight",   no_argument,       0, 'w'},
         {0, 0, 0, 0}
     };
 
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:m:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:m:h:w", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'f':
             /* start VQ at band first+1 */
@@ -109,6 +116,11 @@ int main(int argc, char *argv[]) {
             /* external pitch estimate, one F0 est (Hz) per line of text file */
             fpitch = fopen(optarg, "rt"); assert(fpitch != NULL);            
             fprintf(stderr, "ext pitch F0 file: %s\n", optarg);
+            break;
+        case 'h':
+            /* hard limit (saturate) first feature (energy) */
+            lower_limit = atof(optarg);            
+            fprintf(stderr, "lower_limit: %f upper_limit: %f\n", lower_limit, upper_limit);
             break;
         case 'l':
             /* text label to pront with results */
@@ -160,11 +172,16 @@ int main(int argc, char *argv[]) {
         case 'v':
             verbose = 1;
             break;
+        case 'w':
+            weight = 1.0/sqrt(NB_BANDS);
+            break;
          default:
             fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n  [-q --quant quantfile1,quantfile2,....]\n", argv[0]);
+            fprintf(stderr,"  [-h --hard lowerLimitdB\n");
             fprintf(stderr,"  [-l --label txtLabel]\n");
             fprintf(stderr,"  [-m --mbest survivors]\n  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
-            fprintf(stderr,"  [-e --extpitch ExtPitchFile]\n  [-u --uniform stepSizedB]\n  [ -v --verbose]\n");
+            fprintf(stderr,"  [-e --extpitch ExtPitchFile]\n  [-u --uniform stepSizedB]\n  [-v --verbose]\n");
+            fprintf(stderr,"  [-w --weight first cepstral by 1/sqrt(NB_BANDS)\n");
             exit(1);
         }
     }
@@ -176,7 +193,10 @@ int main(int argc, char *argv[]) {
     float features_prev[dec+1][NB_FEATURES];
      /* adjacent vectors used for linear interpolation */
     float features_lin[2][NB_BANDS];
-   
+    float features_mem[NB_BANDS];
+    for(i=0; i<NB_BANDS; i++)
+        features_mem[i] = 0.0;
+    
     for(d=0; d<dec+1; d++)
         for(i=0; i<NB_FEATURES; i++)
             features_prev[d][i] = 0.0;
@@ -224,11 +244,22 @@ int main(int argc, char *argv[]) {
     int qv = 0;
     
     while(fread(features, sizeof(float), NB_FEATURES, fin) == NB_FEATURES) {
-
+       
         /* convert cepstrals to dB */
         for(i=0; i<NB_BANDS; i++)
             features[i] *= 10.0;
 
+        /* optional weight on first cepstral which increases at
+           sqrt(NB_BANDS) for every dB of speech input power.  Note by
+           doing it here, we won't b measuring SD of this step, SD
+           results will be on weighted vector. */
+        features[0] *= weight;
+        
+        /* apply lower limit to features[0] */
+
+        if (features[0] < lower_limit) features[0] = lower_limit;
+        if (features[0] > upper_limit) features[0] = upper_limit;
+       
         /* optionally load external pitch est sample and replace pitch feature */
         if (fpitch != NULL) {
             float f0;
@@ -247,6 +278,11 @@ int main(int argc, char *argv[]) {
                 features_prev[d][i] = features_prev[d+1][i];
         for(i=0; i<NB_FEATURES; i++)
             features_prev[dec][i] = features[i];
+
+       /*
+        for(i=0; i<NB_BANDS; i++)
+             features_mem[i] = 0.5*features_mem[i] + 0.5*features[i];
+        */
         
         if ((f % dec) == 0) {
             /* non-interpolated frame ----------------------------------------*/
@@ -273,6 +309,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             else {
+                /* unquantsed */
                 for(i=0; i<NB_BANDS; i++) {
                     features_quant[i] = features[i];
                 }
@@ -318,7 +355,7 @@ int main(int argc, char *argv[]) {
                 fract = (float)d/(float)dec;
                 features_out[i] = (1.0-fract)*features_lin[0][i] + fract*features_lin[1][i];
             }
-
+            
             /* set up LPCs from interpolated cepstrals */
             float g = lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
             features_out[2*NB_BANDS+2] = log10(g);  /* LPC energy comes from interpolated ceptrals */
@@ -329,6 +366,8 @@ int main(int argc, char *argv[]) {
         features_out[2*NB_BANDS]   = features_prev[0][2*NB_BANDS];   /* original undecimated pitch      */
         features_out[2*NB_BANDS+1] = features_prev[0][2*NB_BANDS+1]; /* original undecimated gain       */
         f++;
+        
+        features_out[0] /= weight;    
 
         /* convert cespstrals back from dB */
         for(i=0; i<NB_BANDS; i++)

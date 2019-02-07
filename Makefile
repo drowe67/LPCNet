@@ -20,7 +20,7 @@ ifneq ($(NEON),0)
 CFLAGS+=-mfpu=neon -march=armv8-a -mtune=cortex-a53
 endif
 
-all: dump_data test_lpcnet test_vec quant_feat tcodec2_pitch
+all: dump_data test_lpcnet test_vec quant_feat tcodec2_pitch weight
 
 dump_data_objs := src/dump_data.o src/freq.o src/kiss_fft.o src/pitch.o src/celt_lpc.o src/codec2_pitch.o
 dump_data_deps := $(dump_data_objs:.o=.d)
@@ -43,7 +43,7 @@ test_vec: $(test_vec_objs)
 
 -include $(test_vec_deps)
 
-quant_feat_objs := src/quant_feat.o src/freq.o src/kiss_fft.o src/celt_lpc.o src/pitch.o src/mbest.o
+quant_feat_objs := src/quant_feat.o src/freq.o src/kiss_fft.o src/celt_lpc.o src/pitch.o src/mbest.o 
 quant_feat_deps := $(quant_feat_objs:.o=.d)
 quant_feat: $(quant_feat_objs)
 	gcc -o $@ $(CFLAGS) $(quant_feat_objs) -lm
@@ -55,7 +55,14 @@ tcodec2_pitch_deps := $(tcodec2_pitch_objs:.o=.d)
 tcodec2_pitch: $(tcodec2_pitch_objs)
 	gcc -o $@ $(CFLAGS) $(tcodec2_pitch_objs) -lm -lcodec2
 
--include $t(codec2_pitch_deps)
+-include $(tcodec2_pitch_deps)
+
+weight_objs := src/weight.o
+weight_deps := $(weight_objs:.o=.d)
+weight: $(weight_objs)
+	gcc -o $@ $(CFLAGS) $(weight_objs) -lm
+
+-include $(weight_deps)
 
 test: test_vec
 	./test_vec

@@ -77,11 +77,13 @@ int main(int argc, char *argv[]) {
     float upper_limit =  200.00;
     /* weight applied to first cepstral */
     float weight = 1.0;    
-
+    float pitch_gain = 0.0;
+    
     static struct option long_options[] = {
         {"decimate", required_argument, 0, 'd'},
         {"extpitch", required_argument, 0, 'e'},
         {"first",    required_argument, 0, 'f'},
+        {"gain",     required_argument, 0, 'g'},
         {"hard",     required_argument, 0, 'h'},
         {"label",    required_argument, 0, 'l'},
         {"mbest",    required_argument, 0, 'm'},
@@ -96,7 +98,7 @@ int main(int argc, char *argv[]) {
 
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:m:h:w", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:m:h:wg:", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'f':
             /* start VQ at band first+1 */
@@ -116,6 +118,10 @@ int main(int argc, char *argv[]) {
             /* external pitch estimate, one F0 est (Hz) per line of text file */
             fpitch = fopen(optarg, "rt"); assert(fpitch != NULL);            
             fprintf(stderr, "ext pitch F0 file: %s\n", optarg);
+            break;
+        case 'g':
+            pitch_gain = atof(optarg);
+            fprintf(stderr, "pitch_gain: %f\n", pitch_gain);
             break;
         case 'h':
             /* hard limit (saturate) first feature (energy) */
@@ -251,7 +257,7 @@ int main(int argc, char *argv[]) {
 
         /* optional weight on first cepstral which increases at
            sqrt(NB_BANDS) for every dB of speech input power.  Note by
-           doing it here, we won't b measuring SD of this step, SD
+           doing it here, we won't be measuring SD of this step, SD
            results will be on weighted vector. */
         features[0] *= weight;
         
@@ -271,7 +277,12 @@ int main(int argc, char *argv[]) {
             else
                 fprintf(stderr, "f0 not read\n");
         }
-                
+
+        /* optionally set pitch gain (voicing) to constant */
+        if (pitch_gain != 0.0) {
+            features[2*NB_BANDS+1] = pitch_gain;
+        }
+        
         /* maintain delay line of unquantised features for partial quantisation and distortion measure */
         for(d=0; d<dec; d++)
             for(i=0; i<NB_FEATURES; i++)

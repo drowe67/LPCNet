@@ -15,23 +15,40 @@ function plot_against_time(v, st_sec, en_sec, Fs, leg)
   plot(t,v(st+1:en+1),leg);
 endfunction
 
-feat_lpcnet=load_f32("../speech_orig_16k_features.f32", nb_lpcnet_features);
+function mesh_against_time(m, st_sec, en_sec, Fs)
+  st = Fs*st_sec; en = Fs*en_sec;
+  t = st_sec:1/Fs:en_sec;
+  mesh(m(st+1:en+1,:));  
+endfunction
+
+feat_lpcnet=load_f32("../birch.f32", nb_lpcnet_features);
 dctLy = feat_lpcnet(:,1:nb_lpcnet_bands);
+dctLydB = 10*dctLy;
 
 fs=fopen("../speech_orig_16k_centre.s16","rb");
 s = fread(fs,Inf,"short");
 fclose(fs);
 
-sv = load("../speech_orig_sv.txt");
-
-st_sec=2.5; en_sec=5.5;
+st_sec=0; en_sec=1;
 
 figure(1); clf;
 subplot(211);
 plot_against_time(s, st_sec, en_sec, Fs, 'b')
 subplot(212);
-plot_against_time(sqrt(sv(:,4)), st_sec, en_sec, Fssv, 'r');
-%hold on;
-%plot_against_time(sqrt(sv(:,5)),st_sec, en_sec, Fssv,'g');
-%hold off;
+plot_against_time(dctLydB(:,1), st_sec, en_sec, Fsf, 'r');
 
+figure(2); clf;
+mesh_against_time(dctLydB(:,1:5), st_sec, en_sec, Fsf);
+
+LydB = idct(dctLydB')';
+figure(3); clf;
+mesh_against_time(LydB, st_sec, en_sec, Fsf);
+
+dc = mean(LydB')';
+figure(4);
+subplot(211);
+plot_against_time(dctLydB(:,1), st_sec, en_sec, Fsf, 'r');
+subplot(212);
+plot_against_time(dc, st_sec, en_sec, Fsf, 'r');
+
+printf("mean dctLydB(:,1): %f mean dc: %f\n", mean(dctLydB(:,1)), mean(dc));

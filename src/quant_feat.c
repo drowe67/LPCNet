@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
     float upper_limit =  200.00;
     /* weight applied to first cepstral */
     float weight = 1.0;    
-    float pitch_gain = 0.0;
+    float pitch_gain_bias = 0.0;
     
     static struct option long_options[] = {
         {"decimate", required_argument, 0, 'd'},
@@ -120,8 +120,8 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "ext pitch F0 file: %s\n", optarg);
             break;
         case 'g':
-            pitch_gain = atof(optarg);
-            fprintf(stderr, "pitch_gain: %f\n", pitch_gain);
+            pitch_gain_bias = atof(optarg);
+            fprintf(stderr, "pitch_gain bias: %f\n", pitch_gain_bias);
             break;
         case 'h':
             /* hard limit (saturate) first feature (energy) */
@@ -183,6 +183,7 @@ int main(int argc, char *argv[]) {
             break;
          default:
             fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n  [-q --quant quantfile1,quantfile2,....]\n", argv[0]);
+            fprintf(stderr,"  [-g --gain pitch gain bias]\n");
             fprintf(stderr,"  [-h --hard lowerLimitdB\n");
             fprintf(stderr,"  [-l --label txtLabel]\n");
             fprintf(stderr,"  [-m --mbest survivors]\n  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
@@ -197,11 +198,14 @@ int main(int argc, char *argv[]) {
     
     /* delay line so we can pass some features (like pitch and voicing) through unmodified */
     float features_prev[dec+1][NB_FEATURES];
-     /* adjacent vectors used for linear interpolation */
+    /* adjacent vectors used for linear interpolation */
     float features_lin[2][NB_BANDS];
+    /* used for optiona smoothing of features */
+    /*
     float features_mem[NB_BANDS];
     for(i=0; i<NB_BANDS; i++)
         features_mem[i] = 0.0;
+    */
     
     for(d=0; d<dec+1; d++)
         for(i=0; i<NB_FEATURES; i++)
@@ -278,11 +282,9 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "f0 not read\n");
         }
 
-        /* optionally set pitch gain (voicing) to constant */
-        if (pitch_gain != 0.0) {
-            features[2*NB_BANDS+1] = pitch_gain;
-        }
-        
+        /* optionally pitch gain bias - but I would prefer a non-magic numbers approach */
+        features[2*NB_BANDS+1] += pitch_gain_bias;
+           
         /* maintain delay line of unquantised features for partial quantisation and distortion measure */
         for(d=0; d<dec; d++)
             for(i=0; i<NB_FEATURES; i++)
@@ -290,7 +292,7 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_FEATURES; i++)
             features_prev[dec][i] = features[i];
 
-       /*
+        /*
         for(i=0; i<NB_BANDS; i++)
              features_mem[i] = 0.5*features_mem[i] + 0.5*features[i];
         */

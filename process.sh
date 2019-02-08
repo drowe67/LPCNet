@@ -90,7 +90,7 @@ done
 # Unquantised, baseline analysis-synthesis model, 10ms updates
 for f in $WAV_FILES
 do
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | ./quant_feat -g 0.2 | \
     ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_1_uq'.wav
 done
 

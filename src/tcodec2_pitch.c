@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     float Sn[Sn_size];	               /* float buffer of input speech samples */
     FILE *fin,*fout;
     int   pitch_samples;
-    float f0;    
+    float f0, voicing;    
     int   i;
 
     /* Input file */
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
         Sn[i] = Sn[i+new_samples_each_call];
       for(i=0; i<new_samples_each_call; i++)
         Sn[i+Sn_size-new_samples_each_call] = buf[i];
-      pitch_samples = codec2_pitch_est(c2_pitch, Sn, &f0);
+      pitch_samples = codec2_pitch_est(c2_pitch, Sn, &f0, &voicing);
 
       fprintf(fout,"%f %d\n", f0, pitch_samples);
     }

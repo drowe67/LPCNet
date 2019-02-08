@@ -416,11 +416,13 @@ int main(int argc, char **argv) {
             c2_Sn[i] = c2_Sn[i+c2_frame_size];
         for(i=0; i<c2_frame_size; i++)
             c2_Sn[i+c2_Sn_size-c2_frame_size] = x[i];
-        float f0; int pitch_index;
-        pitch_index = codec2_pitch_est(c2pitch, c2_Sn, &f0);
+        float f0, voicing; int pitch_index;
+        pitch_index = codec2_pitch_est(c2pitch, c2_Sn, &f0, &voicing);
         features[2*NB_BANDS] = 0.01*(pitch_index-200);
+        // Tried using Codec 2 voicing est but poor results
+        // features[2*NB_BANDS+1] = voicing;
         //int pitch_index_lpcnet = 100*features[2*NB_BANDS] + 200;        
-        //fprintf(stderr, "%f %d %d\n", f0, pitch_index, pitch_index_lpcnet);
+        //fprintf(stderr, "%f %d %d v: %f %f\n", f0, pitch_index, pitch_index, features[2*NB_BANDS+1], voicing);
     }
     
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);

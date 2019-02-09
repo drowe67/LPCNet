@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
     FILE *fin, *fout;
     float features[NB_FEATURES], features_out[NB_FEATURES];
     int f = 0, dec = 2;
-    float features_quant[NB_BANDS];
+    float features_quant[NB_FEATURES];
     float sum_sq_err = 0.0;
     int d,i,n = 0;
     float fract;
@@ -198,8 +198,8 @@ int main(int argc, char *argv[]) {
     
     /* delay line so we can pass some features (like pitch and voicing) through unmodified */
     float features_prev[dec+1][NB_FEATURES];
-    /* adjacent vectors used for linear interpolation */
-    float features_lin[2][NB_BANDS];
+    /* adjacent vectors used for linear interpolation, note only 0..17 and 38,39 used */
+    float features_lin[2][NB_FEATURES];
     /* used for optiona smoothing of features */
     /*
     float features_mem[NB_BANDS];
@@ -211,9 +211,9 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_FEATURES; i++)
             features_prev[d][i] = 0.0;
     for(d=0; d<2; d++)
-        for(i=0; i<NB_BANDS; i++)
+        for(i=0; i<NB_FEATURES; i++)
             features_lin[d][i] = 0.0;
-    for(i=0; i<NB_BANDS; i++)
+    for(i=0; i<NB_FEATURES; i++)
         features_quant[i] = 0.0;
     
     fin = stdin;
@@ -322,22 +322,29 @@ int main(int argc, char *argv[]) {
                 }
             }
             else {
-                /* unquantsed */
+                /* unquantised */
                 for(i=0; i<NB_BANDS; i++) {
                     features_quant[i] = features[i];
                 }
             }
 
+            /* TODO: add quantistion of pitch and pitch gain here */
+            features_quant[2*NB_BANDS]   = features[2*NB_BANDS];     /* pitch      */
+            features_quant[2*NB_BANDS+1] = features[2*NB_BANDS+1];   /* pitch gain */
+            features_quant[2*NB_BANDS+1] = 0;
+            
             /* update linear interpolation arrays */
-            for(i=0; i<NB_BANDS; i++) {
+            for(i=0; i<NB_FEATURES; i++) {
                 features_lin[0][i] = features_lin[1][i];
                 features_lin[1][i] = features_quant[i];                
             }
 
-            /* pass (quantised) frame though */
+            /* pass (quantised) frame through */
             for(i=0; i<NB_BANDS; i++) {
                 features_out[i] = features_lin[0][i];
             }
+            features_out[2*NB_BANDS]   = features_lin[0][2*NB_BANDS];
+            features_out[2*NB_BANDS+1] = features_lin[0][2*NB_BANDS+1];
 
             /* measure quantisation error power (variance).  The
                dec/interp also adds significant distortion however we
@@ -355,7 +362,6 @@ int main(int argc, char *argv[]) {
                 }
             qv++;
             
-            features_out[2*NB_BANDS+2] = features_prev[0][2*NB_BANDS+2];  /* pass through LPC energy */
 
         } else {
             /* interpolated frame ----------------------------------------*/
@@ -364,20 +370,15 @@ int main(int argc, char *argv[]) {
                 features_out[i] = 0.0;
             /* interpolate frame */
             d = f%dec;
-            for(i=0; i<NB_BANDS; i++) {
+            for(i=0; i<NB_FEATURES; i++) {
                 fract = (float)d/(float)dec;
                 features_out[i] = (1.0-fract)*features_lin[0][i] + fract*features_lin[1][i];
             }
             
-            /* set up LPCs from interpolated cepstrals */
-            float g = lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
-            features_out[2*NB_BANDS+2] = log10(g);  /* LPC energy comes from interpolated ceptrals */
+            /* set up LPCs from interpolated cepstrals, used by synthesis */
+            lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
         }
         
-        /* pass some features through at the original (undecimated) sample rate for now */
-            
-        features_out[2*NB_BANDS]   = features_prev[0][2*NB_BANDS];   /* original undecimated pitch      */
-        features_out[2*NB_BANDS+1] = features_prev[0][2*NB_BANDS+1]; /* original undecimated gain       */
         f++;
         
         features_out[0] /= weight;    

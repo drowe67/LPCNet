@@ -260,6 +260,7 @@ int main(int argc, char **argv) {
   int training = -1;
   int c2pitch_en = 0;
   int nvec = 5000000;
+  float delta_f0 = 0.0;
   
   st = rnnoise_create();
 
@@ -398,6 +399,9 @@ int main(int argc, char **argv) {
       rand_resp(a_sig, b_sig);
       tmp = (float)rand()/RAND_MAX;
       noise_std = 4*tmp*tmp;
+      delta_f0 = -20.0*(float)rand()/RAND_MAX; /* between 0 and -20Hz */
+      fprintf(stderr, "speech_gain: %f noise_std: %f delta_f0: %f a_sig: %f %fb_sig: %f %f\n",
+              speech_gain, noise_std, delta_f0, a_sig[0], a_sig[1], b_sig[0], b_sig[1]);
     }
     biquad(x, mem_hp_x, x, b_hp, a_hp, FRAME_SIZE);
     biquad(x, mem_resp_x, x, b_sig, a_sig, FRAME_SIZE);
@@ -423,6 +427,17 @@ int main(int argc, char **argv) {
         // features[2*NB_BANDS+1] = voicing;
         //int pitch_index_lpcnet = 100*features[2*NB_BANDS] + 200;        
         //fprintf(stderr, "%f %d %d v: %f %f\n", f0, pitch_index, pitch_index, features[2*NB_BANDS+1], voicing);
+    }
+
+    // lower f0 by up to 20 Hz to get some coverage for lower pitch
+    // males.  Note we work in f0 domain, rather than pitch period
+    if (training) {
+        int pitch_index = 100*features[2*NB_BANDS] + 200;
+        float Fs=16000.0;
+        float f0 = Fs/pitch_index;
+        float f0_ = f0 + delta_f0;
+        fprintf(stderr, "f0: %f f0_: %f\n", f0, f0_);
+        features[2*NB_BANDS] = 0.01*(Fs/f0_-200);       
     }
     
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);

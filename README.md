@@ -120,4 +120,15 @@ Keeps M best candidates after each stage:
 
 In this example, the VQ error variance was reduced from 2.68 to 2.28 dB^2 (I think equivalent to 3 bits), and the number of outliers >2dB reduced from 15% to 10%.
 
+## Streaming of WIA broadcast material
+
+Interesting mix of speakers and recording conditions, some not so great microphones. Faster speech than the training material.
+
+Basic unquantised LPCNet model:
+
+```sox -r 16000 ~/Downloads/wianews-2019-01-20.s16 -t raw - trim 200 | ./dump_data --c2pitch --test - - | ./test_lpcnet - - | aplay -f S16_LE -r 16000```
+
+Fully quantised at (44+8)/0.03 = 1733 bits/s:
+
+```sox -r 16000 ~/Downloads/wianews-2019-01-20.s16 -t raw - trim 200 | ./dump_data --c2pitch --test - - | ./quant_feat -g 0.25 -o 6 -d 3 -w --mbest 5 -q pred_v2_stage1.f32,pred_v2_stage2.f32,pred_v2_stage3.f32,pred_v2_stage4.f32 | ./test_lpcnet - - | aplay -f S16_LE -r 16000```
 

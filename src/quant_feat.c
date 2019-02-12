@@ -27,6 +27,9 @@
 #define MAX_ENTRIES    4096 /* max number of vectors per stage        */
 #define NOUTLIERS      5    /* range of outiles to track in 1dB steps */
 
+#define PITCH_MIN_PERIOD 32
+#define PITCH_MAX_PERIOD 256
+
 int verbose = 0;
 FILE *fsv = NULL;
 
@@ -46,6 +49,9 @@ void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output */
                       float vq[],
                       int m[], int k,
                       int mbest_survivors);
+
+int encode_log_Wo(float Wo_min, float Wo_max, float Wo, int bits);
+float decode_log_Wo(float Wo_min, float Wo_max, int index, int bits);
 
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
@@ -78,27 +84,29 @@ int main(int argc, char *argv[]) {
     /* weight applied to first cepstral */
     float weight = 1.0;    
     float pitch_gain_bias = 0.0;
+    int   pitch_bits = 0;
     
     static struct option long_options[] = {
-        {"decimate", required_argument, 0, 'd'},
-        {"extpitch", required_argument, 0, 'e'},
-        {"first",    required_argument, 0, 'f'},
-        {"gain",     required_argument, 0, 'g'},
-        {"hard",     required_argument, 0, 'h'},
-        {"label",    required_argument, 0, 'l'},
-        {"mbest",    required_argument, 0, 'm'},
-        {"pred",     required_argument, 0, 'p'},
-        {"quant",    required_argument, 0, 'q'},
-        {"stagevar", required_argument, 0, 's'},
-        {"uniform",  required_argument, 0, 'u'},
-        {"verbose",  no_argument,       0, 'v'},
-        {"weight",   no_argument,       0, 'w'},
+        {"decimate",   required_argument, 0, 'd'},
+        {"extpitch",   required_argument, 0, 'e'},
+        {"first",      required_argument, 0, 'f'},
+        {"gain",       required_argument, 0, 'g'},
+        {"hard",       required_argument, 0, 'h'},
+        {"label",      required_argument, 0, 'l'},
+        {"mbest",      required_argument, 0, 'm'},
+        {"pitchquant", required_argument, 0, 'o'},
+        {"pred",       required_argument, 0, 'p'},
+        {"quant",      required_argument, 0, 'q'},
+        {"stagevar",   required_argument, 0, 's'},
+        {"uniform",    required_argument, 0, 'u'},
+        {"verbose",    no_argument,       0, 'v'},
+        {"weight",     no_argument,       0, 'w'},
         {0, 0, 0, 0}
     };
 
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:m:h:wg:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:m:h:wg:o:", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'f':
             /* start VQ at band first+1 */
@@ -135,6 +143,10 @@ int main(int argc, char *argv[]) {
         case 'm':
             mbest_survivors = atoi(optarg);
             fprintf(stderr, "mbest_survivors = %d\n",  mbest_survivors);
+            break;
+        case 'o':
+            pitch_bits = atoi(optarg);
+            fprintf(stderr, "pitch quantised to %d bits\n",  pitch_bits);
             break;
         case 'p':
             pred = atof(optarg);
@@ -186,7 +198,8 @@ int main(int argc, char *argv[]) {
             fprintf(stderr,"  [-g --gain pitch gain bias]\n");
             fprintf(stderr,"  [-h --hard lowerLimitdB\n");
             fprintf(stderr,"  [-l --label txtLabel]\n");
-            fprintf(stderr,"  [-m --mbest survivors]\n  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
+            fprintf(stderr,"  [-m --mbest survivors]\n  [-o --pitchbits nBits]\n");
+            fprintf(stderr,"  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
             fprintf(stderr,"  [-e --extpitch ExtPitchFile]\n  [-u --uniform stepSizedB]\n  [-v --verbose]\n");
             fprintf(stderr,"  [-w --weight first cepstral by 1/sqrt(NB_BANDS)\n");
             exit(1);
@@ -328,10 +341,32 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            /* TODO: add quantistion of pitch and pitch gain here */
-            features_quant[2*NB_BANDS]   = features[2*NB_BANDS];     /* pitch      */
-            features_quant[2*NB_BANDS+1] = features[2*NB_BANDS+1];   /* pitch gain */
-            features_quant[2*NB_BANDS+1] = 0;
+            if (pitch_bits) {
+                assert(pitch_bits <= 8);
+                // mapping we use as input to pembed layer, pemebed will only be trained
+                // for these discrete values.  However I think all integers will be covered, so
+                // we may not need any special precautions here.
+                int periods = 0.1 + 50*features[2*NB_BANDS] + 100;
+                if (periods < PITCH_MIN_PERIOD) periods = PITCH_MIN_PERIOD;
+                if (periods > PITCH_MAX_PERIOD) periods = PITCH_MAX_PERIOD;
+                // should probably add rounding here
+                int q = (periods - PITCH_MIN_PERIOD) >> (8 - pitch_bits);
+                int periods_ = (q << (8 - pitch_bits)) + PITCH_MIN_PERIOD;
+                features_quant[2*NB_BANDS] = ((float)periods_ - 100.0 - 0.1)/50.0;
+
+                // 2 bit pitch gain quantiser
+                float pitch_gain = features[2*NB_BANDS+1];
+                float pitch_gain_cb[] = {0.25, 0.25, 0.65, 0.80};
+                float w[1] = {1.0};
+                float se;
+                int ind = quantise(pitch_gain_cb, &pitch_gain, w, 1, 4, &se);
+                features_quant[2*NB_BANDS+1] = pitch_gain_cb[ind];
+                //fprintf(stderr, "periods %3d periods_ %3d q: %3d pitch_gain: %3.2f %3.2f\n", periods, periods_, q, pitch_gain, features_quant[2*NB_BANDS+1]);
+            }
+            else {
+                features_quant[2*NB_BANDS] = features[2*NB_BANDS]; 
+                features_quant[2*NB_BANDS+1] = features[2*NB_BANDS+1];   /* pitch gain */
+            }
             
             /* update linear interpolation arrays */
             for(i=0; i<NB_FEATURES; i++) {
@@ -558,7 +593,7 @@ void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output */
   returns the vector index.  The squared error of the quantised vector
   is added to se.
 
-  \*---------------------------------------------------------------------------*/
+\*---------------------------------------------------------------------------*/
 
 int quantise(const float * cb, float vec[], float w[], int k, int m, float *se)
 /* float   cb[][K];	current VQ codebook		*/

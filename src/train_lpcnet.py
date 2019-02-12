@@ -25,7 +25,7 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 
-# Train a LPCNet model (note not a Wavenet model)
+# Train a LPCNet model
 
 import lpcnet
 import sys
@@ -42,14 +42,14 @@ config = tf.ConfigProto()
 
 # use this option to reserve GPU memory, e.g. for running more than
 # one thing at a time.  Best to disable for GPUs with small memory
-config.gpu_options.per_process_gpu_memory_fraction = 0.44
+#config.gpu_options.per_process_gpu_memory_fraction = 0.44
 
 set_session(tf.Session(config=config))
 
-nb_epochs = 120
+nb_epochs = 10
 
 # Try reducing batch_size if you run out of memory on your GPU
-batch_size = 64
+batch_size = 32
 
 model, _, _ = lpcnet.new_lpcnet_model(training=True)
 
@@ -57,7 +57,8 @@ model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=
 model.summary()
 
 feature_file = sys.argv[1]
-pcm_file = sys.argv[2]     # 16 bit unsigned short PCM samples
+pcm_file = sys.argv[2]            # 16 bit unsigned short PCM samples
+prefix = sys.argv[3]              # prefix to put on .h5 files to easily name each experiment
 frame_size = model.frame_size
 nb_features = 55
 nb_used_features = model.nb_used_features
@@ -87,14 +88,19 @@ print("ulaw std = ", np.std(out_exc))
 
 features = np.reshape(features, (nb_frames, feature_chunk_size, nb_features))
 features = features[:, :, :nb_used_features]
-features[:,:,18:36] = 0
+# 0..37 features total
+# 0..17 cepstrals, 36 = pitch, 37 = pitch gain, 38 = lpc-gain
+# nb_used_features=38, so 0...37
+features[:,:,18:36] = 0   # zero out 18..35, so pitch and pitch gain being fed in, lpc gain ignored
 
 fpad1 = np.concatenate([features[0:1, 0:2, :], features[:-1, -2:, :]], axis=0)
 fpad2 = np.concatenate([features[1:, :2, :], features[0:1, -2:, :]], axis=0)
 features = np.concatenate([fpad1, features, fpad2], axis=1)
 
-
+# pitch feature uses as well as cesptrals
 periods = (.1 + 50*features[:,:,36:37]+100).astype('int16')
+
+features[:,:,36:] = 0      # DR experiment - lets try zeroing out pitch and pitch gain
 
 in_data = np.concatenate([sig, pred, in_exc], axis=-1)
 
@@ -103,8 +109,10 @@ del pred
 del in_exc
 
 # dump models to disk as we go
-checkpoint = ModelCheckpoint('lpcnet20h_384_10_G16_{epoch:02d}.h5')
+#checkpoint = ModelCheckpoint('lpcnet20h_384_10_G16_{epoch:02d}.h5')
+checkpoint = ModelCheckpoint(prefix + '_{epoch:02d}.h5')
 
-#model.load_weights('lpcnet9b_384_10_G16_01.h5')
+# use this to reload a partially trained model
+#model.load_weights('lpcnet_190203_07.h5')
 model.compile(optimizer=Adam(0.001, amsgrad=True, decay=5e-5), loss='sparse_categorical_crossentropy')
-model.fit([in_data, features, periods], out_exc, batch_size=batch_size, epochs=nb_epochs, validation_split=0.0, callbacks=[checkpoint, lpcnet.Sparsify(2000, 40000, 400, (0.05, 0.05, 0.2))])
+model.fit([in_data, features, periods], out_exc, batch_size=batch_size, epochs=nb_epochs, validation_split=0.1, callbacks=[checkpoint, lpcnet.Sparsify(2000, 40000, 400, (0.05, 0.05, 0.2))])

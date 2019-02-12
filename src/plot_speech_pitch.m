@@ -42,6 +42,7 @@ if !strcmp(fn_feat_c2,"-")
   f0_c2 = 2*Fs ./ pitch_index_c2;
   gain_c2 = feat_c2(:,2*nb_lpcnet_bands+2);
 else
+  usage = 2;
   % usage2 - pitch plus "gain" (voicing)
   gain = feat(:,2*nb_lpcnet_bands+2);
 end

@@ -90,7 +90,7 @@ done
 # Unquantised, baseline analysis-synthesis model, 10ms updates
 for f in $WAV_FILES
 do
-    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | ./quant_feat -g 0.2 | \
+    sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
     ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_1_uq'.wav
 done
 
@@ -114,12 +114,20 @@ if [ $lite -eq 0 ]; then
 
     done
 
+    # decimate features to 20ms updates, then linearly interpolate back up to 10ms updates, incl pitch + voicing quant
+    for f in $WAV_FILES
+    do
+        sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
+            ./quant_feat -d 2 -o 6 | ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_4_20ms_pq'.wav 
+
+    done
+
     # 33 bit 3 stage VQ searched with mbest algorithm, 20ms updates
     for f in $WAV_FILES
     do
         label=$(printf "33bit_20ms %-10s" "$f")
         sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
-        ./quant_feat -l "$label" -d 2 -w --mbest 5 -q $vq'1.f32',$vq'2.f32',$vq'3.f32' -s $SV_PATH/$f'_4_33bit_20ms'.txt  2>>$STATS | \
+        ./quant_feat -l "$label" -d 2 -o 6 -w --mbest 5 -q $vq'1.f32',$vq'2.f32',$vq'3.f32' -s $SV_PATH/$f'_5_33bit_20ms'.txt  2>>$STATS | \
         ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_4_33bit_20ms'.wav
     done
 
@@ -128,7 +136,7 @@ if [ $lite -eq 0 ]; then
     do
         label=$(printf "33bit_30ms %-10s" "$f")
         sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
-            ./quant_feat -l "$label" -d 3 -w --mbest 5 -q $vq'1.f32',$vq'2.f32',$vq'3.f32' -s $SV_PATH/$f'_5_33bit_30ms'.txt 2>>$STATS | \
+            ./quant_feat -l "$label" -d 3 -o 6 -w --mbest 5 -q $vq'1.f32',$vq'2.f32',$vq'3.f32' -s $SV_PATH/$f'_6_33bit_30ms'.txt 2>>$STATS | \
             ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_5_33bit_30ms'.wav
     done
 
@@ -137,7 +145,7 @@ if [ $lite -eq 0 ]; then
     do
         label=$(printf "44bit_30ms %-10s" "$f")
         sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
-        ./quant_feat -l "$label" -d 3 -w --mbest 5 -q $vq'1.f32',$vq'2.f32',$vq'3.f32',$vq'4.f32' -s $SV_PATH/$f'_6_44bit_30ms'.txt 2>>$STATS | \
+        ./quant_feat -l "$label" -d 3 -o 6 -w --mbest 5 -q $vq'1.f32',$vq'2.f32',$vq'3.f32',$vq'4.f32' -s $SV_PATH/$f'_7_44bit_30ms'.txt 2>>$STATS | \
         ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_6_44bit_30ms'.wav
     done
 
@@ -145,13 +153,13 @@ if [ $lite -eq 0 ]; then
     for f in $WAV_FILES
     do
         sox $WAVIN_PATH/$f.wav -t raw -r 8000 - | c2enc 2400 - - | c2dec 2400 - - | \
-        sox -r 8000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_7_c2_2400'.wav
+        sox -r 8000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_8_c2_2400'.wav
     done
     for f in $WAV_FILES
     do
         sox -r 16000 -c 1 $WAVIN_PATH/$f.wav -r 8000 -t raw - | \
             cohpsk_ch - - -35 --Fs 8000 -f 10 --ssbfilt 1 |  \
-        sox -r 8000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_8_ssb_10dB'.wav
+        sox -r 8000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_9_ssb_10dB'.wav
     done
 
 fi # ... if [ $lite -eq 0 ] ...
@@ -185,16 +193,20 @@ if [ $lite -eq 0 ]; then
       <td>Cesptral features decimated to 20ms frame rate, linear interpolation back to 10ms</td>
     </tr>
     <tr>
+      <td>20ms_pq</td>
+      <td>As above but pitch quantised to 6 bits, pitch gain to 2 bits</td>
+    </tr>
+    <tr>
       <td>33bit_20ms</td>
-      <td>3 stage VQ of prediction error, 11 bits/stage, at 20ms frame rate</td>
+      <td>3 stage VQ of prediction error, 11 bits/stage, at 20ms frame rate, (33+8)/0.02 = 2050 bits/s</td>
     </tr>
     <tr>
       <td>33bit_30ms</td>
-      <td>Same 33 bit VQ, but decimated down to 30ms rate</td>
+      <td>Same 33 bit VQ, but decimated down to 30ms rate, (33+8)/0.03 = 1367 bits/s</td>
     </tr>
     <tr>
       <td>44bit_40ms</td>
-      <td>4 stage VQ, at 30ms update rate</td>
+      <td>4 stage VQ, at 30ms update rate, (44+8)/0.03 = 1733 bits/s</td>
     </tr>
     <tr>
       <td>c2_2400</td>

@@ -47,8 +47,6 @@
 #include "celt_lpc.h"
 #include "codec2_pitch.h"
 #include <assert.h>
-#include <getopt.h>
-
 
 #define PITCH_MIN_PERIOD 32
 #define PITCH_MAX_PERIOD 256
@@ -59,7 +57,6 @@
 #define NB_DELTA_CEPS 6
 
 #define NB_FEATURES (2*NB_BANDS+3+LPC_ORDER)
-
 
 typedef struct {
   float analysis_mem[OVERLAP_SIZE];
@@ -155,10 +152,13 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X,
     follow = MAX16(follow-2.5, Ly[i]);
     E += Ex[i];
   }
+
   dct(features, Ly);
   features[0] -= 4;
   g = lpc_from_cepstrum(st->lpc, features);
 
+  /* load up used features */
+  
   features[2*NB_BANDS] = .01*(pitch_index-200);
   features[2*NB_BANDS+1] = gain;
   features[2*NB_BANDS+2] = log10(g);
@@ -187,31 +187,48 @@ static void preemphasis(float *y, float *mem, const float *x, float coef, int N)
   }
 }
 
-static float uni_rand() {
-  return rand()/(double)RAND_MAX-.5;
-}
+typedef struct {
+    float mem_hp_x[2];
+    float mem_preemph;
+    short tmp[FRAME_SIZE];
+    CODEC2_PITCH *c2pitch;
+    int c2_Sn_size, c2_frame_size;
+    float *c2_Sn;
+} LPCNET_DUMP;
 
-static void rand_resp(float *a, float *b) {
-  a[0] = .75*uni_rand();
-  a[1] = .75*uni_rand();
-  b[0] = .75*uni_rand();
-  b[1] = .75*uni_rand();
+
+LPCNET_DUMP *lpcnet_dump_create(void) {
+    LPCNET_DUMP *d = malloc(sizeof(LPCNET_DUMP));
+    if (d == NULL) return NULL;
+    d->mem_hp_x[0] = d->mem_hp_x[1] = 0.0;
+    d->mem_preemph = 0.0;
+    int i;
+    for(i=0; i<FRAME_SIZE; i++) d->tmp[i] = 0;
+
+    /* fire up Codec 2 pitch estimator */
+
+    d->c2pitch = codec2_pitch_create(&d->c2_Sn_size, &d->c2_frame_size);
+    assert(FRAME_SIZE == d->c2_frame_size);
+    d->c2_Sn = (float*)malloc(sizeof(float)*d->c2_Sn_size);
+    assert(d->c2_Sn != NULL);
+    for(i=0; i<d->c2_Sn_size; i++) d->c2_Sn[i] = 0.0;
+    
+    return d;
+}
+    
+void lpcnet_dump_destroy(LPCNET_DUMP *d) {
+    codec2_pitch_destroy(d->c2pitch);    
+    free(d->c2_Sn);
+    free(d);
 }
 
 int main(int argc, char **argv) {
-  int i;
-  static const float a_hp[2] = {-1.99599, 0.99600};
-  static const float b_hp[2] = {-2, 1};
-  float a_sig[2] = {0};
-  float b_sig[2] = {0};
-  float mem_hp_x[2]={0};
-  float mem_resp_x[2]={0};
-  float mem_preemph=0;
-  float x[FRAME_SIZE];
   FILE *f1;
   FILE *ffeat;
-  short tmp[FRAME_SIZE] = {0};
   DenoiseState *st;
+  LPCNET_DUMP *d;
+
+  d = lpcnet_dump_create();
   
   st = rnnoise_create();
 
@@ -240,39 +257,37 @@ int main(int argc, char **argv) {
       }
   }
 
-  /* fire up Codec 2 pitch estimator */
-  CODEC2_PITCH *c2pitch = NULL;
-  int c2_Sn_size, c2_frame_size;
-  float *c2_Sn = NULL;
-  c2pitch = codec2_pitch_create(&c2_Sn_size, &c2_frame_size);
-  assert(FRAME_SIZE == c2_frame_size);
-  c2_Sn = (float*)malloc(sizeof(float)*c2_Sn_size); assert(c2_Sn != NULL);
-  for(i=0; i<c2_Sn_size; i++) c2_Sn[i] = 0.0;
   
   while (1) {
+    int i;
+    static const float a_hp[2] = {-1.99599, 0.99600};
+    static const float b_hp[2] = {-2, 1};
+    float x[FRAME_SIZE];
     kiss_fft_cpx X[FREQ_SIZE];
     float Ex[NB_BANDS];
     float features[NB_FEATURES];
-    float E=0;
 
-    /* one frame delay */
-    for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
-    int nread = fread(tmp, sizeof(short), FRAME_SIZE, f1);
+    /* note one frame delay */
+    for (i=0;i<FRAME_SIZE;i++) x[i] = d->tmp[i];
+    int nread = fread(d->tmp, sizeof(short), FRAME_SIZE, f1);
     if (nread != FRAME_SIZE) break;
 
-    biquad(x, mem_hp_x, x, b_hp, a_hp, FRAME_SIZE);
-    preemphasis(x, &mem_preemph, x, PREEMPHASIS, FRAME_SIZE);
+    biquad(x, d->mem_hp_x, x, b_hp, a_hp, FRAME_SIZE);
+    preemphasis(x, &d->mem_preemph, x, PREEMPHASIS, FRAME_SIZE);
     for (i=0;i<FRAME_SIZE;i++) x[i] += rand()/(float)RAND_MAX - .5;
     compute_frame_features(st, X, Ex, features, x);
 
     /* inject pitch from Codec 2 pitch estimator */
     
+    int c2_Sn_size = d->c2_Sn_size;
+    int c2_frame_size = d->c2_frame_size;
+    float *c2_Sn = d->c2_Sn;
     for(i=0; i<c2_Sn_size-c2_frame_size; i++)
         c2_Sn[i] = c2_Sn[i+c2_frame_size];
     for(i=0; i<c2_frame_size; i++)
         c2_Sn[i+c2_Sn_size-c2_frame_size] = x[i];
     float f0, voicing; int pitch_index;
-    pitch_index = codec2_pitch_est(c2pitch, c2_Sn, &f0, &voicing);
+    pitch_index = codec2_pitch_est(d->c2pitch, c2_Sn, &f0, &voicing);
     features[2*NB_BANDS] = 0.01*(pitch_index-200);
 
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);
@@ -280,8 +295,8 @@ int main(int argc, char **argv) {
 
   fclose(f1);
   fclose(ffeat);
-  free(c2_Sn); codec2_pitch_destroy(c2pitch);
   rnnoise_destroy(st);
+  lpcnet_dump_destroy(d);
   return 0;
 }
 

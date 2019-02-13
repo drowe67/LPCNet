@@ -432,12 +432,24 @@ int main(int argc, char **argv) {
     // lower f0 by up to 20 Hz to get some coverage for lower pitch
     // males.  Note we work in f0 domain, rather than pitch period
     if (training) {
-        int pitch_index = 100*features[2*NB_BANDS] + 200;
+	float feat = features[2*NB_BANDS];
+        float pitch_index = 100*features[2*NB_BANDS] + 200;
         float Fs=16000.0;
         float f0 = Fs/pitch_index;
         float f0_ = f0 + delta_f0;
-        fprintf(stderr, "f0: %f f0_: %f\n", f0, f0_);
-        features[2*NB_BANDS] = 0.01*(Fs/f0_-200);       
+	float pitch_index_ = Fs/f0_;
+	if (pitch_index_ > 2*PITCH_MAX_PERIOD) pitch_index_ = 2*PITCH_MAX_PERIOD;
+	if (pitch_index_ < 2*PITCH_MIN_PERIOD) pitch_index_ = 2*PITCH_MIN_PERIOD;
+	/*
+	if (pitch_index_ > 2*PITCH_MAX_PERIOD) {
+	    fprintf(stderr, "f0: %f %f feat: %f %f\n", f0, f0_, feat, features[2*NB_BANDS]);
+	    fprintf(stderr, "pitch_index: %f pitch_index_: %f\n", pitch_index, pitch_index_);
+	}
+	*/
+	assert(pitch_index_ <= 2*PITCH_MAX_PERIOD);
+	assert(pitch_index_ >= 2*PITCH_MIN_PERIOD);
+	
+        features[2*NB_BANDS] = 0.01*(pitch_index_-200);       
     }
     
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);

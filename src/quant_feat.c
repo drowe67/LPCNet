@@ -50,9 +50,6 @@ void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output */
                       int m[], int k,
                       int mbest_survivors);
 
-int encode_log_Wo(float Wo_min, float Wo_max, float Wo, int bits);
-float decode_log_Wo(float Wo_min, float Wo_max, int index, int bits);
-
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
     float features[NB_FEATURES], features_out[NB_FEATURES];

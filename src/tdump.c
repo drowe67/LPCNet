@@ -129,6 +129,9 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X,
   for(i=0; i<NB_FEATURES; i++) features[i] = 0.0;
 
   frame_analysis(st, X, Ex, in);
+
+  /* keep LPCnet pitch est for now as we are using pitch gain */
+  
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
   RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
   RNN_COPY(pitch_buf, &st->pitch_buf[0], PITCH_BUF_SIZE);
@@ -141,6 +144,8 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X,
   st->last_period = pitch_index;
   st->last_gain = gain;
 
+  /* smoothing of band energies Ly */
+  
   logMax = -2;
   follow = -2;
   for (i=0;i<NB_BANDS;i++) {
@@ -206,8 +211,6 @@ int main(int argc, char **argv) {
   FILE *f1;
   FILE *ffeat;
   short tmp[FRAME_SIZE] = {0};
-  float speech_gain=1;
-  float old_speech_gain = 1;
   DenoiseState *st;
   
   st = rnnoise_create();
@@ -251,40 +254,30 @@ int main(int argc, char **argv) {
     float Ex[NB_BANDS];
     float features[NB_FEATURES];
     float E=0;
+
+    /* one frame delay */
     for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
     int nread = fread(tmp, sizeof(short), FRAME_SIZE, f1);
     if (nread != FRAME_SIZE) break;
 
-    for (i=0;i<FRAME_SIZE;i++) E += tmp[i]*(float)tmp[i];
-
     biquad(x, mem_hp_x, x, b_hp, a_hp, FRAME_SIZE);
-    biquad(x, mem_resp_x, x, b_sig, a_sig, FRAME_SIZE);
-
     preemphasis(x, &mem_preemph, x, PREEMPHASIS, FRAME_SIZE);
-    for (i=0;i<FRAME_SIZE;i++) {
-      float g;
-      float f = (float)i/FRAME_SIZE;
-      g = f*speech_gain + (1-f)*old_speech_gain;
-      x[i] *= g;
-    }
     for (i=0;i<FRAME_SIZE;i++) x[i] += rand()/(float)RAND_MAX - .5;
     compute_frame_features(st, X, Ex, features, x);
 
-        for(i=0; i<c2_Sn_size-c2_frame_size; i++)
-            c2_Sn[i] = c2_Sn[i+c2_frame_size];
-        for(i=0; i<c2_frame_size; i++)
-            c2_Sn[i+c2_Sn_size-c2_frame_size] = x[i];
-        float f0, voicing; int pitch_index;
-        pitch_index = codec2_pitch_est(c2pitch, c2_Sn, &f0, &voicing);
-        features[2*NB_BANDS] = 0.01*(pitch_index-200);
-        // Tried using Codec 2 voicing est but poor results
-        // features[2*NB_BANDS+1] = voicing;
-        //int pitch_index_lpcnet = 100*features[2*NB_BANDS] + 200;        
-        //fprintf(stderr, "%f %d %d v: %f %f\n", f0, pitch_index, pitch_index, features[2*NB_BANDS+1], voicing);
+    /* inject pitch from Codec 2 pitch estimator */
+    
+    for(i=0; i<c2_Sn_size-c2_frame_size; i++)
+        c2_Sn[i] = c2_Sn[i+c2_frame_size];
+    for(i=0; i<c2_frame_size; i++)
+        c2_Sn[i+c2_Sn_size-c2_frame_size] = x[i];
+    float f0, voicing; int pitch_index;
+    pitch_index = codec2_pitch_est(c2pitch, c2_Sn, &f0, &voicing);
+    features[2*NB_BANDS] = 0.01*(pitch_index-200);
 
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);
-    old_speech_gain = speech_gain;
   }
+
   fclose(f1);
   fclose(ffeat);
   free(c2_Sn); codec2_pitch_destroy(c2pitch);

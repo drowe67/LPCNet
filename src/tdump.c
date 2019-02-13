@@ -115,18 +115,19 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const f
   compute_band_energy(Ex, X);
 }
 
-static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P,
-                                  float *Ex, float *Ep, float *Exp, float *features, const float *in) {
+static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, 
+                                  float *Ex, float *features, const float *in) {
   int i;
   float E = 0;
   float Ly[NB_BANDS];
-  float p[WINDOW_SIZE];
   float pitch_buf[PITCH_BUF_SIZE];
   int pitch_index;
   float gain;
-  float tmp[NB_BANDS];
   float follow, logMax;
   float g;
+
+  for(i=0; i<NB_FEATURES; i++) features[i] = 0.0;
+
   frame_analysis(st, X, Ex, in);
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
   RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
@@ -139,17 +140,7 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
           2*PITCH_FRAME_SIZE, &pitch_index, st->last_period, st->last_gain);
   st->last_period = pitch_index;
   st->last_gain = gain;
-  for (i=0;i<WINDOW_SIZE;i++)
-    p[i] = st->pitch_buf[PITCH_BUF_SIZE-WINDOW_SIZE-pitch_index/2+i];
-  apply_window(p);
-  forward_transform(P, p);
-  compute_band_energy(Ep, P);
-  compute_band_corr(Exp, X, P);
-  for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
-  dct(tmp, Exp);
-  for (i=0;i<NB_BANDS;i++) features[NB_BANDS+i] = tmp[i];
-  features[NB_BANDS] -= 1.3;
-  features[NB_BANDS+1] -= 0.9;
+
   logMax = -2;
   follow = -2;
   for (i=0;i<NB_BANDS;i++) {
@@ -162,19 +153,11 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
   dct(features, Ly);
   features[0] -= 4;
   g = lpc_from_cepstrum(st->lpc, features);
-#if 0
-  for (i=0;i<NB_BANDS;i++) printf("%f ", Ly[i]);
-  printf("\n");
-#endif
 
   features[2*NB_BANDS] = .01*(pitch_index-200);
   features[2*NB_BANDS+1] = gain;
   features[2*NB_BANDS+2] = log10(g);
   for (i=0;i<LPC_ORDER;i++) features[2*NB_BANDS+3+i] = st->lpc[i];
-#if 0
-  for (i=0;i<NB_FEATURES;i++) printf("%f ", features[i]);
-  printf("\n");
-#endif
 }
 
 static void biquad(float *y, float mem[2], const float *x, const float *b, const float *a, int N) {
@@ -212,7 +195,6 @@ static void rand_resp(float *a, float *b) {
 
 int main(int argc, char **argv) {
   int i;
-  int count=0;
   static const float a_hp[2] = {-1.99599, 0.99600};
   static const float b_hp[2] = {-2, 1};
   float a_sig[2] = {0};
@@ -221,29 +203,17 @@ int main(int argc, char **argv) {
   float mem_resp_x[2]={0};
   float mem_preemph=0;
   float x[FRAME_SIZE];
-  int gain_change_count=0;
   FILE *f1;
   FILE *ffeat;
-  FILE *fpcm=NULL;
-  short pcm[FRAME_SIZE]={0};
   short tmp[FRAME_SIZE] = {0};
-  float savedX[FRAME_SIZE] = {0};
   float speech_gain=1;
-  int last_silent = 1;
   float old_speech_gain = 1;
-  int one_pass_completed = 0;
   DenoiseState *st;
-  float noise_std=0;
-  int training = 0;
-  int c2pitch_en = 1;
-  int nvec = 5000000;
-  float delta_f0 = 0.0;
   
   st = rnnoise_create();
 
   if (argc != 3) {
       fprintf(stderr, "Too few arguments\n");
-  helpmsg:
       fprintf(stderr, "usage: %s <speech> <features out>\n", argv[0]);
       exit(1);
   }
@@ -277,23 +247,19 @@ int main(int argc, char **argv) {
   for(i=0; i<c2_Sn_size; i++) c2_Sn[i] = 0.0;
   
   while (1) {
-    kiss_fft_cpx X[FREQ_SIZE], P[WINDOW_SIZE];
-    float Ex[NB_BANDS], Ep[NB_BANDS];
-    float Exp[NB_BANDS];
+    kiss_fft_cpx X[FREQ_SIZE];
+    float Ex[NB_BANDS];
     float features[NB_FEATURES];
     float E=0;
-    int silent;
     for (i=0;i<FRAME_SIZE;i++) x[i] = tmp[i];
     int nread = fread(tmp, sizeof(short), FRAME_SIZE, f1);
-    if (nread != FRAME_SIZE) {
-      if (!training) break;
-      rewind(f1);
-      nread = fread(tmp, sizeof(short), FRAME_SIZE, f1);
-      one_pass_completed = 1;
-    }
+    if (nread != FRAME_SIZE) break;
+
     for (i=0;i<FRAME_SIZE;i++) E += tmp[i]*(float)tmp[i];
+
     biquad(x, mem_hp_x, x, b_hp, a_hp, FRAME_SIZE);
     biquad(x, mem_resp_x, x, b_sig, a_sig, FRAME_SIZE);
+
     preemphasis(x, &mem_preemph, x, PREEMPHASIS, FRAME_SIZE);
     for (i=0;i<FRAME_SIZE;i++) {
       float g;
@@ -302,7 +268,7 @@ int main(int argc, char **argv) {
       x[i] *= g;
     }
     for (i=0;i<FRAME_SIZE;i++) x[i] += rand()/(float)RAND_MAX - .5;
-    compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
+    compute_frame_features(st, X, Ex, features, x);
 
         for(i=0; i<c2_Sn_size-c2_frame_size; i++)
             c2_Sn[i] = c2_Sn[i+c2_frame_size];

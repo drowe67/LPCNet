@@ -120,6 +120,9 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
   float tmp[NB_BANDS];
   float follow, logMax;
   float g;
+
+  for(i=0; i<NB_FEATURES; i++) features[i] = 0.0;
+  
   frame_analysis(st, X, Ex, in);
   RNN_MOVE(st->pitch_buf, &st->pitch_buf[FRAME_SIZE], PITCH_BUF_SIZE-FRAME_SIZE);
   RNN_COPY(&st->pitch_buf[PITCH_BUF_SIZE-FRAME_SIZE], in, FRAME_SIZE);
@@ -140,9 +143,11 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
   compute_band_corr(Exp, X, P);
   for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
   dct(tmp, Exp);
+  /*
   for (i=0;i<NB_BANDS;i++) features[NB_BANDS+i] = tmp[i];
   features[NB_BANDS] -= 1.3;
   features[NB_BANDS+1] -= 0.9;
+  */
   logMax = -2;
   follow = -2;
   for (i=0;i<NB_BANDS;i++) {

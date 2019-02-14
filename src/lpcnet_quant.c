@@ -95,7 +95,6 @@ void quant_pred_mbest(float vec_out[],
     for(i=0; i<k; i++) {
         err[i] = (vec_in[i] - pred*vec_out[i]);
         se1 += err[i]*err[i];
-        vec_out[i] = pred*vec_out[i];
         w[i] = 1.0;
     }
     se1 /= k;
@@ -144,6 +143,7 @@ void quant_pred_mbest(float vec_out[],
     pv("    err: ", err);
     if (lpcnet_fsv != NULL) fprintf(lpcnet_fsv, "%f\t%f\t", vec_in[0],sqrt(se1));
     if (lpcnet_verbose) fprintf(stderr, "    se1: %f\n", se1);
+
     quant_pred_output(vec_out, indexes, err, pred, num_stages, vq, k);
     
     for(i=0; i<num_stages; i++)
@@ -161,6 +161,9 @@ void quant_pred_output(float vec_out[],
     int s,i,ind;
     float se2;
        
+    for(i=0; i<k; i++)
+        vec_out[i] = pred*vec_out[i];
+    
     for(s=0; s<num_stages; s++) {
         ind = indexes[s];
         se2 = 0.0;

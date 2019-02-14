@@ -5,6 +5,7 @@
   David's experimental quanisation functions for LPCNet
 */
 
+#include <assert.h>
 #include <stdio.h>
 #include <math.h>
 
@@ -13,6 +14,9 @@
 
 FILE *lpcnet_fsv = NULL;
 int lpcnet_verbose = 0;
+
+#define PITCH_MIN_PERIOD 32
+#define PITCH_MAX_PERIOD 256
 
 // print vector debug function
 
@@ -228,3 +232,36 @@ int quantise(const float * cb, float vec[], float w[], int k, int m, float *se)
 }
 
 
+int pitch_encode(float pitch_feature, int pitch_bits) {
+    
+    assert(pitch_bits <= 8);
+    // mapping we use as input to pembed layer, pemebed will only be trained
+    // for these discrete values.  However I think all integers will be covered, so
+    // we may not need any special precautions here.
+    int periods = 0.1 + 50*pitch_feature + 100;
+    if (periods < PITCH_MIN_PERIOD) periods = PITCH_MIN_PERIOD;
+    if (periods > PITCH_MAX_PERIOD) periods = PITCH_MAX_PERIOD;
+
+    // should probably add rounding here
+    int q = (periods - PITCH_MIN_PERIOD) >> (8 - pitch_bits);
+    return q;
+}
+
+float pitch_decode(int pitch_bits, int q) {
+    int periods_ = (q << (8 - pitch_bits)) + PITCH_MIN_PERIOD;
+    return ((float)periods_ - 100.0 - 0.1)/50.0;
+}
+                
+static float pitch_gain_cb[] = {0.25, 0.25, 0.65, 0.80};
+
+int pitch_gain_encode(float pitch_gain_feature) {
+    // 2 bit pitch gain quantiser
+    float w[1] = {1.0};
+    float se;
+    int ind = quantise(pitch_gain_cb, &pitch_gain_feature, w, 1, 4, &se);
+    return ind;
+}
+
+float pitch_gain_decode(int ind) {
+    return pitch_gain_cb[ind];
+}

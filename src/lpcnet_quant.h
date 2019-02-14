@@ -41,4 +41,9 @@ void quant_pred_output(float vec_out[],
                        float vq[],
                        int k);
 
+int pitch_encode(float pitch_feature, int pitch_bits);
+float pitch_decode(int pitch_bits, int q);
+int pitch_gain_encode(float pitch_gain_feature);
+float pitch_gain_decode(int pitch_bits);
+
 #endif

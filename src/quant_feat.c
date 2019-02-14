@@ -318,26 +318,10 @@ int main(int argc, char *argv[]) {
             }
 
             if (pitch_bits) {
-                assert(pitch_bits <= 8);
-                // mapping we use as input to pembed layer, pemebed will only be trained
-                // for these discrete values.  However I think all integers will be covered, so
-                // we may not need any special precautions here.
-                int periods = 0.1 + 50*features[2*NB_BANDS] + 100;
-                if (periods < PITCH_MIN_PERIOD) periods = PITCH_MIN_PERIOD;
-                if (periods > PITCH_MAX_PERIOD) periods = PITCH_MAX_PERIOD;
-                // should probably add rounding here
-                int q = (periods - PITCH_MIN_PERIOD) >> (8 - pitch_bits);
-                int periods_ = (q << (8 - pitch_bits)) + PITCH_MIN_PERIOD;
-                features_quant[2*NB_BANDS] = ((float)periods_ - 100.0 - 0.1)/50.0;
-
-                // 2 bit pitch gain quantiser
-                float pitch_gain = features[2*NB_BANDS+1];
-                float pitch_gain_cb[] = {0.25, 0.25, 0.65, 0.80};
-                float w[1] = {1.0};
-                float se;
-                int ind = quantise(pitch_gain_cb, &pitch_gain, w, 1, 4, &se);
-                features_quant[2*NB_BANDS+1] = pitch_gain_cb[ind];
-                //fprintf(stderr, "periods %3d periods_ %3d q: %3d pitch_gain: %3.2f %3.2f\n", periods, periods_, q, pitch_gain, features_quant[2*NB_BANDS+1]);
+                int ind =  pitch_encode(features[2*NB_BANDS], pitch_bits);
+                features_quant[2*NB_BANDS] = pitch_decode(pitch_bits, ind);
+                ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
+                features_quant[2*NB_BANDS+1] = pitch_gain_decode(ind);
             }
             else {
                 features_quant[2*NB_BANDS] = features[2*NB_BANDS]; 

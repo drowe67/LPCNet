@@ -437,7 +437,6 @@ int main(int argc, char **argv) {
     // lower f0 by up to 20 Hz to get some coverage for lower pitch
     // males.  Note we work in f0 domain, rather than pitch period
     if (training) {
-	float feat = features[2*NB_BANDS];
         float pitch_index = 100*features[2*NB_BANDS] + 200;
         float Fs=16000.0;
         float f0 = Fs/pitch_index;

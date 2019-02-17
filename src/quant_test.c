@@ -1,14 +1,8 @@
 /*
-  quant_feat.c
+  quant_test.c
   David Rowe Jan 2019
 
-  Tool for processing a .f32 file of LPCNet features to simulate quantisation:
-
-  1/ Can decimate cepstrals to 20/30/40/... ms update rate and
-     liniearly interpolate back up to 10ms
-  2/ Quantise using multistage VQs
-  3/ Replace the LPCNet pitch estimate with estimates from external files
-  4/ Works from stdin -> stdout to facilitate streaming real time simulations.
+  Test program for porting from quant_feat to stand alone encoder/decoder.
 */
 
 #include <assert.h>
@@ -35,7 +29,7 @@ extern int   m[MAX_STAGES];
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
     float features[NB_FEATURES], features_out[NB_FEATURES];
-    int f = 0, dec = 2;
+    int f = 0, dec = 3;
     float features_quant[NB_FEATURES];
     int   indexes[MAX_STAGES];
     float sum_sq_err = 0.0;
@@ -53,13 +47,13 @@ int main(int argc, char *argv[]) {
     FILE *fpitch = NULL;
     float Fs = 16000.0;
     float uniform_step = 0.0;
-    int   mbest_survivors = 0;
+    int   mbest_survivors = 5;
     char label[80] = "";
     /* experimental limits for dctLy[0], first cepstral */
     float lower_limit = -200.0;
     float upper_limit =  200.00;
     /* weight applied to first cepstral */
-    float weight = 1.0;    
+    float weight = 1.0/sqrt(NB_BANDS);    
     float pitch_gain_bias = 0.0;
     int   pitch_bits = 0;
 

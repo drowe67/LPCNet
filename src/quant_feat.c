@@ -61,6 +61,8 @@ int main(int argc, char *argv[]) {
     float weight = 1.0;    
     float pitch_gain_bias = 0.0;
     int   pitch_bits = 0;
+
+    for(i=0; i<MAX_STAGES*NB_BANDS*MAX_ENTRIES; i++) vq[i] = 0.0;
     
     static struct option long_options[] = {
         {"decimate",   required_argument, 0, 'd'},
@@ -244,6 +246,12 @@ int main(int argc, char *argv[]) {
     
     while(fread(features, sizeof(float), NB_FEATURES, fin) == NB_FEATURES) {
        
+        for(i=0; i<NB_FEATURES; i++) {
+            if (isnan(features[i])) {
+                fprintf(stderr, "f: %d i: %d\n", f, i);
+            }
+        }
+        
         /* convert cepstrals to dB */
         for(i=0; i<NB_BANDS; i++)
             features[i] *= 10.0;
@@ -370,8 +378,14 @@ int main(int argc, char *argv[]) {
                 features_out[i] = (1.0-fract)*features_lin[0][i] + fract*features_lin[1][i];
             }
             
-            /* set up LPCs from interpolated cepstrals, used by synthesis */
-            lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
+            /* set up LPCs from interpolated cepstrals, used by synthesis.  Note we need scale
+               back down from dB and unweight.  This is getting confusing .....must be a better
+               way to express this .... */
+            float features_lpc[NB_FEATURES];
+            for(i=0; i<NB_BANDS; i++) 
+                features_lpc[i] = features_out[i]/10.0;
+            features_lpc[0] /= weight;
+            lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_lpc);
         }
         
         f++;
@@ -382,6 +396,13 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_BANDS; i++)
             features_out[i] *= 1/10.0;
 
+        for(i=0; i<NB_FEATURES; i++) {
+            if (isnan(features_out[i])) {
+                fprintf(stderr, "f: %d i: %d\n", f, i);
+                exit(0);
+            }
+        }
+        
         fwrite(features_out, sizeof(float), NB_FEATURES, fout);
         fflush(stdin);
         fflush(stdout);

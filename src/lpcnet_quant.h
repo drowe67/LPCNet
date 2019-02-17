@@ -10,6 +10,9 @@
 
 #define NB_BANDS       18
 #define MAX_ENTRIES    4096 /* max number of vectors per stage */
+#define MAX_STAGES     5    /* max number of VQ stages         */
+
+#include <stdio.h>
 
 // debug/instrumentation globals
 extern FILE *lpcnet_fsv;

@@ -20,7 +20,7 @@ ifneq ($(NEON),0)
 CFLAGS+=-mfpu=neon -march=armv8-a -mtune=cortex-a53
 endif
 
-PROG=dump_data test_lpcnet test_vec quant_feat tcodec2_pitch weight tdump tweak_pitch
+PROG=dump_data test_lpcnet test_vec quant_feat tcodec2_pitch weight tdump tweak_pitch quant_test quant2c diff32
 all: $(PROG)
 
 dump_data_objs := src/dump_data.o src/freq.o src/kiss_fft.o src/pitch.o src/celt_lpc.o src/codec2_pitch.o
@@ -55,14 +55,24 @@ quant_feat_objs := src/quant_feat.o src/freq.o src/kiss_fft.o src/celt_lpc.o src
 quant_feat_deps := $(quant_feat_objs:.o=.d)
 quant_feat: $(quant_feat_objs)
 	gcc -o $@ $(CFLAGS) $(quant_feat_objs) -lm
-
 -include $(quant_feat_deps)
+
+quant_test_objs := src/quant_test.o src/freq.o src/kiss_fft.o src/celt_lpc.o src/pitch.o src/mbest.o src/lpcnet_quant.o src/4stage_pred_vq.o
+quant_test_deps := $(quant_test_objs:.o=.d)
+quant_test: $(quant_test_objs)
+	gcc -o $@ $(CFLAGS) $(quant_test_objs) -lm
+-include $(quant_test_deps)
+
+quant2c_objs:= src/quant2c.o
+quan2c_deps := $(quant2c_objs:.o=.d)
+quant2c: $(quant2c_objs)
+	gcc -o $@ $(CFLAGS) $(quant2c_objs) -lm
+-include $(quant2c_deps)
 
 tcodec2_pitch_objs := src/tcodec2_pitch.o src/codec2_pitch.o
 tcodec2_pitch_deps := $(tcodec2_pitch_objs:.o=.d)
 tcodec2_pitch: $(tcodec2_pitch_objs)
 	gcc -o $@ $(CFLAGS) $(tcodec2_pitch_objs) -lm -lcodec2
-
 -include $(tcodec2_pitch_deps)
 
 weight_objs := src/weight.o
@@ -76,6 +86,9 @@ tweak_pitch_objs := src/tweak_pitch.o
 tweak_pitch_deps := $(tweak_pitch_objs:.o=.d)
 tweak_pitch: $(tweak_pitch_objs)
 	gcc -o $@ $(CFLAGS) $(tweak_pitch_objs) -lm
+
+diff32: src/diff32.c
+	gcc -o $@ $(CFLAGS) src/diff32.c -lm
 
 -include $(tweak_pitch_deps)
 

@@ -293,7 +293,13 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_BANDS; i++)
              features_mem[i] = 0.5*features_mem[i] + 0.5*features[i];
         */
+        // clear outpout features to make sure we are not cheating.
+        // Note we cant clear quant_out as we need memory of last
+        // frames output for pred quant
         
+        for(i=0; i<NB_FEATURES; i++)
+            features_out[i] = 0.0;
+
         if ((f % dec) == 0) {
             /* non-interpolated frame ----------------------------------------*/
 
@@ -377,15 +383,7 @@ int main(int argc, char *argv[]) {
                 fract = (float)d/(float)dec;
                 features_out[i] = (1.0-fract)*features_lin[0][i] + fract*features_lin[1][i];
             }
-            
-            /* set up LPCs from interpolated cepstrals, used by synthesis.  Note we need scale
-               back down from dB and unweight.  This is getting confusing .....must be a better
-               way to express this .... */
-            float features_lpc[NB_FEATURES];
-            for(i=0; i<NB_BANDS; i++) 
-                features_lpc[i] = features_out[i]/10.0;
-            features_lpc[0] /= weight;
-            lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_lpc);
+
         }
         
         f++;
@@ -395,6 +393,9 @@ int main(int argc, char *argv[]) {
         /* convert cespstrals back from dB */
         for(i=0; i<NB_BANDS; i++)
             features_out[i] *= 1/10.0;
+
+        /* need to recompute LPCs after every frame, as we have quantised, or interpolated */
+        lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
 
         for(i=0; i<NB_FEATURES; i++) {
             if (isnan(features_out[i])) {

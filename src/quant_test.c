@@ -39,54 +39,29 @@ int main(int argc, char *argv[]) {
     int c, first = 0, k=NB_BANDS;
     float pred = 0.9;
     
-    char fnames[256];
-    char fn[256];
-    char *comma, *p;
-    FILE *fq;
-
-    FILE *fpitch = NULL;
-    float Fs = 16000.0;
     float uniform_step = 0.0;
     int   mbest_survivors = 5;
     char label[80] = "";
-    /* experimental limits for dctLy[0], first cepstral */
-    float lower_limit = -200.0;
-    float upper_limit =  200.00;
     /* weight applied to first cepstral */
     float weight = 1.0/sqrt(NB_BANDS);    
-    float pitch_gain_bias = 0.0;
     int   pitch_bits = 0;
 
     //for(i=0; i<MAX_STAGES*NB_BANDS*MAX_ENTRIES; i++) vq[i] = 0.0;
     
     static struct option long_options[] = {
         {"decimate",   required_argument, 0, 'd'},
-        {"extpitch",   required_argument, 0, 'e'},
-        {"first",      required_argument, 0, 'f'},
-        {"gain",       required_argument, 0, 'g'},
-        {"hard",       required_argument, 0, 'h'},
         {"label",      required_argument, 0, 'l'},
-        {"mbest",      required_argument, 0, 'm'},
         {"pitchquant", required_argument, 0, 'o'},
         {"pred",       required_argument, 0, 'p'},
-        {"quant",      required_argument, 0, 'q'},
         {"stagevar",   required_argument, 0, 's'},
-        {"uniform",    required_argument, 0, 'u'},
         {"verbose",    no_argument,       0, 'v'},
-        {"weight",     no_argument,       0, 'w'},
         {0, 0, 0, 0}
     };
 
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:m:h:wg:o:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "d:l:o:p:s:v", long_options, &opt_index)) != -1) {
         switch (c) {
-        case 'f':
-            /* start VQ at band first+1 */
-            first = atoi(optarg);
-            k = NB_BANDS-first;
-            fprintf(stderr, "first = %d k = %d\n", first, k);
-            break;
         case 's':
             /* text file to dump error (variance) per stage */
             lpcnet_fsv = fopen(optarg, "wt"); assert(lpcnet_fsv != NULL);            
@@ -95,27 +70,9 @@ int main(int argc, char *argv[]) {
             dec = atoi(optarg);
             fprintf(stderr, "dec = %d\n", dec);
             break;
-        case 'e':
-            /* external pitch estimate, one F0 est (Hz) per line of text file */
-            fpitch = fopen(optarg, "rt"); assert(fpitch != NULL);            
-            fprintf(stderr, "ext pitch F0 file: %s\n", optarg);
-            break;
-        case 'g':
-            pitch_gain_bias = atof(optarg);
-            fprintf(stderr, "pitch_gain bias: %f\n", pitch_gain_bias);
-            break;
-        case 'h':
-            /* hard limit (saturate) first feature (energy) */
-            lower_limit = atof(optarg);            
-            fprintf(stderr, "lower_limit: %f upper_limit: %f\n", lower_limit, upper_limit);
-            break;
         case 'l':
             /* text label to pront with results */
             strcpy(label, optarg);
-            break;
-        case 'm':
-            mbest_survivors = atoi(optarg);
-            fprintf(stderr, "mbest_survivors = %d\n",  mbest_survivors);
             break;
         case 'o':
             pitch_bits = atoi(optarg);
@@ -125,56 +82,15 @@ int main(int argc, char *argv[]) {
             pred = atof(optarg);
             fprintf(stderr, "pred = %f\n", pred);
             break;
-        case 'q':
-            /* list of comma delimited file names */
-            strcpy(fnames, optarg);
-            p = fnames;
-            num_stages = 0;
-            do {
-                assert(num_stages < MAX_STAGES);
-                strcpy(fn, p);
-                comma = strchr(fn, ',');
-                if (comma) {
-                    *comma = 0;
-                    p = comma+1;
-                }
-                /* load quantiser file */
-                fprintf(stderr, "stage: %d loading %s ...", num_stages, fn);
-                fq=fopen(fn, "rb");
-                if (fq == NULL) {
-                    fprintf(stderr, "Couldn't open: %s\n", fn);
-                    exit(1);
-                }
-                m[num_stages] = 0;
-                while (fread(features, sizeof(float), k, fq) == (size_t)k) m[num_stages]++;
-                assert(m[num_stages] <= MAX_ENTRIES);
-                fprintf(stderr, "%d entries of vectors width %d\n", m[num_stages], k);
-                rewind(fq);                       
-                int rd = fread(&vq[num_stages*k*MAX_ENTRIES], sizeof(float), m[num_stages]*k, fq);
-                assert(rd == m[num_stages]*k);
-                num_stages++;
-                fclose(fq);
-            } while(comma);
-            break;
-        case 'u':
-            uniform_step = atof(optarg);
-            fprintf(stderr, "uniform quant step size: %3.2f dB\n", uniform_step);
-            break;
         case 'v':
             lpcnet_verbose = 1;
             break;
-        case 'w':
-            weight = 1.0/sqrt(NB_BANDS);
-            break;
          default:
-            fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n  [-q --quant quantfile1,quantfile2,....]\n", argv[0]);
-            fprintf(stderr,"  [-g --gain pitch gain bias]\n");
-            fprintf(stderr,"  [-h --hard lowerLimitdB\n");
+            fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n", argv[0]);
             fprintf(stderr,"  [-l --label txtLabel]\n");
             fprintf(stderr,"  [-m --mbest survivors]\n  [-o --pitchbits nBits]\n");
-            fprintf(stderr,"  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
-            fprintf(stderr,"  [-e --extpitch ExtPitchFile]\n  [-u --uniform stepSizedB]\n  [-v --verbose]\n");
-            fprintf(stderr,"  [-w --weight first cepstral by 1/sqrt(NB_BANDS)\n");
+            fprintf(stderr,"  [-p --pred predCoff]\n [-s --stagevar TxtFile]\n");
+            fprintf(stderr,"  [-e --extpitch ExtPitchFile]\n [-v --verbose]\n");
             exit(1);
         }
     }
@@ -186,12 +102,6 @@ int main(int argc, char *argv[]) {
     float features_prev[dec+1][NB_FEATURES];
     /* adjacent vectors used for linear interpolation, note only 0..17 and 38,39 used */
     float features_lin[2][NB_FEATURES];
-    /* used for optiona smoothing of features */
-    /*
-    float features_mem[NB_BANDS];
-    for(i=0; i<NB_BANDS; i++)
-        features_mem[i] = 0.0;
-    */
     
     for(d=0; d<dec+1; d++)
         for(i=0; i<NB_FEATURES; i++)
@@ -257,25 +167,6 @@ int main(int argc, char *argv[]) {
            results will be on weighted vector. */
         features[0] *= weight;
         
-        /* apply lower limit to features[0] */
-
-        if (features[0] < lower_limit) features[0] = lower_limit;
-        if (features[0] > upper_limit) features[0] = upper_limit;
-       
-        /* optionally load external pitch est sample and replace pitch feature */
-        if (fpitch != NULL) {
-            float f0;
-            if (fscanf(fpitch,"%f\n", &f0)) {
-                float pitch_index = 2.0*Fs/f0;
-                features[2*NB_BANDS] = 0.01*(pitch_index-200.0);
-                //fprintf(stderr,"%d: %f %f %f\n", f, f0, pitch_index, features[2*NB_BANDS]);
-            }
-            else
-                fprintf(stderr, "f0 not read\n");
-        }
-
-        /* optionally pitch gain bias - but I would prefer a non-magic numbers approach */
-        features[2*NB_BANDS+1] += pitch_gain_bias;
            
         /* maintain delay line of unquantised features for partial quantisation and distortion measure */
         for(d=0; d<dec; d++)
@@ -284,11 +175,7 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_FEATURES; i++)
             features_prev[dec][i] = features[i];
 
-        /*
-        for(i=0; i<NB_BANDS; i++)
-             features_mem[i] = 0.5*features_mem[i] + 0.5*features[i];
-        */
-        // clear outpout features to make sure we are not cheating.
+        // clear output features to make sure we are not cheating.
         // Note we cant clear quant_out as we need memory of last
         // frames output for pred quant
         
@@ -413,7 +300,7 @@ int main(int argc, char *argv[]) {
     for (i=0; i<NOUTLIERS; i++)
         fprintf(stderr, "%5.4f ", (float)noutliers[i]/qv);
     fprintf(stderr, "\n");
-    fclose(fin); fclose(fout); if (lpcnet_fsv != NULL) fclose(lpcnet_fsv); if(fpitch != NULL) fclose(fpitch);
+    fclose(fin); fclose(fout); if (lpcnet_fsv != NULL) fclose(lpcnet_fsv);
 }
 
 

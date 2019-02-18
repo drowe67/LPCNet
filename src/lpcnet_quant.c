@@ -265,3 +265,33 @@ int pitch_gain_encode(float pitch_gain_feature) {
 float pitch_gain_decode(int ind) {
     return pitch_gain_cb[ind];
 }
+
+void pack_frame(int num_stages, int m[], int indexes[], int pitch_bits, int pitch_ind, int pitch_gain_ind, char frame[]) {
+    int s,b,k=0,nbits;
+    
+    for(s=0; s<num_stages; s++) {
+        nbits = log2(m[s]);
+        for (b=0; b<nbits; b++)
+            frame[k++] = (indexes[s] >> (nbits-1-b)) & 0x1;
+    }
+    for (b=0; b<pitch_bits; b++)
+        frame[k++] = (pitch_ind >> (pitch_bits-1-b)) & 0x1;
+    frame[k++] = (pitch_gain_ind >> 1) & 0x1;
+    frame[k++] = pitch_gain_ind & 0x1;   
+}
+
+void unpack_frame(int num_stages, int m[], int indexes[], int pitch_bits, int *pitch_ind, int *pitch_gain_ind, char frame[]) {
+    int s,b,k=0,nbits;
+    
+    for(s=0; s<num_stages; s++) {
+        nbits = log2(m[s]);
+        indexes[s] = 0;
+        for (b=0; b<nbits; b++)
+            indexes[s] |= (int)frame[k++] << (nbits-1-b);
+    }
+    *pitch_ind = 0;
+    for (b=0; b<pitch_bits; b++)
+        *pitch_ind |= (int)frame[k++] << (pitch_bits-1-b);
+    *pitch_gain_ind = ((int)frame[k]<<1) + frame[k+1];   
+}
+

@@ -48,5 +48,7 @@ int pitch_encode(float pitch_feature, int pitch_bits);
 float pitch_decode(int pitch_bits, int q);
 int pitch_gain_encode(float pitch_gain_feature);
 float pitch_gain_decode(int pitch_bits);
+void pack_frame(int num_stages, int m[], int indexes[], int pitch_bits, int pitch_ind, int pitch_gain_ind, char frame[]);
+void unpack_frame(int num_stages, int m[], int indexes[], int pitch_bits, int *pitch_ind, int *pitch_gain_ind, char frame[]);
 
 #endif

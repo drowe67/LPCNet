@@ -94,7 +94,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d", dec, pred, num_stages, mbest_survivors);
+    int bits_per_frame = pitch_bits + 2;
+    for(i=0; i<num_stages; i++)
+        bits_per_frame += log2(m[i]);
+    char frame[bits_per_frame];
+    fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d bits_per_frame: %d bit_rate: %5.2f",
+            dec, pred, num_stages, mbest_survivors, bits_per_frame, (float)bits_per_frame/(dec*0.01));
     fprintf(stderr, "\n");
     
     /* delay line so we can pass some features (like pitch and voicing) through unmodified */
@@ -195,12 +200,16 @@ int main(int argc, char *argv[]) {
             quant_pred_mbest(features_quant_, indexes, features, pred, num_stages, vq, m, k, mbest_survivors);
             pitch_ind = pitch_encode(features[2*NB_BANDS], pitch_bits);
             pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
+            pack_frame(num_stages, m, indexes, pitch_bits, pitch_ind, pitch_gain_ind, frame);
+
         }
 
         /* decoder */
+        
         if ((f % dec) == 0) {
             /* non-interpolated frame ----------------------------------------*/
 
+            unpack_frame(num_stages, m, indexes, pitch_bits, &pitch_ind, &pitch_gain_ind, frame);
             quant_pred_output(features_quant, indexes, err, pred, num_stages, vq, k);
 
             features_quant[2*NB_BANDS] = pitch_decode(pitch_bits, pitch_ind);

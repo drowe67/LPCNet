@@ -30,13 +30,13 @@ int main(int argc, char *argv[]) {
     FILE *fin, *fout;
     float features[NB_FEATURES], features_out[NB_FEATURES];
     int f = 0, dec = 3;
-    float features_quant[NB_FEATURES];
+    float features_quant[NB_FEATURES], features_quant_[NB_FEATURES], err[NB_BANDS];
     int   indexes[MAX_STAGES];
     float sum_sq_err = 0.0;
     int d,i,n = 0;
     float fract;
 
-    int c, first = 0, k=NB_BANDS;
+    int c, k=NB_BANDS;
     float pred = 0.9;
     
     float uniform_step = 0.0;
@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     char label[80] = "";
     /* weight applied to first cepstral */
     float weight = 1.0/sqrt(NB_BANDS);    
-    int   pitch_bits = 0;
+    int   pitch_bits = 6;
 
     //for(i=0; i<MAX_STAGES*NB_BANDS*MAX_ENTRIES; i++) vq[i] = 0.0;
     
@@ -111,6 +111,11 @@ int main(int argc, char *argv[]) {
             features_lin[d][i] = 0.0;
     for(i=0; i<NB_FEATURES; i++)
         features_quant[i] = 0.0;
+
+    /* decoder */
+    for(i=0; i<NB_FEATURES; i++)
+        features_quant_[i] = 0.0;
+    for(i=0; i<NB_BANDS; i++) err[i] = 0.0;
     
     fin = stdin;
     fout = stdout;
@@ -166,8 +171,7 @@ int main(int argc, char *argv[]) {
            doing it here, we won't be measuring SD of this step, SD
            results will be on weighted vector. */
         features[0] *= weight;
-        
-           
+                   
         /* maintain delay line of unquantised features for partial quantisation and distortion measure */
         for(d=0; d<dec; d++)
             for(i=0; i<NB_FEATURES; i++)
@@ -185,44 +189,13 @@ int main(int argc, char *argv[]) {
         if ((f % dec) == 0) {
             /* non-interpolated frame ----------------------------------------*/
 
-            /* optional quantisation */
-            if (num_stages || (uniform_step != 0.0)) {
-                if (num_stages) {
-                    if (mbest_survivors) {
-                        /* mbest predictive VQ */
-                        quant_pred_mbest(&features_quant[first], indexes, &features[first], pred, num_stages, vq, m, k, mbest_survivors);
-                    }
-                    else {
-                        /* standard predictive VQ */
-                        quant_pred(&features_quant[first], &features[first], pred, num_stages, vq, m, k);
-                    }
-                    for(i=0; i<first; i++)
-                        features_quant[i] = features[i];
-                }
-                if (uniform_step != 0.0) {
-                    for(i=0; i<NB_BANDS; i++) {
-                        features_quant[i] = uniform_step*round(features[i]/uniform_step);
-                        //fprintf(stderr, "%d %f %f\n", i, features[i], features_quant[i]);
-                    }
-                }
-            }
-            else {
-                /* unquantised */
-                for(i=0; i<NB_BANDS; i++) {
-                    features_quant[i] = features[i];
-                }
-            }
+            quant_pred_mbest(features_quant_, indexes, features, pred, num_stages, vq, m, k, mbest_survivors);
+            quant_pred_output(features_quant, indexes, err, pred, num_stages, vq, k);
 
-            if (pitch_bits) {
-                int ind =  pitch_encode(features[2*NB_BANDS], pitch_bits);
-                features_quant[2*NB_BANDS] = pitch_decode(pitch_bits, ind);
-                ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
-                features_quant[2*NB_BANDS+1] = pitch_gain_decode(ind);
-            }
-            else {
-                features_quant[2*NB_BANDS] = features[2*NB_BANDS]; 
-                features_quant[2*NB_BANDS+1] = features[2*NB_BANDS+1];   /* pitch gain */
-            }
+            int ind =  pitch_encode(features[2*NB_BANDS], pitch_bits);
+            features_quant[2*NB_BANDS] = pitch_decode(pitch_bits, ind);
+            ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
+            features_quant[2*NB_BANDS+1] = pitch_gain_decode(ind);
             
             /* update linear interpolation arrays */
             for(i=0; i<NB_FEATURES; i++) {

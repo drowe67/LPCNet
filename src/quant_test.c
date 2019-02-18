@@ -39,7 +39,6 @@ int main(int argc, char *argv[]) {
     int c, k=NB_BANDS;
     float pred = 0.9;
     
-    float uniform_step = 0.0;
     int   mbest_survivors = 5;
     char label[80] = "";
     /* weight applied to first cepstral */
@@ -186,16 +185,26 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_FEATURES; i++)
             features_out[i] = 0.0;
 
+        int pitch_ind, pitch_gain_ind;
+        
+        /* encoder */
+        
         if ((f % dec) == 0) {
             /* non-interpolated frame ----------------------------------------*/
 
             quant_pred_mbest(features_quant_, indexes, features, pred, num_stages, vq, m, k, mbest_survivors);
+            pitch_ind = pitch_encode(features[2*NB_BANDS], pitch_bits);
+            pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
+        }
+
+        /* decoder */
+        if ((f % dec) == 0) {
+            /* non-interpolated frame ----------------------------------------*/
+
             quant_pred_output(features_quant, indexes, err, pred, num_stages, vq, k);
 
-            int ind =  pitch_encode(features[2*NB_BANDS], pitch_bits);
-            features_quant[2*NB_BANDS] = pitch_decode(pitch_bits, ind);
-            ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
-            features_quant[2*NB_BANDS+1] = pitch_gain_decode(ind);
+            features_quant[2*NB_BANDS] = pitch_decode(pitch_bits, pitch_ind);
+            features_quant[2*NB_BANDS+1] = pitch_gain_decode(pitch_gain_ind);
             
             /* update linear interpolation arrays */
             for(i=0; i<NB_FEATURES; i++) {
@@ -203,7 +212,7 @@ int main(int argc, char *argv[]) {
                 features_lin[1][i] = features_quant[i];                
             }
 
-            /* pass (quantised) frame through */
+            /* pass  frame through */
             for(i=0; i<NB_BANDS; i++) {
                 features_out[i] = features_lin[0][i];
             }

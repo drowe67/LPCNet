@@ -15,11 +15,10 @@
 #include "freq.h"
 #include "lpcnet_quant.h"
 
-#define NB_FEATURES    55
 #define MAX_STAGES     5    /* max number of VQ stages                */
 #define NOUTLIERS      5    /* range of outilers to track in 1dB steps */
 
-extern int num_stages;
+extern int   num_stages;
 extern float vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
 extern int   m[MAX_STAGES];
 
@@ -80,12 +79,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    int bits_per_frame = pitch_bits + 2;
-    for(i=0; i<num_stages; i++)
-        bits_per_frame += log2(m[i]);
-    char frame[bits_per_frame];
+    LPCNET_QUANT *q = lpcnet_quant_create(num_stages, m, vq);
+    q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
+    q->pitch_bits = pitch_bits; q->dec = dec;
+    lpcnet_quant_compute_bits_per_frame(q);
+    
+    char frame[q->bits_per_frame];
     fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d bits_per_frame: %d frame: %2d ms bit_rate: %5.2f bits/s",
-            dec, pred, num_stages, mbest_survivors, bits_per_frame, dec*10, (float)bits_per_frame/(dec*0.01));
+            q->dec, q->pred, q->num_stages, q->mbest, q->bits_per_frame, dec*10, (float)q->bits_per_frame/(dec*0.01));
     fprintf(stderr, "\n");
 
     /* memory of quant values from prev frame */
@@ -155,7 +156,7 @@ int main(int argc, char *argv[]) {
             pitch_ind = pitch_encode(features[2*NB_BANDS], pitch_bits);
             pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
             pack_frame(num_stages, m, indexes, pitch_bits, pitch_ind, pitch_gain_ind, frame);
-            bits_written += fwrite(frame, sizeof(char), bits_per_frame, fout);
+            bits_written += fwrite(frame, sizeof(char), q->bits_per_frame, fout);
         }
         f++;
         

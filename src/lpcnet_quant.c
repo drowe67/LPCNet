@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include "lpcnet_quant.h"
@@ -17,6 +18,38 @@ int lpcnet_verbose = 0;
 
 #define PITCH_MIN_PERIOD 32
 #define PITCH_MAX_PERIOD 256
+
+// defaults
+#define DEFAULT_WEIGHT     1.0/sqrt(NB_BANDS)
+#define DEFAULT_PRED       0.9
+#define DEFAULT_NUM_STAGES 4
+#define DEFAULT_MBEST      5
+#define DEFAULT_PITCH_BITS 6
+#define DEFAULT_DEC        3
+
+LPCNET_QUANT *lpcnet_quant_create(int num_stages, int m[], float vq[]) {
+    LPCNET_QUANT *q = (LPCNET_QUANT*)malloc(sizeof(LPCNET_QUANT));
+    if (q == NULL) return NULL;
+    q->weight = DEFAULT_WEIGHT; q->pred = DEFAULT_PRED; 
+    q->mbest = DEFAULT_MBEST; q->pitch_bits = DEFAULT_PITCH_BITS; q->dec = DEFAULT_DEC;
+    q->num_stages = num_stages; q->vq = vq; q->m = m;
+    lpcnet_quant_compute_bits_per_frame(q);
+
+    int i;
+    for(i=0; i<NB_FEATURES; i++) q->features_quant[i] = 0.0;
+    q->f = 0;
+    return q;
+}
+
+// call this if you change any parameters from default
+void lpcnet_quant_compute_bits_per_frame(LPCNET_QUANT *q) {
+    int i;
+    q->bits_per_frame = q->pitch_bits + 2;
+    for(i=0; i<q->num_stages; i++)
+        q->bits_per_frame += log2(q->m[i]);
+}
+
+void lpcnet_quant_destroy(LPCNET_QUANT *q) { free(q); }
 
 // print vector debug function
 

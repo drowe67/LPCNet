@@ -2,17 +2,38 @@
   lpcnet_quant.h
   David Rowe Feb 2019
 
-  David's experimental quanisation functions for LPCNet
+  David's experimental quanisation functions for LPCNet.
 */
 
 #ifndef __LPCNET_QUANT__
 #define __LPCNET_QUANT__
 
-#define NB_BANDS       18
-#define MAX_ENTRIES    4096 /* max number of vectors per stage */
-#define MAX_STAGES     5    /* max number of VQ stages         */
+#define NB_FEATURES    55   /* length of feature vector (only a subset used) */
+#define NB_BANDS       18   /* number of bands quantised                     */
+#define MAX_ENTRIES    4096 /* max number of vectors per stage               */
+#define MAX_STAGES     5    /* max number of VQ stages                       */
 
 #include <stdio.h>
+
+typedef struct {
+    float weight;         /* weight applied to first cepstral              */
+    float pred;           /* prediction coefficient                        */
+    int   num_stages;     /* number of VQ stages                           */
+    int   *m;             /* VQ entries per stage                          */
+    float *vq;            /* vector quantiser                              */
+    int   mbest;          /* number of survivors for multi-stage VQ search */
+    int   pitch_bits;     /* number of bits used for quantising pitch      */
+    int   dec;            /* decimation rate 1,2,3...                      */
+    int   f;              /* frame counter                                 */
+    
+    int   bits_per_frame;
+    /* memory of features from previous frame */
+    float features_quant[NB_FEATURES];
+} LPCNET_QUANT;
+
+LPCNET_QUANT *lpcnet_quant_create(int num_stages, int m[], float vq[]);
+void lpcnet_quant_destroy(LPCNET_QUANT *q);
+void lpcnet_quant_compute_bits_per_frame(LPCNET_QUANT *q);
 
 // debug/instrumentation globals
 extern FILE *lpcnet_fsv;

@@ -29,13 +29,7 @@ extern int   m[MAX_STAGES];
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
     float features_out[NB_FEATURES];
-    int f = 0, dec = 3;
-    float features_quant[NB_FEATURES], err[NB_BANDS];
-    int   indexes[MAX_STAGES];
-    int d,i;
-    float fract;
-
-    int c, k=NB_BANDS;
+    int i, c, dec = 3;
     float pred = 0.9;
     
     /* weight applied to first cepstral */
@@ -94,115 +88,21 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d bits_per_frame: %d frame: %2d ms bit_rate: %5.2f bits/s",
             q->dec, q->pred, q->num_stages, q->mbest, q->bits_per_frame, dec*10, (float)q->bits_per_frame/(dec*0.01));
     fprintf(stderr, "\n");
-   
-    /* adjacent vectors used for linear interpolation, note only 0..17 and 38,39 used */
-    float features_lin[2][NB_FEATURES];
-    
-    for(d=0; d<2; d++)
-        for(i=0; i<NB_FEATURES; i++)
-            features_lin[d][i] = 0.0;
-    for(i=0; i<NB_FEATURES; i++)
-        features_quant[i] = 0.0;
-
-    for(i=0; i<NB_BANDS; i++) err[i] = 0.0;
-    
+       
     fin = stdin;
     fout = stdout;
-
-    /* dec == 2:
-       In.:          f2     f3     f4    f5     f6
-       Out:          f0 (f0+f2)/2) f2 (f2+f4)/2 f4 ....
-
-       features_prev
-       2             f2     f3     f4    f5     f6     
-       1             f1     f2     f3    f4     f5
-       0             f0     f1     f2    f3     f4
-
-       features_lin
-       1             f2     f2     f4    f4     f6
-       0             f0     f0     f2    f2     f4
-    */
-    
-    /* dec == 3:
-       In.:          f3        f4          f5        f6       f7
-       Out: ....     f0  2f0/3 + f3/3  f0/3 + 2f2/3  f3  2f3/3 + f6/3
-
-       features_prev
-       3             f3        f4          f5        f6       f7
-       2             f2        f3          f4        f5       f6     
-       1             f1        f2          f3        f4       f5
-       0             f0        f1          f2        f3       f4
-
-       features_lin
-       1             f3        f3          f3        f6       f6
-       0             f0        f0          f0        f3       f3
-    */
 
     int bits_read = 0;
     
     do {
         
-        // clear output features to make sure we are not cheating.
-        // Note we cant clear quant_out as we need memory of last
-        // frames output for pred quant
-        
-        for(i=0; i<NB_FEATURES; i++)
-            features_out[i] = 0.0;
-
-        int pitch_ind, pitch_gain_ind;
-        
-        /* decoder */
-        
-        if ((q->f % q->dec) == 0) {
-
+        if ((q->f % q->dec) == 0)
             bits_read = fread(frame, sizeof(char), q->bits_per_frame, fin);
-
-            /* non-interpolated frame ----------------------------------------*/
-
-            unpack_frame(q->num_stages, q->m, indexes, q->pitch_bits, &pitch_ind, &pitch_gain_ind, frame);
-            quant_pred_output(q->features_quant, indexes, err, q->pred, q->num_stages, q->vq, k);
-
-            q->features_quant[2*NB_BANDS] = pitch_decode(q->pitch_bits, pitch_ind);
-            q->features_quant[2*NB_BANDS+1] = pitch_gain_decode(pitch_gain_ind);
-            
-            /* update linear interpolation arrays */
-            for(i=0; i<NB_FEATURES; i++) {
-                q->features_lin[0][i] = q->features_lin[1][i];
-                q->features_lin[1][i] = q->features_quant[i];                
-            }
-
-            /* pass  frame through */
-            for(i=0; i<NB_BANDS; i++) {
-                features_out[i] = q->features_lin[0][i];
-            }
-            features_out[2*NB_BANDS]   = q->features_lin[0][2*NB_BANDS];
-            features_out[2*NB_BANDS+1] = q->features_lin[0][2*NB_BANDS+1];            
-
-        } else {
-            /* interpolated frame ----------------------------------------*/
-            
-            d = q->f %q-> dec;
-            for(i=0; i<NB_FEATURES; i++) {
-                fract = (float)d/(float)q->dec;
-                features_out[i] = (1.0-fract)*q->features_lin[0][i] + fract*q->features_lin[1][i];
-            }
-
-        }
-        
-        q->f++;
-        
-        features_out[0] /= q->weight;    
-
-        /* convert cepstrals back from dB */
-        for(i=0; i<NB_BANDS; i++)
-            features_out[i] *= 1/10.0;
-
-        /* need to recompute LPCs after every frame, as we have quantised, or interpolated */
-        lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
+        lpcnet_frame_to_features(q, frame, features_out);
 
         for(i=0; i<NB_FEATURES; i++) {
             if (isnan(features_out[i])) {
-                fprintf(stderr, "f: %d i: %d\n", f, i);
+                fprintf(stderr, "f: %d i: %d\n", q->f, i);
                 exit(0);
             }
         }

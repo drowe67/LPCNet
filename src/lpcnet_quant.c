@@ -12,6 +12,7 @@
 
 #include "lpcnet_quant.h"
 #include "mbest.h"
+#include "freq.h"
 
 FILE *lpcnet_fsv = NULL;
 int lpcnet_verbose = 0;
@@ -365,4 +366,66 @@ int lpcnet_features_to_frame(LPCNET_QUANT *q, float features[], char frame[]) {
     q->f++;
     
     return frame_valid;
+}
+
+// Call every 10ms, supply a new frame of bits when (q->f % q->dec) == 0)
+void lpcnet_frame_to_features(LPCNET_QUANT *q, char frame[], float features_out[]) {
+
+    int i,d;
+    int pitch_ind, pitch_gain_ind;
+    int indexes[MAX_STAGES];
+    float fract, err[NB_BANDS];
+    
+    for(i=0; i<NB_FEATURES; i++)
+        features_out[i] = 0.0;
+    // note this is an unused ouput, just clear it to satisfy warnings
+    for(i=0; i<NB_BANDS; i++)
+        err[i] = 0.0;
+        
+    /* decoder */
+        
+    if ((q->f % q->dec) == 0) {
+
+        /* non-interpolated frame ----------------------------------------*/
+
+        unpack_frame(q->num_stages, q->m, indexes, q->pitch_bits, &pitch_ind, &pitch_gain_ind, frame);
+        quant_pred_output(q->features_quant, indexes, err, q->pred, q->num_stages, q->vq, NB_BANDS);
+
+        q->features_quant[2*NB_BANDS] = pitch_decode(q->pitch_bits, pitch_ind);
+        q->features_quant[2*NB_BANDS+1] = pitch_gain_decode(pitch_gain_ind);
+            
+        /* update linear interpolation arrays */
+        for(i=0; i<NB_FEATURES; i++) {
+            q->features_lin[0][i] = q->features_lin[1][i];
+            q->features_lin[1][i] = q->features_quant[i];                
+        }
+
+        /* pass  frame through */
+        for(i=0; i<NB_BANDS; i++) {
+            features_out[i] = q->features_lin[0][i];
+        }
+        features_out[2*NB_BANDS]   = q->features_lin[0][2*NB_BANDS];
+        features_out[2*NB_BANDS+1] = q->features_lin[0][2*NB_BANDS+1];            
+
+    } else {
+        /* interpolated frame ----------------------------------------*/
+            
+        d = q->f % q-> dec;
+        for(i=0; i<NB_FEATURES; i++) {
+            fract = (float)d/(float)q->dec;
+            features_out[i] = (1.0-fract)*q->features_lin[0][i] + fract*q->features_lin[1][i];
+        }
+
+    }
+        
+    q->f++;
+        
+    features_out[0] /= q->weight;    
+
+    /* convert cepstrals back from dB */
+    for(i=0; i<NB_BANDS; i++)
+        features_out[i] *= 1/10.0;
+
+    /* need to recompute LPCs after every frame, as we have quantised, or interpolated */
+    lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
 }

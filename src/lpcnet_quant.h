@@ -73,6 +73,6 @@ void pack_frame(int num_stages, int m[], int indexes[], int pitch_bits, int pitc
 void unpack_frame(int num_stages, int m[], int indexes[], int pitch_bits, int *pitch_ind, int *pitch_gain_ind, char frame[]);
 
 int lpcnet_features_to_frame(LPCNET_QUANT *q, float features[], char frame[]);
-int lpcnet_frame_to_features(LPCNET_QUANT *q, char frame[],float features[]);
+void lpcnet_frame_to_features(LPCNET_QUANT *q, char frame[],float features[]);
 
 #endif

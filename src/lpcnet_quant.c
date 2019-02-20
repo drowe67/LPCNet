@@ -328,3 +328,38 @@ void unpack_frame(int num_stages, int m[], int indexes[], int pitch_bits, int *p
     *pitch_gain_ind = ((int)frame[k]<<1) + frame[k+1];   
 }
 
+// Call every 10ms LPCNet freame with atest features. Returns 1 when
+// frame[] is valid
+
+int lpcnet_features_to_frame(LPCNET_QUANT *q, float features[], char frame[]) {
+    int i, k = NB_BANDS;
+    int frame_valid = 0;
+    int indexes[MAX_STAGES];
+    
+    /* convert cepstrals to dB */
+    for(i=0; i<NB_BANDS; i++)
+        features[i] *= 10.0;
+
+    /* optional weight on first cepstral which increases at
+       sqrt(NB_BANDS) for every dB of speech input power.  Note by
+       doing it here, we won't be measuring SD of this step, SD
+       results will be on weighted vector. */
+    features[0] *= q->weight;
+                   
+    int pitch_ind, pitch_gain_ind;
+        
+    /* encoder */
+        
+    if ((q->f % q->dec) == 0) {
+        /* non-interpolated frame ----------------------------------------*/
+
+        quant_pred_mbest(q->features_quant, indexes, features, q->pred, q->num_stages, q->vq, q->m, k, q->mbest);
+        pitch_ind = pitch_encode(features[2*NB_BANDS], q->pitch_bits);
+        pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
+        pack_frame(q->num_stages, q->m, indexes, q->pitch_bits, pitch_ind, pitch_gain_ind, frame);
+        frame_valid = 1;
+    }
+    q->f++;
+    
+    return frame_valid;
+}

@@ -25,12 +25,8 @@ extern int   m[MAX_STAGES];
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
     float features[NB_FEATURES];
-    int f = 0, dec = 3;
-    float features_quant[NB_FEATURES];
-    int   indexes[MAX_STAGES];
-    int i;
-
-    int c, k=NB_BANDS;
+    int   dec = 3;
+    int   c;
     float pred = 0.9;
     
     int   mbest_survivors = 5;
@@ -89,76 +85,14 @@ int main(int argc, char *argv[]) {
             q->dec, q->pred, q->num_stages, q->mbest, q->bits_per_frame, dec*10, (float)q->bits_per_frame/(dec*0.01));
     fprintf(stderr, "\n");
 
-    /* memory of quant values from prev frame */
-    for(i=0; i<NB_FEATURES; i++)
-        features_quant[i] = 0.0;
-    
     fin = stdin;
     fout = stdout;
-
-    /* dec == 2:
-       In.:          f2     f3     f4    f5     f6
-       Out:          f0 (f0+f2)/2) f2 (f2+f4)/2 f4 ....
-
-       features_prev
-       2             f2     f3     f4    f5     f6     
-       1             f1     f2     f3    f4     f5
-       0             f0     f1     f2    f3     f4
-
-       features_lin
-       1             f2     f2     f4    f4     f6
-       0             f0     f0     f2    f2     f4
-    */
-    
-    /* dec == 3:
-       In.:          f3        f4          f5        f6       f7
-       Out: ....     f0  2f0/3 + f3/3  f0/3 + 2f2/3  f3  2f3/3 + f6/3
-
-       features_prev
-       3             f3        f4          f5        f6       f7
-       2             f2        f3          f4        f5       f6     
-       1             f1        f2          f3        f4       f5
-       0             f0        f1          f2        f3       f4
-
-       features_lin
-       1             f3        f3          f3        f6       f6
-       0             f0        f0          f0        f3       f3
-    */
 
     int bits_written = 0;
     
     while(fread(features, sizeof(float), NB_FEATURES, fin) == NB_FEATURES) {
-       
-        for(i=0; i<NB_FEATURES; i++) {
-            if (isnan(features[i])) {
-                fprintf(stderr, "f: %d i: %d\n", f, i);
-            }
-        }
-        
-        /* convert cepstrals to dB */
-        for(i=0; i<NB_BANDS; i++)
-            features[i] *= 10.0;
-
-        /* optional weight on first cepstral which increases at
-           sqrt(NB_BANDS) for every dB of speech input power.  Note by
-           doing it here, we won't be measuring SD of this step, SD
-           results will be on weighted vector. */
-        features[0] *= weight;
-                   
-        int pitch_ind, pitch_gain_ind;
-        
-        /* encoder */
-        
-        if ((f % dec) == 0) {
-            /* non-interpolated frame ----------------------------------------*/
-
-            quant_pred_mbest(features_quant, indexes, features, pred, num_stages, vq, m, k, mbest_survivors);
-            pitch_ind = pitch_encode(features[2*NB_BANDS], pitch_bits);
-            pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
-            pack_frame(num_stages, m, indexes, pitch_bits, pitch_ind, pitch_gain_ind, frame);
+        if (lpcnet_features_to_frame(q, features, frame))
             bits_written += fwrite(frame, sizeof(char), q->bits_per_frame, fout);
-        }
-        f++;
         
         fflush(stdin);
         fflush(stdout);

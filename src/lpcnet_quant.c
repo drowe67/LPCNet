@@ -35,8 +35,11 @@ LPCNET_QUANT *lpcnet_quant_create(int num_stages, int m[], float vq[]) {
     q->num_stages = num_stages; q->vq = vq; q->m = m;
     lpcnet_quant_compute_bits_per_frame(q);
 
-    int i;
+    int i,d;
     for(i=0; i<NB_FEATURES; i++) q->features_quant[i] = 0.0;
+    for(d=0; d<2; d++)
+        for(i=0; i<NB_FEATURES; i++)
+            q->features_lin[d][i] = 0.0;
     q->f = 0;
     return q;
 }

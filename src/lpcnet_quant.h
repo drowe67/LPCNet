@@ -27,8 +27,8 @@ typedef struct {
     int   f;              /* frame counter                                 */
     
     int   bits_per_frame;
-    /* memory of features from previous frame */
-    float features_quant[NB_FEATURES];
+    float features_quant[NB_FEATURES];    /* memory of quantised features from previous frame   */
+    float features_lin[2][NB_FEATURES];   /* adjacent frames features for linear interpolation  */
 } LPCNET_QUANT;
 
 LPCNET_QUANT *lpcnet_quant_create(int num_stages, int m[], float vq[]);

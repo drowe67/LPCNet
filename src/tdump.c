@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
   int i;
   int f=0;
   while (1) {      
-    /* note one frame delay */
+      /* note one frame delay */
       for (i=0;i<FRAME_SIZE;i++) x[i] = d->tmp[i];
       int nread = fread(&d->tmp, sizeof(short), FRAME_SIZE, f1);
       if (nread != FRAME_SIZE) break;

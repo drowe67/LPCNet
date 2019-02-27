@@ -132,7 +132,21 @@ Fully quantised at (44+8)/0.03 = 1733 bits/s:
 
 ```sox -r 16000 ~/Downloads/wianews-2019-01-20.s16 -t raw - trim 200 | ./dump_data --c2pitch --test - - | ./quant_feat -g 0.25 -o 6 -d 3 -w --mbest 5 -q pred_v2_stage1.f32,pred_v2_stage2.f32,pred_v2_stage3.f32,pred_v2_stage4.f32 | ./test_lpcnet - - | aplay -f S16_LE -r 16000```
 
-Same thing with quantiation code packaged up into library functions.  Between quant_enc and quant_dec are 52 bit frames every 30ms:
+## Fully quantised encoder/decoder programs
+
+Same thing as above with quantisation code packaged up into library functions.  Between quant_enc and quant_dec are 52 bit frames every 30ms:
 
 ```cat ~/Downloads/speech_orig_16k.s16 | ./dump_data --c2pitch --test - - | ./quant_enc | ./quant_dec | ./test_lpcnet - - | aplay -f S16_LE -r 16000```
 
+Same thing with everything integrated into stand alone encoder and decoder programs:
+
+```cat ~/Downloads/speech_orig_16k.s16 | ./lpcnet_enc | ./lpcnet_dec | aplay -f S16_LE -r 16000```
+
+The bit stream interface is 1 bit/char, as I find that convenient for my digital voice over radio experiments.  The decimation rate, number of VQ stages, and a few other parameters can be set as command line options. You'll need the same set of parameters for the encoder as decoder.
+
+Useful additions would be:
+
+1. Run time loading of .h5 NN models.
+1. A --packed option to pack the quantised bits tightly, which would make the programs useful for storage applications.
+
+ 

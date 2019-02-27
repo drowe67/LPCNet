@@ -21,7 +21,7 @@ CFLAGS+=-mfpu=neon -march=armv8-a -mtune=cortex-a53
 endif
 
 PROG=dump_data test_lpcnet test_vec quant_feat tcodec2_pitch weight tdump tweak_pitch quant_test \
-     quant2c diff32 quant_enc quant_dec lpcnet_enc
+     quant2c diff32 quant_enc quant_dec lpcnet_enc lpcnet_dec
 all: $(PROG)
 
 dump_data_objs := src/dump_data.o src/freq.o src/kiss_fft.o src/pitch.o src/celt_lpc.o src/codec2_pitch.o
@@ -82,6 +82,13 @@ lpcnet_enc_deps := $(lpcnet_enc_objs:.o=.d)
 lpcnet_enc: $(lpcnet_enc_objs)
 	gcc -o $@ $(CFLAGS) $(lpcnet_enc_objs) -lm -lcodec2
 -include $(lpcnet_enc_deps)
+
+lpcnet_dec_objs := src/lpcnet_dec.o src/freq.o src/kiss_fft.o src/celt_lpc.o src/pitch.o src/codec2_pitch.o src/mbest.o src/lpcnet_quant.o \
+                   src/4stage_pred_vq.o src/lpcnet_dump.o src/lpcnet.o src/nnet.o src/nnet_data.o
+lpcnet_dec_deps := $(lpcnet_dec_objs:.o=.d)
+lpcnet_dec: $(lpcnet_dec_objs)
+	gcc -o $@ $(CFLAGS) $(lpcnet_dec_objs) -lm -lcodec2
+-include $(lpcnet_dec_deps)
 
 quant2c_objs:= src/quant2c.o
 quan2c_deps := $(quant2c_objs:.o=.d)

@@ -1,13 +1,13 @@
 /*
-   lpcnet_enc.c
+   lpcnet_dec.c
    Feb 2019
 
-   LPCNet to bit stream encoder, takes 16 kHz signed 16 bit speech
-   samples on stdin, outputs fully quantised bit stream on stdout (in
-   1 bit per char format).
+   LPCNet to bit stream decoder, converts fully quantised bit stream
+   on stdin (in 1 bit per char format) to 16 kHz signed 16 bit speech
+   samples on stdout.
 */
 
-/* Copyright (c) 2017-2018 Mozilla */
+/* Copyright (c) 2018 Mozilla */
 /*
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -33,11 +33,16 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <stdlib.h>
+#include <math.h>
 #include <stdio.h>
 #include <getopt.h>
-#include "lpcnet_dump.h"
+
+#include "arch.h"
+#include "freq.h"
 #include "lpcnet_quant.h"
+// NB_FEATURES has a different value in lpcnet.h, need to reconcile some time
+#undef NB_FEATURES 
+#include "lpcnet.h"
 
 extern int   num_stages;
 extern float vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
@@ -98,7 +103,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    LPCNET_DUMP  *d = lpcnet_dump_create();
+
     LPCNET_QUANT *q = lpcnet_quant_create(num_stages, m, vq);
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
     q->pitch_bits = pitch_bits; q->dec = dec;
@@ -108,32 +113,31 @@ int main(int argc, char **argv) {
             q->dec, q->pred, q->num_stages, q->mbest, q->bits_per_frame, dec*10, (float)q->bits_per_frame/(dec*0.01));
     fprintf(stderr, "\n");
 
+    char frame[q->bits_per_frame];
+    int bits_read = 0;
+
+    LPCNetState *net = lpcnet_create();
+
     fin = stdin;
     fout = stdout;
-
-    float x[FRAME_SIZE];
-    float features[LPCNET_NB_FEATURES];
-    char frame[q->bits_per_frame];
-    int i;
-    int f=0;
-    int bits_written=0;
-
-    while (1) {      
-        /* note one frame delay */
-        for (i=0;i<FRAME_SIZE;i++) x[i] = d->tmp[i];
-        int nread = fread(&d->tmp, sizeof(short), FRAME_SIZE, fin);
-        if (nread != FRAME_SIZE) break;
-        lpcnet_dump(d,x,features);
-        if (lpcnet_features_to_frame(q, features, frame))
-            bits_written += fwrite(frame, sizeof(char), q->bits_per_frame, fout);       
-        fflush(stdin);
-        fflush(stdout);
-        f++;
-    }
-
-    lpcnet_dump_destroy(d); lpcnet_quant_destroy(q);
-    fprintf(stderr, "bits_written %d\n", bits_written);
-    fclose(fin); fclose(fout);
+ 
+    do {
+        float in_features[NB_TOTAL_FEATURES];
+        float features[NB_TOTAL_FEATURES];
+        short pcm[FRAME_SIZE];
+        if ((q->f % q->dec) == 0)
+            bits_read = fread(frame, sizeof(char), q->bits_per_frame, fin);
+        lpcnet_frame_to_features(q, frame, in_features);
+       
+        RNN_COPY(features, in_features, NB_TOTAL_FEATURES);
+        RNN_CLEAR(&features[18], 18);
+        lpcnet_synthesize(net, pcm, features, FRAME_SIZE);
+        fwrite(pcm, sizeof(pcm[0]), FRAME_SIZE, fout);
+        if (fout == stdout) fflush(stdout);
+    } while(bits_read != 0);
+    
+    fclose(fin);
+    fclose(fout);
+    lpcnet_destroy(net); lpcnet_quant_destroy(q);
     return 0;
 }
-

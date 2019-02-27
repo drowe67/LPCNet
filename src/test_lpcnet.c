@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    while (1) {
+   while (1) {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_FEATURES];
         short pcm[FRAME_SIZE];

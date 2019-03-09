@@ -8,6 +8,7 @@ delta_loss = (loss[1:,0]-loss[:-1,0])/loss[1:,0]
 plt.figure(1)
 plt.plot(loss[:,0],'r')
 plt.plot(loss[:,1],'g')
+plt.legend(['train loss','validation loss'])
 plt.title('loss')
 plt.show(block=False)
 plt.figure(2)

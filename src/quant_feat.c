@@ -61,10 +61,12 @@ int main(int argc, char *argv[]) {
     float weight = 1.0;    
     float pitch_gain_bias = 0.0;
     int   pitch_bits = 0;
-
+    int   small_vec = 0;
+    
     for(i=0; i<MAX_STAGES*NB_BANDS*MAX_ENTRIES; i++) vq[i] = 0.0;
     
     static struct option long_options[] = {
+        {"small",      required_argument, 0, 'a'},
         {"decimate",   required_argument, 0, 'd'},
         {"extpitch",   required_argument, 0, 'e'},
         {"first",      required_argument, 0, 'f'},
@@ -83,10 +85,14 @@ int main(int argc, char *argv[]) {
     };
 
     int opt_index = 0;
-
-    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:m:h:wg:o:", long_options, &opt_index)) != -1) {
+    
+    while ((c = getopt_long (argc, argv, "ad:q:vs:f:p:e:u:l:m:h:wg:o:", long_options, &opt_index)) != -1) {
         switch (c) {
-        case 'f':
+        case 'a':
+            /* small cpectral vectors - zero out several bands */
+            small_vec = 1;
+            break;
+       case 'f':
             /* start VQ at band first+1 */
             first = atoi(optarg);
             k = NB_BANDS-first;
@@ -184,7 +190,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d", dec, pred, num_stages, mbest_survivors);
+    fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d small: %d", dec, pred, num_stages, mbest_survivors, small_vec);
     fprintf(stderr, "\n");
     
     /* delay line so we can pass some features (like pitch and voicing) through unmodified */
@@ -251,7 +257,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "f: %d i: %d\n", f, i);
             }
         }
-        
+
         /* convert cepstrals to dB */
         for(i=0; i<NB_BANDS; i++)
             features[i] *= 10.0;
@@ -402,6 +408,12 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "f: %d i: %d\n", f, i);
                 exit(0);
             }
+        }
+        
+        if (small_vec) {
+            /* zero out unused cepstrals in small vec mode */
+            for(i=12; i<NB_BANDS; i++)
+                features_out[i] = 0.0;
         }
         
         fwrite(features_out, sizeof(float), NB_FEATURES, fout);

@@ -58,10 +58,12 @@ int main(int argc, char **argv) {
     int   mbest_survivors = 5;
     float weight = 1.0/sqrt(NB_BANDS);    
     int   pitch_bits = 6;
-
+    float ber = 0.0;
+    
     /* quantiser options */
     
     static struct option long_options[] = {
+        {"ber",        required_argument, 0, 'b'},
         {"decimate",   required_argument, 0, 'd'},
         {"numstages",  required_argument, 0, 'n'},
         {"pitchquant", required_argument, 0, 'o'},
@@ -73,8 +75,12 @@ int main(int argc, char **argv) {
     int   c;
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "d:n:o:p:v", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "b:d:n:o:p:v", long_options, &opt_index)) != -1) {
         switch (c) {
+        case 'b':
+            ber = atof(optarg);
+            fprintf(stderr, "BER = %f\n", ber);
+            break;
         case 'd':
             dec = atoi(optarg);
             fprintf(stderr, "dec = %d\n", dec);
@@ -94,8 +100,10 @@ int main(int argc, char **argv) {
         case 'v':
             lpcnet_verbose = 1;
             break;
-         default:
-            fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n", argv[0]);
+        default:
+            fprintf(stderr,"usage: %s [Options]:\n", argv[0]);
+            fprintf(stderr,"  [-b --ber BER]\n");
+            fprintf(stderr,"  [-d --decimation 1/2/3...]\n");
             fprintf(stderr,"  [-n --numstages]\n  [-o --pitchbits nBits]\n");
             fprintf(stderr,"  [-p --pred predCoff]\n");
             fprintf(stderr,"  [-v --verbose]\n");
@@ -120,13 +128,27 @@ int main(int argc, char **argv) {
 
     fin = stdin;
     fout = stdout;
- 
+    int nbits = 0, nerrs = 0;
+
     do {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_TOTAL_FEATURES];
         short pcm[FRAME_SIZE];
-        if ((q->f % q->dec) == 0)
+        if ((q->f % q->dec) == 0) {
             bits_read = fread(frame, sizeof(char), q->bits_per_frame, fin);
+            nbits += bits_read;
+            if (ber != 0.0) {
+                int i;
+                for(i=0; i<q->bits_per_frame; i++) {
+                    float r = (float)rand()/RAND_MAX;
+                    if (r < ber) {
+                        frame[i] = (frame[i] ^ 1) & 0x1;
+                        nerrs++;
+                    }
+                }
+            }
+            
+        }
         lpcnet_frame_to_features(q, frame, in_features);
        
         RNN_COPY(features, in_features, NB_TOTAL_FEATURES);
@@ -139,5 +161,8 @@ int main(int argc, char **argv) {
     fclose(fin);
     fclose(fout);
     lpcnet_destroy(net); lpcnet_quant_destroy(q);
+
+    if (ber != 0.0)
+        fprintf(stderr, "nbits: %d nerr: %d BER: %4.3f\n", nbits, nerrs, (float)nerrs/nbits);
     return 0;
 }

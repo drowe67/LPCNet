@@ -142,7 +142,11 @@ Same thing with everything integrated into stand alone encoder and decoder progr
 
 ```cat ~/Downloads/speech_orig_16k.s16 | ./lpcnet_enc | ./lpcnet_dec | aplay -f S16_LE -r 16000```
 
-The bit stream interface is 1 bit/char, as I find that convenient for my digital voice over radio experiments.  The decimation rate, number of VQ stages, and a few other parameters can be set as command line options. You'll need the same set of parameters for the encoder as decoder.
+The bit stream interface is 1 bit/char, as I find that convenient for my digital voice over radio experiments.  The decimation rate, number of VQ stages, and a few other parameters can be set as command line options, for example 20ms frame rate, 3 stage VQ (2050 bits/s):
+
+```cat ~/Downloads/speech_orig_16k.s16 | ./lpcnet_enc -d 2 -n 3 | ./lpcnet_dec -d 2 -n 3 | aplay -f S16_LE -r 16000```
+
+You'll need the same set of parameters for the encoder as decoder.
 
 Useful additions would be:
 

@@ -52,6 +52,7 @@ int main(int argc, char *argv[]) {
     FILE *fpitch = NULL;
     float Fs = 16000.0;
     float uniform_step = 0.0;
+    float uniform_step2 = 0.0;
     int   mbest_survivors = 0;
     char label[80] = "";
     /* experimental limits for dctLy[0], first cepstral */
@@ -62,6 +63,7 @@ int main(int argc, char *argv[]) {
     float pitch_gain_bias = 0.0;
     int   pitch_bits = 0;
     int   small_vec = 0;
+    int   logmag = 0;
     
     for(i=0; i<MAX_STAGES*NB_BANDS*MAX_ENTRIES; i++) vq[i] = 0.0;
     
@@ -74,19 +76,21 @@ int main(int argc, char *argv[]) {
         {"hard",       required_argument, 0, 'h'},
         {"label",      required_argument, 0, 'l'},
         {"mbest",      required_argument, 0, 'm'},
+        {"mag",        required_argument, 0, 'i'},
         {"pitchquant", required_argument, 0, 'o'},
         {"pred",       required_argument, 0, 'p'},
         {"quant",      required_argument, 0, 'q'},
         {"stagevar",   required_argument, 0, 's'},
         {"uniform",    required_argument, 0, 'u'},
         {"verbose",    no_argument,       0, 'v'},
+        {"uniform2",   required_argument, 0, 'x'},
         {"weight",     no_argument,       0, 'w'},
         {0, 0, 0, 0}
     };
 
     int opt_index = 0;
     
-    while ((c = getopt_long (argc, argv, "ad:q:vs:f:p:e:u:l:m:h:wg:o:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "ad:q:vs:f:p:e:u:l:m:h:wg:o:ix:", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'a':
             /* small cpectral vectors - zero out several bands */
@@ -119,6 +123,10 @@ int main(int argc, char *argv[]) {
             /* hard limit (saturate) first feature (energy) */
             lower_limit = atof(optarg);            
             fprintf(stderr, "lower_limit: %f upper_limit: %f\n", lower_limit, upper_limit);
+            break;
+        case 'i':
+            /* work in log mag rather than cepstral domain */
+            logmag = 1;
             break;
         case 'l':
             /* text label to pront with results */
@@ -156,10 +164,13 @@ int main(int argc, char *argv[]) {
                     fprintf(stderr, "Couldn't open: %s\n", fn);
                     exit(1);
                 }
+                /* count how many entries m of dimension k are in this VQ file */
                 m[num_stages] = 0;
-                while (fread(features, sizeof(float), k, fq) == (size_t)k) m[num_stages]++;
+                while (fread(features, sizeof(float), k, fq) == (size_t)k)
+                    m[num_stages]++;
                 assert(m[num_stages] <= MAX_ENTRIES);
                 fprintf(stderr, "%d entries of vectors width %d\n", m[num_stages], k);
+                /* now load VQ into memory */
                 rewind(fq);                       
                 int rd = fread(&vq[num_stages*k*MAX_ENTRIES], sizeof(float), m[num_stages]*k, fq);
                 assert(rd == m[num_stages]*k);
@@ -170,6 +181,11 @@ int main(int argc, char *argv[]) {
         case 'u':
             uniform_step = atof(optarg);
             fprintf(stderr, "uniform quant step size: %3.2f dB\n", uniform_step);
+            uniform_step2 = uniform_step;
+            break;
+        case 'x':
+            uniform_step2 = atof(optarg);
+            fprintf(stderr, "uniform quant step size 12..17: %3.2f dB\n", uniform_step2);
             break;
         case 'v':
             lpcnet_verbose = 1;
@@ -181,6 +197,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n  [-q --quant quantfile1,quantfile2,....]\n", argv[0]);
             fprintf(stderr,"  [-g --gain pitch gain bias]\n");
             fprintf(stderr,"  [-h --hard lowerLimitdB\n");
+            fprintf(stderr,"  [-i --mag\n");
             fprintf(stderr,"  [-l --label txtLabel]\n");
             fprintf(stderr,"  [-m --mbest survivors]\n  [-o --pitchbits nBits]\n");
             fprintf(stderr,"  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
@@ -190,19 +207,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d small: %d", dec, pred, num_stages, mbest_survivors, small_vec);
+    fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d small: %d logmag: %d",
+            dec, pred, num_stages, mbest_survivors, small_vec, logmag);
     fprintf(stderr, "\n");
     
     /* delay line so we can pass some features (like pitch and voicing) through unmodified */
     float features_prev[dec+1][NB_FEATURES];
     /* adjacent vectors used for linear interpolation, note only 0..17 and 38,39 used */
     float features_lin[2][NB_FEATURES];
-    /* used for optiona smoothing of features */
-    /*
-    float features_mem[NB_BANDS];
-    for(i=0; i<NB_BANDS; i++)
-        features_mem[i] = 0.0;
-    */
     
     for(d=0; d<dec+1; d++)
         for(i=0; i<NB_FEATURES; i++)
@@ -258,6 +270,13 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        /* optionally convert cepstrals to log magnitudes */
+        if (logmag) {
+            float tmp[NB_BANDS];
+            idct(tmp, features);
+            for(i=0; i<NB_BANDS; i++) features[i] = tmp[i];
+        }
+        
         /* convert cepstrals to dB */
         for(i=0; i<NB_BANDS; i++)
             features[i] *= 10.0;
@@ -324,9 +343,11 @@ int main(int argc, char *argv[]) {
                         features_quant[i] = features[i];
                 }
                 if (uniform_step != 0.0) {
-                    for(i=0; i<NB_BANDS; i++) {
+                    for(i=0; i<12; i++) {
                         features_quant[i] = uniform_step*round(features[i]/uniform_step);
-                        //fprintf(stderr, "%d %f %f\n", i, features[i], features_quant[i]);
+                    }
+                    for(; i<NB_BANDS; i++) {
+                        features_quant[i] = uniform_step2*round(features[i]/uniform_step2);
                     }
                 }
             }
@@ -399,6 +420,13 @@ int main(int argc, char *argv[]) {
         /* convert cespstrals back from dB */
         for(i=0; i<NB_BANDS; i++)
             features_out[i] *= 1/10.0;
+
+        /* if optionally log magnitudes convert back to cepstrals */
+        if (logmag) {
+            float tmp[NB_BANDS];
+            dct(tmp, features_out);
+            for(i=0; i<NB_BANDS; i++) features_out[i] = tmp[i];
+       }
 
         /* need to recompute LPCs after every frame, as we have quantised, or interpolated */
         lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);

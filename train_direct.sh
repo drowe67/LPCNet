@@ -1,17 +1,57 @@
 #!/bin/sh
+# train_direct.sh
+# David Rowe March 2019
+# Train multi-stage VQ direct (non predictive) for LPCNet
 
-PATH=/home/david/codec2-dev/build_linux/misc/
-VQTRAIN=$PATH/vqtrain
-EXTRACT=$PATH/extract
-VQTRAIN=/home/david/codec2-dev/build_linux/misc/vqtrain
-K=8
+PATH=$PATH:/home/david/codec2-dev/build_linux/misc/
+
+if [ $# -lt 1 ]; then
+    echo "usage: ./train_direct.sh [-i] VQprefix"
+    echo "       $ ./train_direct.sh direct_v1"
+    echo "  -i   work in Ly (log magnitude) domain"
+    exit 1
+fi
+
+for i in "$@"
+do
+case $i in
+    -i)
+        LOGMAG=1
+        shift # past argument=value
+    ;;
+esac
+done
+
+VQ_NAME=$1
+echo $VQ_NAME
+
+K=18
+FINAL_K=12
+STOP=1E-3
 
 echo "*********"
 echo "Direct"
 echo "*********"
-$EXTRACT all_speech_features.f32 all_speech_direct.f32 0 7 10 0
-$VQTRAIN all_speech_direct.f32 $K 2048 direct_stage1.f32 sd1.f32
-$VQTRAIN sd1.f32 $K 2048 direct_stage2.f32 sd2.f32
-$VQTRAIN sd2.f32 $K 2048 direct_stage3.f32 sd3.f32
-$VQTRAIN sd3.f32 $K 2048 direct_stage4.f32 sd4.f32
-$VQTRAIN sd4.f32 $K 2048 direct_stage5.f32 sd5.f32
+t=$(mktemp)
+extract -e `expr $K - 1` -g 10 all_speech_features_5e6.f32 $t 
+if [ -z "$LOGMAG" ]; then
+  echo "weighting dctLy[0] ...."
+  cat $t | ./weight > $VQ_NAME'_s0.f32'
+else
+  echo "working in Ly (log magnitude) domain"
+  cat $t | ./idct > $VQ_NAME'_s0.f32'
+fi
+  
+vqtrain $VQ_NAME'_s0.f32' $K 2048 $VQ_NAME'_stage1.f32' -r $VQ_NAME'_s1.f32' -s $STOP 
+vqtrain $VQ_NAME'_s1.f32' $K 2048 $VQ_NAME'_stage2.f32' -r $VQ_NAME'_s2.f32' -s $STOP
+vqtrain $VQ_NAME'_s2.f32' $K 2048 $VQ_NAME'_stage3.f32' -r $VQ_NAME'_s3.f32' -s $STOP 
+if [ -z "$LOGMAG" ]; then
+  echo "final two stages $K elements"
+  vqtrain $VQ_NAME'_s3.f32' $K 2048 $VQ_NAME'_stage4.f32' -r $VQ_NAME'_s5.f32' -s $STOP 
+  vqtrain $VQ_NAME'_s4.f32' $K 2048 $VQ_NAME'_stage5.f32' -r $VQ_NAME'_s6.f32' -s $STOP 
+else
+  echo "final stage $FINAL_K elements"
+  t=$(mktemp)
+  extract -e `expr $FINAL_K - 1` -t $K $VQ_NAME'_s3.f32' $t 
+  vqtrain $t $FINAL_K 2048 $VQ_NAME'_stage4.f32' -r $VQ_NAME'_s5.f32' -s $STOP 
+fi

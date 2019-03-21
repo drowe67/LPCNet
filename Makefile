@@ -21,7 +21,7 @@ CFLAGS+=-mfpu=neon -march=armv8-a -mtune=cortex-a53
 endif
 
 PROG=dump_data test_lpcnet test_vec quant_feat tcodec2_pitch weight tdump tweak_pitch quant_test \
-     quant2c diff32 quant_enc quant_dec lpcnet_enc lpcnet_dec
+     quant2c diff32 quant_enc quant_dec lpcnet_enc lpcnet_dec idct
 all: $(PROG)
 
 dump_data_objs := src/dump_data.o src/freq.o src/kiss_fft.o src/pitch.o src/celt_lpc.o src/codec2_pitch.o
@@ -106,8 +106,13 @@ weight_objs := src/weight.o
 weight_deps := $(weight_objs:.o=.d)
 weight: $(weight_objs)
 	gcc -o $@ $(CFLAGS) $(weight_objs) -lm
-
 -include $(weight_deps)
+
+idct_objs := src/idct.o src/freq.o src/kiss_fft.o src/celt_lpc.o src/pitch.o
+idct_deps := $(idct_objs:.o=.d)
+idct: $(idct_objs)
+	gcc -o $@ $(CFLAGS) $(idct_objs) -lm
+-include $(idct_deps)
 
 tweak_pitch_objs := src/tweak_pitch.o
 tweak_pitch_deps := $(tweak_pitch_objs:.o=.d)

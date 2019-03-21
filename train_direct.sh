@@ -27,7 +27,7 @@ echo $VQ_NAME
 
 K=18
 FINAL_K=12
-STOP=1E-3
+STOP=1E-1
 
 echo "*********"
 echo "Direct"
@@ -53,5 +53,5 @@ else
   echo "final stage $FINAL_K elements"
   t=$(mktemp)
   extract -e `expr $FINAL_K - 1` -t $K $VQ_NAME'_s3.f32' $t 
-  vqtrain $t $FINAL_K 2048 $VQ_NAME'_stage4.f32' -r $VQ_NAME'_s5.f32' -s $STOP 
+  vqtrain $t $FINAL_K 2048 $VQ_NAME'_stage4.f32' -r $VQ_NAME'_s5.f32' -s $STOP -t $K
 fi

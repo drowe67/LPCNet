@@ -1,69 +1,14 @@
-# LPCNet
+# LPCNet for FreeDV
 
-Low complexity implementation of the WaveRNN-based LPCNet algorithm, as described in:
-
-J.-M. Valin, J. Skoglund, [LPCNet: Improving Neural Speech Synthesis Through Linear Prediction](https://jmvalin.ca/papers/lpcnet_icassp2019.pdf), *Submitted for ICASSP 2019*, arXiv:1810.11846.
-
-# Introduction
-
-Work in progress software for researching low CPU complexity algorithms for speech synthesis and compression by applying Linear Prediction techniques to WaveRNN. High quality speech can be synthesised on regular CPUs (around 3 GFLOP) with SIMD support (AVX, AVX2/FMA, NEON currently supported).
-
-The BSD licensed software is written in C and Python/Keras. For training, a GTX 1080 Ti or better is recommended.
-
-This software is an open source starting point for WaveRNN-based speech synthesis and coding.
-
-# Quickstart
-
-1. Set up a Keras system with GPU.
-
-1. Generate training data:
-   ```
-   make dump_data
-   ./dump_data --train input.s16 features.f32 data.u8
-   ```
-   where the first file contains 16 kHz 16-bit raw PCM audio (no header) and the other files are output files. This program makes several passes over the data with different filters to generate a large amount of training data.
-
-1. Now that you have your files, train with:
-   ```
-   ./train_lpcnet.py features.f32 data.u8
-   ```
-   and it will generate a wavenet*.h5 file for each iteration. If it stops with a 
-   "Failed to allocate RNN reserve space" message try reducing the *batch\_size* variable in train_wavenet_audio.py.
-
-1. You can synthesise speech with Python and your GPU card:
-   ```
-   ./dump_data --test test_input.s16 test_features.f32
-   ./test_lpcnet.py test_features.f32 test.s16
-   ```
-   Note the .h5 is hard coded in test_lpcnet.py, modify for your .h file.
-
-1. Or with C on a CPU:
-   First extract the model files nnet_data.h and nnet_data.c
-   ```
-   ./dump_lpcnet.py lpcnet15_384_10_G16_64.h5
-   ```
-   Then you can make the C synthesiser and try synthesising from a test feature file:
-   ```
-   make test_lpcnet
-   ./dump_data --test test_input.s16 test_features.f32
-   ./test_lpcnet test_features.f32 test.s16
-   ```
- 
-# Speech Material for Training 
-
-Suitable training material can be obtained from the [McGill University Telecommunications & Signal Processing Laboratory](http://www-mmsp.ece.mcgill.ca/Documents/Data/).  Download the ISO and extract the 16k-LP7 directory, the src/concat.sh script can be used to generate a headerless file of training samples.
-```
-cd 16k-LP7
-sh /path/to/concat.sh
-```
+Experimental version of LPCNet being developed for over the air Digital Voice experiments with FreeDV.
 
 # Reading Further
 
+1. [Original LPCNet Repo with more instructions and background](https://github.com/mozilla/LPCNet/)
 1. [LPCNet: DSP-Boosted Neural Speech Synthesis](https://people.xiph.org/~jm/demo/lpcnet/)
-1. Sample model files:
-https://jmvalin.ca/misc_stuff/lpcnet_models/
+1. [Sample model files](https://jmvalin.ca/misc_stuff/lpcnet_models/)
 
-# David's Quantiser Experiments
+# Quantiser Experiments
 
 First build a C lpcnet_test C decoder with the [latest .h5](https://jmvalin.ca/misc_stuff/lpcnet_models/) file.
 
@@ -153,4 +98,19 @@ Useful additions would be:
 1. Run time loading of .h5 NN models.
 1. A --packed option to pack the quantised bits tightly, which would make the programs useful for storage applications.
 
- 
+## Direct Split VQ
+
+Four stage VQ of log magnitudes (Ly), 11 bits (2048 entries) per stage, First 3 stages 18 elements wide; final stage 12 elements wide.  During traring this acheived similar variance to 4 stage predictive below (on 12 bands).  Same bit rate, but direct quantisation means more robust to bit errors and especially packet loss.
+
+```
+sox ~/Desktop/deep/quant/wia.wav -t raw - | ./dump_data --c2pitch --test - - | ./quant_feat -d 3 -i -p 0 --mbest 5 -q split_stage1.f32,split_stage2.f32,split_stage3.f32,split_stage4.f32 | ./test_lpcnet - - | aplay -f S16_LE -r 16000
+```
+
+Four stage VQ of Cepstrals (DCT of Ly), 11 bits (2048 entries) per stage, 18 element wide vectors.  We quantise the predictor output.
+
+```
+sox ~/Desktop/deep/quant/wia.wav -t raw -  | ./dump_data --c2pitch --test - - | ./quant_feat -d 3 -w --mbest 5 -q pred_v2_stage1.f32,pred_v2_stage2.f32,pred_v2_stage3.f32,pred_v2_stage4.f32 | ./test_lpcnet - - | aplay -f S16_LE -r 16000
+```
+
+Both are decimated by a factor of 3 (so 30ms update of parameters, 30*44=1733 bits/s).
+

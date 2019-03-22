@@ -18,9 +18,9 @@
 #define MAX_STAGES     5    /* max number of VQ stages                */
 #define NOUTLIERS      5    /* range of outilers to track in 1dB steps */
 
-extern int   num_stages;
-extern float vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
-extern int   m[MAX_STAGES];
+extern int   pred_num_stages;
+extern float pred_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
+extern int   pred_m[MAX_STAGES];
 
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
@@ -33,6 +33,7 @@ int main(int argc, char *argv[]) {
     /* weight applied to first cepstral */
     float weight = 1.0/sqrt(NB_BANDS);    
     int   pitch_bits = 6;
+    int num_stages = pred_num_stages;
     
     static struct option long_options[] = {
         {"decimate",   required_argument, 0, 'd'},
@@ -75,7 +76,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    LPCNET_QUANT *q = lpcnet_quant_create(num_stages, m, vq);
+    LPCNET_QUANT *q = lpcnet_quant_create(num_stages, pred_m, pred_vq);
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
     q->pitch_bits = pitch_bits; q->dec = dec;
     lpcnet_quant_compute_bits_per_frame(q);

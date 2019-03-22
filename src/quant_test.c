@@ -22,6 +22,11 @@
 #define PITCH_MIN_PERIOD 32
 #define PITCH_MAX_PERIOD 256
 
+// use predictive quantiser for this test
+#define num_stages pred_num_stages 
+#define vq pred_vq 
+#define m pred_m 
+
 extern int num_stages;
 extern float vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
 extern int   m[MAX_STAGES];

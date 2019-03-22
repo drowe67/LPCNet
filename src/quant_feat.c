@@ -314,10 +314,6 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_FEATURES; i++)
             features_prev[dec][i] = features[i];
 
-        /*
-        for(i=0; i<NB_BANDS; i++)
-             features_mem[i] = 0.5*features_mem[i] + 0.5*features[i];
-        */
         // clear outpout features to make sure we are not cheating.
         // Note we cant clear quant_out as we need memory of last
         // frames output for pred quant

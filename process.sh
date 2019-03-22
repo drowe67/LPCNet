@@ -80,6 +80,7 @@ mkdir -p $PNG_PATH
 rm -f $STATS
 
 vq=pred_v2_stage
+vq2=split_stage
 
 # cp in originals
 for f in $WAV_FILES
@@ -128,7 +129,7 @@ if [ $lite -eq 0 ]; then
         label=$(printf "33bit_20ms %-10s" "$f")
         sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
         ./quant_feat -l "$label" -d 2 -o 6 -w --mbest 5 -q $vq'1.f32',$vq'2.f32',$vq'3.f32' -s $SV_PATH/$f'_5_33bit_20ms'.txt  2>>$STATS | \
-        ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_4_33bit_20ms'.wav
+        ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_5_33bit_20ms'.wav
     done
 
     # 33 bit 3 stage VQ searched with mbest algorithm, 30ms updates
@@ -137,7 +138,7 @@ if [ $lite -eq 0 ]; then
         label=$(printf "33bit_30ms %-10s" "$f")
         sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
             ./quant_feat -l "$label" -d 3 -o 6 -w --mbest 5 -q $vq'1.f32',$vq'2.f32',$vq'3.f32' -s $SV_PATH/$f'_6_33bit_30ms'.txt 2>>$STATS | \
-            ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_5_33bit_30ms'.wav
+            ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_6_33bit_30ms'.wav
     done
 
     # 44 bit 4 stage VQ searched with mbest algorithm, 30ms updates
@@ -146,20 +147,16 @@ if [ $lite -eq 0 ]; then
         label=$(printf "44bit_30ms %-10s" "$f")
         sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
         ./quant_feat -l "$label" -d 3 -o 6 -w --mbest 5 -q $vq'1.f32',$vq'2.f32',$vq'3.f32',$vq'4.f32' -s $SV_PATH/$f'_7_44bit_30ms'.txt 2>>$STATS | \
-        ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_6_44bit_30ms'.wav
+        ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_7_44bit_30ms'.wav
     done
 
-    # Codec 2 and simulated SSB (10dB SNR, AWGN channel, 10Hz freq offset) reference samples
+    # non-predictive (direct) 44 bit 4 stage split VQ searched with mbest algorithm, 30ms updates
     for f in $WAV_FILES
     do
-        sox $WAVIN_PATH/$f.wav -t raw -r 8000 - | c2enc 2400 - - | c2dec 2400 - - | \
-        sox -r 8000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_8_c2_2400'.wav
-    done
-    for f in $WAV_FILES
-    do
-        sox -r 16000 -c 1 $WAVIN_PATH/$f.wav -r 8000 -t raw - | \
-            cohpsk_ch - - -35 --Fs 8000 -f 10 --ssbfilt 1 |  \
-        sox -r 8000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_9_ssb_10dB'.wav
+        label=$(printf "44bit_sp_30ms %-10s" "$f")
+        sox $WAVIN_PATH/$f.wav -t raw - | ./dump_data --test --c2pitch - - | \
+        ./quant_feat -l "$label" -d 3 -o 6 -i -p 0 --mbest 5 -q $vq2'1.f32',$vq2'2.f32',$vq2'3.f32',$vq2'4.f32' -s $SV_PATH/$f'_8_44bit_sp_30ms'.txt 2>>$STATS | \
+        ./test_lpcnet - - | sox -r 16000 -t .s16 -c 1 - $WAVOUT_PATH/$f'_8_44bit_sp_30ms'.wav
     done
 
 fi # ... if [ $lite -eq 0 ] ...
@@ -205,19 +202,12 @@ if [ $lite -eq 0 ]; then
       <td>Same 33 bit VQ, but decimated down to 30ms rate, (33+8)/0.03 = 1367 bits/s</td>
     </tr>
     <tr>
-      <td>44bit_40ms</td>
+      <td>44bit_30ms</td>
       <td>4 stage VQ, at 30ms update rate, (44+8)/0.03 = 1733 bits/s</td>
     </tr>
     <tr>
-      <td>c2_2400</td>
-      <td>Codec 2 at 2400 bits/s</td>
-    </tr>
-    <tr>
-      <td>ssb_10dB</td>
-      <td>Analog Single Sideband at a Signal/Noise ratio (in 3000 Hz) of 10dB.  Band 
-          limited to 300-2600Hz.  At similar SNR with an appropriate modem we can send 
-          error free 2000 bit/s coded speech.
-      </td>
+      <td>44bit_sp_30ms</td>
+      <td>Direct (non predictive) 4 stage split VQ, at 30ms update rate, (44+8)/0.03 = 1733 bits/s.  First 3 stages are 18 elements wide, last stage is just 12.  We quantise log magnitudes (Ly) rather than Ceptrals (dct(Ly)). Targeted at HF radio channel where predictive schemes perform poorly due to high bit error/packet error rate</td>
     </tr>
     </table>
     <p>

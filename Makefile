@@ -1,5 +1,8 @@
-# Makefile for LPCNet
+# Makefile for FreeDV vesion of LPCNet
 
+# TODO: 1/ Will this work win corss compiling for Windows?
+#       2/ Should this standardise on just AVX?  As machine we run on
+#          may be different to machine we build on
 CC=gcc
 CFLAGS+=-Wall -W -Wextra -Wno-unused-function -O3 -g -I../include -MD
 LDFLAGS+=-Lsrc
@@ -16,6 +19,7 @@ CFLAGS+=-mavx
 endif
 endif
 
+# RPi
 ifneq ($(NEON),0)
 CFLAGS+=-mfpu=neon -march=armv8-a -mtune=cortex-a53
 endif
@@ -25,6 +29,11 @@ PROG=dump_data test_lpcnet test_vec quant_feat tcodec2_pitch weight tdump quant_
 all: $(PROG)
 
 LIB=./src/liblpcnetfreedv.a
+
+# grab latest NN model (or substitute your own)
+src/nnet_data.c src/nnet_data.h:
+	wget -N http://rowetel.com/downloads/deep/lpcnet_190215.tgz -O src/lpcnet_190215.tgz
+	cd src; tar xzf lpcnet_190215.tgz
 
 lpcnet_freedv_objs := src/freq.o src/kiss_fft.o src/celt_lpc.o src/pitch.o src/codec2_pitch.o \
                       src/mbest.o src/lpcnet_quant.o src/4stage_pred_vq.o src/lpcnet_dump.o \

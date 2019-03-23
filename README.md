@@ -126,3 +126,12 @@ sox ~/Desktop/deep/quant/wia.wav -t raw -  | ./dump_data --c2pitch --test - - | 
 
 Both are decimated by a factor of 3 (so 30ms update of parameters, 30*44=1733 bits/s).
 
+# Effect of Bit Errors
+
+Random 1 Bit Error Rate (BER):
+
+Predictive:
+```sox wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc | ./lpcnet_dec -b 0.01 | aplay -f S16_LE -r 16000```
+
+Direct-split:
+```sox wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s -b 0.01 | aplay -f S16_LE -r 16000```

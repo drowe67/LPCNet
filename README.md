@@ -8,11 +8,23 @@ Experimental version of LPCNet being developed for over the air Digital Voice ex
 1. [LPCNet: DSP-Boosted Neural Speech Synthesis](https://people.xiph.org/~jm/demo/lpcnet/)
 1. [Sample model files](https://jmvalin.ca/misc_stuff/lpcnet_models/)
 
+# Speech Material for Training
+
+Suitable training material can be obtained from the McGill University Telecommunications & Signal Processing Laboratory. Download the ISO and extract the 16k-LP7 directory, the src/concat.sh script can be used to generate a headerless file of training samples.
+
+```
+cd 16k-LP7
+sh /path/to/LPCNet/src/concat.sh
+```
+
 # Quantiser Experiments
 
-First build a C lpcnet_test C decoder with the [latest .h5](https://jmvalin.ca/misc_stuff/lpcnet_models/) file.
+Clone this repo, then:
+```
+$ make
+```
 
-Binary files for these experiments [here](http://rowetel.com/downloads/deep/lpcnet_quant)
+The quantiser files these experiments (pred_v2.tgz and split.tgz) are [here](http://rowetel.com/downloads/deep/lpcnet_quant)
 
 ## Exploring Features
 
@@ -100,7 +112,7 @@ Useful additions would be:
 
 ## Direct Split VQ
 
-Four stage VQ of log magnitudes (Ly), 11 bits (2048 entries) per stage, First 3 stages 18 elements wide; final stage 12 elements wide.  During traring this acheived similar variance to 4 stage predictive below (on 12 bands).  Same bit rate, but direct quantisation means more robust to bit errors and especially packet loss.
+Four stage VQ of log magnitudes (Ly), 11 bits (2048 entries) per stage, First 3 stages 18 elements wide; final stage 12 elements wide.  During training this acheived similar variance to 4 stage predictive quantiser (measured on 12 bands).  Same bit rate, but direct quantisation means more robust to bit errors and especially packet loss.
 
 ```
 sox ~/Desktop/deep/quant/wia.wav -t raw - | ./dump_data --c2pitch --test - - | ./quant_feat -d 3 -i -p 0 --mbest 5 -q split_stage1.f32,split_stage2.f32,split_stage3.f32,split_stage4.f32 | ./test_lpcnet - - | aplay -f S16_LE -r 16000

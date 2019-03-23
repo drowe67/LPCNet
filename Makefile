@@ -1,7 +1,8 @@
 # Makefile for FreeDV vesion of LPCNet
 
-# TODO: 1/ Will this work win corss compiling for Windows?
-#       2/ Should this standardise on just AVX?  As machine we run on
+# TODO: 1/ Will this work when cross compiling for Windows?  Another approach is to supply
+#          flags manually on cmd line
+#       2/ Should we standardise on just AVX?  As machine we run on
 #          may be different to machine we build on
 CC=gcc
 CFLAGS+=-Wall -W -Wextra -Wno-unused-function -O3 -g -I../include -MD

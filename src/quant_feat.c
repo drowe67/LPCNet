@@ -417,7 +417,7 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_BANDS; i++)
             features_out[i] *= 1/10.0;
 
-        /* if optionally log magnitudes convert back to cepstrals */
+        /* optionally log magnitudes convert back to cepstrals */
         if (logmag) {
             float tmp[NB_BANDS];
             dct(tmp, features_out);

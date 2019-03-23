@@ -44,9 +44,13 @@
 #undef NB_FEATURES 
 #include "lpcnet.h"
 
+// Two sorts of VQs available
 extern int   pred_num_stages;
 extern float pred_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
 extern int   pred_m[MAX_STAGES];
+extern int   direct_split_num_stages;
+extern float direct_split_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
+extern int   direct_split_m[MAX_STAGES];
 
 int main(int argc, char **argv) {
     FILE *fin, *fout;
@@ -60,23 +64,27 @@ int main(int argc, char **argv) {
     int   pitch_bits = 6;
     float ber = 0.0;
     int   num_stages = pred_num_stages;
+    int   *m = pred_m;
+    float *vq = pred_vq;
+    int   logmag = 0;
     
     /* quantiser options */
     
     static struct option long_options[] = {
-        {"ber",        required_argument, 0, 'b'},
-        {"decimate",   required_argument, 0, 'd'},
-        {"numstages",  required_argument, 0, 'n'},
-        {"pitchquant", required_argument, 0, 'o'},
-        {"pred",       required_argument, 0, 'p'},
-        {"verbose",    no_argument,       0, 'v'},
+        {"ber",         required_argument, 0, 'b'},
+        {"decimate",    required_argument, 0, 'd'},
+        {"numstages",   required_argument, 0, 'n'},
+        {"pitchquant",  required_argument, 0, 'o'},
+        {"pred",        required_argument, 0, 'p'},
+        {"directsplit", no_argument,       0, 's'},
+        {"verbose",     no_argument,       0, 'v'},
         {0, 0, 0, 0}
     };
 
     int   c;
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "b:d:n:o:p:v", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "b:d:n:o:p:sv", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'b':
             ber = atof(optarg);
@@ -98,6 +106,10 @@ int main(int argc, char **argv) {
             pred = atof(optarg);
             fprintf(stderr, "pred = %f\n", pred);
             break;
+        case 's':
+            m = direct_split_m; vq = direct_split_vq; pred = 0.0; logmag = 1; weight = 1.0;
+            fprintf(stderr, "split VQ\n");
+            break;
         case 'v':
             lpcnet_verbose = 1;
             break;
@@ -107,13 +119,13 @@ int main(int argc, char **argv) {
             fprintf(stderr,"  [-d --decimation 1/2/3...]\n");
             fprintf(stderr,"  [-n --numstages]\n  [-o --pitchbits nBits]\n");
             fprintf(stderr,"  [-p --pred predCoff]\n");
+            fprintf(stderr,"  [-s --split]\n");
             fprintf(stderr,"  [-v --verbose]\n");
             exit(1);
         }
     }
 
-
-    LPCNET_QUANT *q = lpcnet_quant_create(num_stages, pred_m, pred_vq);
+    LPCNET_QUANT *q = lpcnet_quant_create(num_stages, m, vq);
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
     q->pitch_bits = pitch_bits; q->dec = dec;
     lpcnet_quant_compute_bits_per_frame(q);
@@ -129,7 +141,7 @@ int main(int argc, char **argv) {
 
     fin = stdin;
     fout = stdout;
-    int nbits = 0, nerrs = 0;
+    int nbits = 0, nerrs = 0, i;
 
     do {
         float in_features[NB_TOTAL_FEATURES];
@@ -151,6 +163,12 @@ int main(int argc, char **argv) {
             
         }
         lpcnet_frame_to_features(q, frame, in_features);
+        /* optionally log magnitudes convert back to cepstrals */
+        if (logmag) {
+            float tmp[NB_BANDS];
+            dct(tmp, in_features);
+            for(i=0; i<NB_BANDS; i++) in_features[i] = tmp[i];
+       }
        
         RNN_COPY(features, in_features, NB_TOTAL_FEATURES);
         RNN_CLEAR(&features[18], 18);

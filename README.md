@@ -24,7 +24,7 @@ Clone this repo, then:
 $ make
 ```
 
-The quantiser files these experiments (pred_v2.tgz and split.tgz) are [here](http://rowetel.com/downloads/deep/lpcnet_quant)
+The quantiser files used for these experiments (pred_v2.tgz and split.tgz) are [here](http://rowetel.com/downloads/deep/lpcnet_quant)
 
 ## Exploring Features
 
@@ -118,7 +118,7 @@ Four stage VQ of log magnitudes (Ly), 11 bits (2048 entries) per stage, First 3 
 sox ~/Desktop/deep/quant/wia.wav -t raw - | ./dump_data --c2pitch --test - - | ./quant_feat -d 3 -i -p 0 --mbest 5 -q split_stage1.f32,split_stage2.f32,split_stage3.f32,split_stage4.f32 | ./test_lpcnet - - | aplay -f S16_LE -r 16000
 ```
 
-Four stage VQ of Cepstrals (DCT of Ly), 11 bits (2048 entries) per stage, 18 element wide vectors.  We quantise the predictor output.
+Compare this to four stage predictive VQ of Cepstrals (DCT of Ly), 11 bits (2048 entries) per stage, 18 element wide vectors.  We quantise the predictor output.
 
 ```
 sox ~/Desktop/deep/quant/wia.wav -t raw -  | ./dump_data --c2pitch --test - - | ./quant_feat -d 3 -w --mbest 5 -q pred_v2_stage1.f32,pred_v2_stage2.f32,pred_v2_stage3.f32,pred_v2_stage4.f32 | ./test_lpcnet - - | aplay -f S16_LE -r 16000

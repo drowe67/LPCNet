@@ -19,42 +19,21 @@
 
 #include "common.h"
 #include "freq.h"
-#include "mbest.h"
+#include "lpcnet_quant.h"
 
 #define NB_FEATURES    55
-#define NB_BANDS       18
 #define MAX_STAGES     5    /* max number of VQ stages                */
-#define MAX_ENTRIES    4096 /* max number of vectors per stage        */
-#define NOUTLIERS      5    /* range of outiles to track in 1dB steps */
+#define NOUTLIERS      5    /* range of outilers to track in 1dB steps */
 
 #define PITCH_MIN_PERIOD 32
 #define PITCH_MAX_PERIOD 256
-
-int verbose = 0;
-FILE *fsv = NULL;
-
-int quantise(const float * cb, float vec[], float w[], int k, int m, float *se);
-
-void quant_pred(float vec_out[],  /* prev quant vector, and output */
-                float vec_in[],
-                float pred,
-                int num_stages,
-                float vq[],
-                int m[], int k);
-
-void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output */
-                      float vec_in[],
-                      float pred,
-                      int num_stages,
-                      float vq[],
-                      int m[], int k,
-                      int mbest_survivors);
 
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
     float features[NB_FEATURES], features_out[NB_FEATURES];
     int f = 0, dec = 2;
     float features_quant[NB_FEATURES];
+    int   indexes[MAX_STAGES];
     float sum_sq_err = 0.0;
     int d,i,n = 0;
     float fract;
@@ -73,6 +52,7 @@ int main(int argc, char *argv[]) {
     FILE *fpitch = NULL;
     float Fs = 16000.0;
     float uniform_step = 0.0;
+    float uniform_step2 = 0.0;
     int   mbest_survivors = 0;
     char label[80] = "";
     /* experimental limits for dctLy[0], first cepstral */
@@ -82,8 +62,13 @@ int main(int argc, char *argv[]) {
     float weight = 1.0;    
     float pitch_gain_bias = 0.0;
     int   pitch_bits = 0;
+    int   small_vec = 0;
+    int   logmag = 0;
+    
+    for(i=0; i<MAX_STAGES*NB_BANDS*MAX_ENTRIES; i++) vq[i] = 0.0;
     
     static struct option long_options[] = {
+        {"small",      required_argument, 0, 'a'},
         {"decimate",   required_argument, 0, 'd'},
         {"extpitch",   required_argument, 0, 'e'},
         {"first",      required_argument, 0, 'f'},
@@ -91,21 +76,27 @@ int main(int argc, char *argv[]) {
         {"hard",       required_argument, 0, 'h'},
         {"label",      required_argument, 0, 'l'},
         {"mbest",      required_argument, 0, 'm'},
+        {"mag",        required_argument, 0, 'i'},
         {"pitchquant", required_argument, 0, 'o'},
         {"pred",       required_argument, 0, 'p'},
         {"quant",      required_argument, 0, 'q'},
         {"stagevar",   required_argument, 0, 's'},
         {"uniform",    required_argument, 0, 'u'},
         {"verbose",    no_argument,       0, 'v'},
+        {"uniform2",   required_argument, 0, 'x'},
         {"weight",     no_argument,       0, 'w'},
         {0, 0, 0, 0}
     };
 
     int opt_index = 0;
-
-    while ((c = getopt_long (argc, argv, "d:q:vs:f:p:e:u:l:m:h:wg:o:", long_options, &opt_index)) != -1) {
+    
+    while ((c = getopt_long (argc, argv, "ad:q:vs:f:p:e:u:l:m:h:wg:o:ix:", long_options, &opt_index)) != -1) {
         switch (c) {
-        case 'f':
+        case 'a':
+            /* small cpectral vectors - zero out several bands */
+            small_vec = 1;
+            break;
+       case 'f':
             /* start VQ at band first+1 */
             first = atoi(optarg);
             k = NB_BANDS-first;
@@ -113,7 +104,7 @@ int main(int argc, char *argv[]) {
             break;
         case 's':
             /* text file to dump error (variance) per stage */
-            fsv = fopen(optarg, "wt"); assert(fsv != NULL);            
+            lpcnet_fsv = fopen(optarg, "wt"); assert(lpcnet_fsv != NULL);            
             break;
         case 'd':
             dec = atoi(optarg);
@@ -132,6 +123,10 @@ int main(int argc, char *argv[]) {
             /* hard limit (saturate) first feature (energy) */
             lower_limit = atof(optarg);            
             fprintf(stderr, "lower_limit: %f upper_limit: %f\n", lower_limit, upper_limit);
+            break;
+        case 'i':
+            /* work in log mag rather than cepstral domain */
+            logmag = 1;
             break;
         case 'l':
             /* text label to pront with results */
@@ -169,10 +164,13 @@ int main(int argc, char *argv[]) {
                     fprintf(stderr, "Couldn't open: %s\n", fn);
                     exit(1);
                 }
+                /* count how many entries m of dimension k are in this VQ file */
                 m[num_stages] = 0;
-                while (fread(features, sizeof(float), k, fq) == (size_t)k) m[num_stages]++;
+                while (fread(features, sizeof(float), k, fq) == (size_t)k)
+                    m[num_stages]++;
                 assert(m[num_stages] <= MAX_ENTRIES);
                 fprintf(stderr, "%d entries of vectors width %d\n", m[num_stages], k);
+                /* now load VQ into memory */
                 rewind(fq);                       
                 int rd = fread(&vq[num_stages*k*MAX_ENTRIES], sizeof(float), m[num_stages]*k, fq);
                 assert(rd == m[num_stages]*k);
@@ -183,9 +181,14 @@ int main(int argc, char *argv[]) {
         case 'u':
             uniform_step = atof(optarg);
             fprintf(stderr, "uniform quant step size: %3.2f dB\n", uniform_step);
+            uniform_step2 = uniform_step;
+            break;
+        case 'x':
+            uniform_step2 = atof(optarg);
+            fprintf(stderr, "uniform quant step size 12..17: %3.2f dB\n", uniform_step2);
             break;
         case 'v':
-            verbose = 1;
+            lpcnet_verbose = 1;
             break;
         case 'w':
             weight = 1.0/sqrt(NB_BANDS);
@@ -194,6 +197,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n  [-q --quant quantfile1,quantfile2,....]\n", argv[0]);
             fprintf(stderr,"  [-g --gain pitch gain bias]\n");
             fprintf(stderr,"  [-h --hard lowerLimitdB\n");
+            fprintf(stderr,"  [-i --mag\n");
             fprintf(stderr,"  [-l --label txtLabel]\n");
             fprintf(stderr,"  [-m --mbest survivors]\n  [-o --pitchbits nBits]\n");
             fprintf(stderr,"  [-p --pred predCoff]\n  [-f --first firstElement]\n  [-s --stagevar TxtFile]\n");
@@ -203,19 +207,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d", dec, pred, num_stages, mbest_survivors);
+    fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d small: %d logmag: %d",
+            dec, pred, num_stages, mbest_survivors, small_vec, logmag);
     fprintf(stderr, "\n");
     
     /* delay line so we can pass some features (like pitch and voicing) through unmodified */
     float features_prev[dec+1][NB_FEATURES];
     /* adjacent vectors used for linear interpolation, note only 0..17 and 38,39 used */
     float features_lin[2][NB_FEATURES];
-    /* used for optiona smoothing of features */
-    /*
-    float features_mem[NB_BANDS];
-    for(i=0; i<NB_BANDS; i++)
-        features_mem[i] = 0.0;
-    */
     
     for(d=0; d<dec+1; d++)
         for(i=0; i<NB_FEATURES; i++)
@@ -265,6 +264,19 @@ int main(int argc, char *argv[]) {
     
     while(fread(features, sizeof(float), NB_FEATURES, fin) == NB_FEATURES) {
        
+        for(i=0; i<NB_FEATURES; i++) {
+            if (isnan(features[i])) {
+                fprintf(stderr, "f: %d i: %d\n", f, i);
+            }
+        }
+
+        /* optionally convert cepstrals to log magnitudes */
+        if (logmag) {
+            float tmp[NB_BANDS];
+            idct(tmp, features);
+            for(i=0; i<NB_BANDS; i++) features[i] = tmp[i];
+        }
+        
         /* convert cepstrals to dB */
         for(i=0; i<NB_BANDS; i++)
             features[i] *= 10.0;
@@ -302,11 +314,13 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_FEATURES; i++)
             features_prev[dec][i] = features[i];
 
-        /*
-        for(i=0; i<NB_BANDS; i++)
-             features_mem[i] = 0.5*features_mem[i] + 0.5*features[i];
-        */
+        // clear outpout features to make sure we are not cheating.
+        // Note we cant clear quant_out as we need memory of last
+        // frames output for pred quant
         
+        for(i=0; i<NB_FEATURES; i++)
+            features_out[i] = 0.0;
+
         if ((f % dec) == 0) {
             /* non-interpolated frame ----------------------------------------*/
 
@@ -315,7 +329,7 @@ int main(int argc, char *argv[]) {
                 if (num_stages) {
                     if (mbest_survivors) {
                         /* mbest predictive VQ */
-                        quant_pred_mbest(&features_quant[first], &features[first], pred, num_stages, vq, m, k, mbest_survivors);
+                        quant_pred_mbest(&features_quant[first], indexes, &features[first], pred, num_stages, vq, m, k, mbest_survivors);
                     }
                     else {
                         /* standard predictive VQ */
@@ -325,9 +339,11 @@ int main(int argc, char *argv[]) {
                         features_quant[i] = features[i];
                 }
                 if (uniform_step != 0.0) {
-                    for(i=0; i<NB_BANDS; i++) {
+                    for(i=0; i<12; i++) {
                         features_quant[i] = uniform_step*round(features[i]/uniform_step);
-                        //fprintf(stderr, "%d %f %f\n", i, features[i], features_quant[i]);
+                    }
+                    for(; i<NB_BANDS; i++) {
+                        features_quant[i] = uniform_step2*round(features[i]/uniform_step2);
                     }
                 }
             }
@@ -339,26 +355,10 @@ int main(int argc, char *argv[]) {
             }
 
             if (pitch_bits) {
-                assert(pitch_bits <= 8);
-                // mapping we use as input to pembed layer, pemebed will only be trained
-                // for these discrete values.  However I think all integers will be covered, so
-                // we may not need any special precautions here.
-                int periods = 0.1 + 50*features[2*NB_BANDS] + 100;
-                if (periods < PITCH_MIN_PERIOD) periods = PITCH_MIN_PERIOD;
-                if (periods > PITCH_MAX_PERIOD) periods = PITCH_MAX_PERIOD;
-                // should probably add rounding here
-                int q = (periods - PITCH_MIN_PERIOD) >> (8 - pitch_bits);
-                int periods_ = (q << (8 - pitch_bits)) + PITCH_MIN_PERIOD;
-                features_quant[2*NB_BANDS] = ((float)periods_ - 100.0 - 0.1)/50.0;
-
-                // 2 bit pitch gain quantiser
-                float pitch_gain = features[2*NB_BANDS+1];
-                float pitch_gain_cb[] = {0.25, 0.25, 0.65, 0.80};
-                float w[1] = {1.0};
-                float se;
-                int ind = quantise(pitch_gain_cb, &pitch_gain, w, 1, 4, &se);
-                features_quant[2*NB_BANDS+1] = pitch_gain_cb[ind];
-                //fprintf(stderr, "periods %3d periods_ %3d q: %3d pitch_gain: %3.2f %3.2f\n", periods, periods_, q, pitch_gain, features_quant[2*NB_BANDS+1]);
+                int ind =  pitch_encode(features[2*NB_BANDS], pitch_bits);
+                features_quant[2*NB_BANDS] = pitch_decode(pitch_bits, ind);
+                ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
+                features_quant[2*NB_BANDS+1] = pitch_gain_decode(ind);
             }
             else {
                 features_quant[2*NB_BANDS] = features[2*NB_BANDS]; 
@@ -406,9 +406,7 @@ int main(int argc, char *argv[]) {
                 fract = (float)d/(float)dec;
                 features_out[i] = (1.0-fract)*features_lin[0][i] + fract*features_lin[1][i];
             }
-            
-            /* set up LPCs from interpolated cepstrals, used by synthesis */
-            lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
+
         }
         
         f++;
@@ -419,6 +417,29 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_BANDS; i++)
             features_out[i] *= 1/10.0;
 
+        /* optionally log magnitudes convert back to cepstrals */
+        if (logmag) {
+            float tmp[NB_BANDS];
+            dct(tmp, features_out);
+            for(i=0; i<NB_BANDS; i++) features_out[i] = tmp[i];
+       }
+
+        /* need to recompute LPCs after every frame, as we have quantised, or interpolated */
+        lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
+
+        for(i=0; i<NB_FEATURES; i++) {
+            if (isnan(features_out[i])) {
+                fprintf(stderr, "f: %d i: %d\n", f, i);
+                exit(0);
+            }
+        }
+        
+        if (small_vec) {
+            /* zero out unused cepstrals in small vec mode */
+            for(i=12; i<NB_BANDS; i++)
+                features_out[i] = 0.0;
+        }
+        
         fwrite(features_out, sizeof(float), NB_FEATURES, fout);
         fflush(stdin);
         fflush(stdout);
@@ -433,196 +454,7 @@ int main(int argc, char *argv[]) {
     for (i=0; i<NOUTLIERS; i++)
         fprintf(stderr, "%5.4f ", (float)noutliers[i]/qv);
     fprintf(stderr, "\n");
-    fclose(fin); fclose(fout); if (fsv != NULL) fclose(fsv); if(fpitch != NULL) fclose(fpitch);
+    fclose(fin); fclose(fout); if (lpcnet_fsv != NULL) fclose(lpcnet_fsv); if(fpitch != NULL) fclose(fpitch);
 }
 
-
-// print vector debug function
-
-void pv(char s[], float v[]) {
-    int i;
-    if (verbose) {
-        fprintf(stderr, "%s",s);
-        for(i=0; i<NB_BANDS; i++)
-            fprintf(stderr, "%4.2f ", v[i]);
-        fprintf(stderr, "\n");
-    }
-}
-
-void quant_pred(float vec_out[],  /* prev quant vector, and output */
-                float vec_in[],
-                float pred,
-                int num_stages,
-                float vq[],
-                int m[], int k)
-{
-    float err[k], w[k], se, se1, se2;
-    int i,s,ind;
-
-    pv("\nvec_in: ", vec_in);
-    pv("vec_out: ", vec_out);
-    se1 = 0.0;
-    for(i=0; i<k; i++) {
-        err[i] = (vec_in[i] - pred*vec_out[i]);
-        se1 += err[i]*err[i];
-        vec_out[i] = pred*vec_out[i];
-        w[i] = 1.0;
-    }
-    se1 /= k;
-    pv("err: ", err);
-    if (fsv != NULL) fprintf(fsv, "%f\t%f\t", vec_in[0],sqrt(se1));
-    for(s=0; s<num_stages; s++) {
-        ind = quantise(&vq[s*k*MAX_ENTRIES], err, w, k, m[s], &se);
-        pv("entry: ", &vq[s+k*MAX_ENTRIES+ind*k]);
-        se2 = 0.0;
-        for(i=0; i<k; i++) {
-            err[i] -= vq[s*k*MAX_ENTRIES+ind*k+i];
-            se2 += err[i]*err[i];
-            vec_out[i] += vq[s*k*MAX_ENTRIES+ind*k+i];
-        }
-        se2 /= k;
-        if (fsv != NULL) fprintf(fsv, "%f\t", sqrt(se2));
-        if (verbose) fprintf(stderr, "se1: %f se2: %f s: %d/%d m[s]: %d ind: %d\n", se1, se2, s, num_stages, m[s], ind);
-        pv("err: ", err);
-        pv("vec_out: ",vec_out);
-    }
-    if (fsv != NULL) fprintf(fsv, "\n");
-}
-
-// mbest algorithm version
-
-void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output */
-                      float vec_in[],
-                      float pred,
-                      int num_stages,
-                      float vq[],
-                      int m[], int k,
-                      int mbest_survivors)
-{
-    float err[k], w[k], se1, se2;
-    int i,j,s,s1,ind;
-    
-    struct MBEST *mbest_stage[num_stages];
-    int index[num_stages];
-    float target[k];
-    
-    for(i=0; i<num_stages; i++) {
-        mbest_stage[i] = mbest_create(mbest_survivors, num_stages);
-        index[i] = 0;
-    }
-
-    /* predict based on last frame */
-    
-    se1 = 0.0;
-    for(i=0; i<k; i++) {
-        err[i] = (vec_in[i] - pred*vec_out[i]);
-        se1 += err[i]*err[i];
-        vec_out[i] = pred*vec_out[i];
-        w[i] = 1.0;
-    }
-    se1 /= k;
-    
-    /* now quantise err[] using multi-stage mbest search, preserving
-       mbest_survivors at each stage */
-    
-    mbest_search(vq, err, w, k, m[0], mbest_stage[0], index);
-    if (verbose) MBEST_PRINT("Stage 1:", mbest_stage[0]);
-    
-    for(s=1; s<num_stages; s++) {
-
-        /* for each candidate in previous stage, try to find best vector in next stage */
-        for (j=0; j<mbest_survivors; j++) {
-            /* indexes that lead us this far */
-            for(s1=0; s1<s; s1++) {
-                index[s1+1] = mbest_stage[s-1]->list[j].index[s1];
-            }
-            /* target is residual err[] vector given path to this candidate */
-            for(i=0; i<k; i++)
-                target[i] = err[i];
-            for(s1=0; s1<s; s1++) {
-                ind = index[s-s1];
-                if (verbose) fprintf(stderr, "   s: %d s1: %d s-s1: %d ind: %d\n", s,s1,s-s1,ind);
-                for(i=0; i<k; i++) {
-                    target[i] -= vq[s1*k*MAX_ENTRIES+ind*k+i];
-                }
-            }
-            pv("   target: ", target);
-            mbest_search(&vq[s*k*MAX_ENTRIES], target, w, k, m[s], mbest_stage[s], index);
-        }
-        char str[80]; sprintf(str,"Stage %d:", s+1);
-        if (verbose) MBEST_PRINT(str, mbest_stage[s]);
-    }
-
-    /* OK put it all back together using best survivor */
-
-    pv("\n  vec_in: ", vec_in);
-    pv("  vec_out: ", vec_out);
-    pv("    err: ", err);
-    if (fsv != NULL) fprintf(fsv, "%f\t%f\t", vec_in[0],sqrt(se1));
-    if (verbose) fprintf(stderr, "    se1: %f\n", se1);
-   
-    for(s=0; s<num_stages; s++) {
-        ind = mbest_stage[num_stages-1]->list[0].index[num_stages-1-s];
-        se2 = 0.0;
-        for(i=0; i<k; i++) {
-            err[i] -= vq[s*k*MAX_ENTRIES+ind*k+i];
-            vec_out[i] += vq[s*k*MAX_ENTRIES+ind*k+i];
-            se2 += err[i]*err[i];
-        }
-        se2 /= k;
-        if (fsv != NULL) fprintf(fsv, "%f\t", sqrt(se2));
-        pv("    err: ", err);
-        if (verbose) fprintf(stderr, "    se2: %f\n", se2);
-    }
-    pv("  vec_out: ",vec_out);
-
-    if (fsv != NULL) fprintf(fsv, "\n");
-    
-    for(i=0; i<num_stages; i++)
-        mbest_destroy(mbest_stage[i]);
-}
-
-/*---------------------------------------------------------------------------*\
-
-  quantise
-
-  Quantises vec by choosing the nearest vector in codebook cb, and
-  returns the vector index.  The squared error of the quantised vector
-  is added to se.
-
-\*---------------------------------------------------------------------------*/
-
-int quantise(const float * cb, float vec[], float w[], int k, int m, float *se)
-/* float   cb[][K];	current VQ codebook		*/
-/* float   vec[];	vector to quantise		*/
-/* float   w[];         weighting vector                */
-/* int	   k;		dimension of vectors		*/
-/* int     m;		size of codebook		*/
-/* float   *se;		accumulated squared error 	*/
-{
-    float   e;		/* current error		*/
-    long	   besti;	/* best index so far		*/
-    float   beste;	/* best error so far		*/
-    long	   j;
-    int     i;
-    float   diff;
-
-    besti = 0;
-    beste = 1E32;
-    for(j=0; j<m; j++) {
-	e = 0.0;
-	for(i=0; i<k; i++) {
-	    diff = cb[j*k+i]-vec[i];
-	    e += powf(diff*w[i],2.0);
-	}
-	if (e < beste) {
-	    beste = e;
-	    besti = j;
-	}
-    }
-
-    *se += beste;
-
-    return(besti);
-}
 

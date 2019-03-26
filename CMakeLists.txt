@@ -31,13 +31,28 @@ if(${NEON} GREATER 0)
 endif()
 
 # grab latest NN model (or substitute your own)
-include(FetchContent)
-FetchContent_Declare(
-    lpcnet
-    URL http://rowetel.com/downloads/deep/lpcnet_190215.tgz)
-FetchContent_GetProperties(lpcnet)
-if(NOT lpcnet_POPULATED)
-    FetchContent_Populate(lpcnet)
+set(LPCNET_ROOT http://rowetel.com/downloads/deep/)
+set(LPCNET_FILE lpcnet_190215.tgz)
+set(LPCNET_URL ${LPCNET_ROOT}${LPCNET_FILE})
+
+if(CMAKE_VERSION VERSION_LESS 3.11.4)
+    if(NOT EXISTS ${LPCNET_FILE})
+        file(DOWNLOAD ${LPCNET_URL}
+            ${CMAKE_BINARY_DIR}/${LPCNET_FILE}
+            SHOW_PROGRESS
+        )
+        execute_process(COMMAND tar xzf ${LPCNET_FILE} -C ${CMAKE_BINARY_DIR}/src)
+    endif()
+    set(lpcnet_SOURCE_DIR ${CMAKE_BINARY_DIR}/src)
+else()
+    include(FetchContent)
+    FetchContent_Declare(
+        lpcnet
+        URL ${LPCNET_URL})
+    FetchContent_GetProperties(lpcnet)
+    if(NOT lpcnet_POPULATED)
+        FetchContent_Populate(lpcnet)
+    endif()
 endif()
 
 add_subdirectory(src)

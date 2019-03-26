@@ -38,6 +38,7 @@ add_executable(weight weight.c)
 target_link_libraries(weight m)
 
 add_executable(tdump tdump.c)
+target_link_libraries(tdump lpcnetfreedv m codec2)
 
 add_executable(quant_test quant_test.c)
 target_link_libraries(quant_test lpcnetfreedv m)

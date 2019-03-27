@@ -14,12 +14,13 @@ $ make
 Unquantised LPCNet:
 
 ```
-sox wav/wia.wav -t raw -r 16000 - | ./dump_data --c2pitch --test - - | ./test_lpcnet - - | aplay -f S16_LE -r 16000
+$ cd ~/LPCNet/src
+$ sox ../../wav/wia.wav -t raw -r 16000 - | ./dump_data --c2pitch --test - - | ./test_lpcnet - - | aplay -f S16_LE -r 16000
 ```
 
 LPCNet at 1733 bits/s using direct-split quantiser:
 ```
-sox wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | aplay -f S16_LE -r 16000
+sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | aplay -f S16_LE -r 16000
 ```
 
 # Reading Further

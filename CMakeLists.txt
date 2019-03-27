@@ -43,6 +43,7 @@ if(CMAKE_VERSION VERSION_LESS 3.11.4)
             ${CMAKE_BINARY_DIR}/${LPCNET_FILE}
             SHOW_PROGRESS
         )
+        file(MAKE_DIRECTORY ${lpcnet_SOURCE_DIR})
         execute_process(COMMAND tar -xzf ${CMAKE_BINARY_DIR}/${LPCNET_FILE} -C ${CMAKE_BINARY_DIR}/src)
     endif()
 else()

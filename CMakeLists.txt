@@ -35,16 +35,15 @@ set(LPCNET_ROOT http://rowetel.com/downloads/deep/)
 set(LPCNET_FILE lpcnet_190215.tgz)
 set(LPCNET_URL ${LPCNET_ROOT}${LPCNET_FILE})
 
-add_subdirectory(src)
-
+# Work around not having the FetchContent module.
 if(CMAKE_VERSION VERSION_LESS 3.11.4)
-    if(NOT EXISTS ${LPCNET_FILE})
+    set(lpcnet_SOURCE_DIR ${CMAKE_BINARY_DIR}/src)
+    if(NOT EXISTS ${lpcnet_SOURCE_DIR})
         file(DOWNLOAD ${LPCNET_URL}
             ${CMAKE_BINARY_DIR}/${LPCNET_FILE}
             SHOW_PROGRESS
         )
         execute_process(COMMAND tar -xzf ${CMAKE_BINARY_DIR}/${LPCNET_FILE} -C ${CMAKE_BINARY_DIR}/src)
-        #execute_process(COMMAND sh -c "cp /home/david/LPCNet/src/${LPCNET_FILE} .; tar xzf ${CMAKE_BINARY_DIR}/${LPCNET_FILE} -C ${CMAKE_BINARY_DIR}/src" )
     endif()
 else()
     include(FetchContent)
@@ -57,5 +56,5 @@ else()
     endif()
 endif()
 
-set(lpcnet_SOURCE_DIR ${CMAKE_BINARY_DIR}/src)
+add_subdirectory(src)
 

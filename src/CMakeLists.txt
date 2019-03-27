@@ -14,7 +14,7 @@ set(lpcnet_freedv_srcs
     4stage_direct_split_vq.c
     lpcnet.c
     nnet.c
-    nnet_data.c
+    ${lpcnet_SOURCE_DIR}/nnet_data.c
 )
 
 add_library(lpcnetfreedv STATIC ${lpcnet_freedv_srcs})

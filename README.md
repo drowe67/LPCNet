@@ -2,6 +2,8 @@
 
 Experimental version of LPCNet being developed for over the air Digital Voice experiments with FreeDV.
 
+## Quickstart
+
 ```
 $ git clone https://github.com/drowe67/codec2.git
 $ cd codec2 && mkdir build_linux && cd build_linux && cmake ../ && sudo make install
@@ -28,6 +30,10 @@ sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | ap
 1. [Original LPCNet Repo with more instructions and background](https://github.com/mozilla/LPCNet/)
 1. [LPCNet: DSP-Boosted Neural Speech Synthesis](https://people.xiph.org/~jm/demo/lpcnet/)
 1. [Sample model files](https://jmvalin.ca/misc_stuff/lpcnet_models/)
+
+# Credits
+
+Thanks [Jean-Marc Valin](https://people.xiph.org/~jm/demo/lpcnet/) for making LPCNet available, and [Richard](https://github.com/hobbes1069) for the CMake build system.
 
 # Speech Material for Training
 

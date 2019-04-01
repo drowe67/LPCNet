@@ -30,12 +30,15 @@
 #define NB_FEATURES 38
 #define NB_TOTAL_FEATURES 55
 
+// low level synthesis API, features->speech
 typedef struct LPCNetState LPCNetState;
-
 LPCNetState *lpcnet_create();
-
 void lpcnet_destroy(LPCNetState *lpcnet);
-
 void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N);
+
+// TODO: complete bit stream LPCNetFreeDV API functions, create/destroy, samples->bits, bits->samples
+typedef struct LPCNetFreeDV LPCNetFreeDV;
+int lpcnet_bits_per_frame(LPCNetFreeDV *);
+int lpcnet_samples_per_frame(LPCNetFreeDV *);
 
 #endif

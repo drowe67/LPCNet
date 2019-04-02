@@ -33,7 +33,7 @@ LPCNET_QUANT *lpcnet_quant_create(int num_stages, int m[], float vq[]) {
     if (q == NULL) return NULL;
     q->weight = DEFAULT_WEIGHT; q->pred = DEFAULT_PRED; 
     q->mbest = DEFAULT_MBEST; q->pitch_bits = DEFAULT_PITCH_BITS; q->dec = DEFAULT_DEC;
-    q->num_stages = num_stages; q->vq = vq; q->m = m;
+    q->num_stages = num_stages; q->vq = vq; q->m = m; q->logmag = 0;
     lpcnet_quant_compute_bits_per_frame(q);
 
     int i,d;

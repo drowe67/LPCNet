@@ -25,6 +25,7 @@ typedef struct {
     int   pitch_bits;     /* number of bits used for quantising pitch      */
     int   dec;            /* decimation rate 1,2,3...                      */
     int   f;              /* frame counter                                 */
+    int   logmag;
     
     int   bits_per_frame;
     float features_quant[NB_FEATURES];    /* memory of quantised features from previous frame   */

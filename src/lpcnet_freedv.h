@@ -12,6 +12,7 @@ typedef struct LPCNetFreeDV LPCNetFreeDV;
 
 LPCNetFreeDV* lpcnet_freedv_create(int direct_split);
 void lpcnet_freedv_destroy(LPCNetFreeDV *lf);
+void lpcnet_enc(LPCNetFreeDV *lf, short *pcm, char *frame);
 void lpcnet_dec(LPCNetFreeDV *lf, char *frame, short* pcm);
 int lpcnet_bits_per_frame(LPCNetFreeDV *lf);
 int lpcnet_samples_per_frame(LPCNetFreeDV *lf);

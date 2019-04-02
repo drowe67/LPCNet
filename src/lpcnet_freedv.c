@@ -6,9 +6,10 @@
 */
 
 #include "arch.h"
+#include "lpcnet_dump.h"
 #include "lpcnet_quant.h"
-// NB_FEATURES has a different value in lpcnet.h, need to reconcile some time
 #include "freq.h"
+// NB_FEATURES has a different value in lpcnet.h, need to reconcile some time
 #undef NB_FEATURES 
 #include "lpcnet.h"
 #include "lpcnet_freedv.h"
@@ -17,14 +18,41 @@
 LPCNetFreeDV* lpcnet_freedv_create(int direct_split) {
     LPCNetFreeDV *lf = (LPCNetFreeDV*)malloc(sizeof(LPCNetFreeDV));
     if (lf == NULL) return NULL;
+    lf->d = lpcnet_dump_create();
     lf->q = lpcnet_quant_create(direct_split);
     lf->net = lpcnet_create();
     return lf;
 }
 
 void lpcnet_freedv_destroy(LPCNetFreeDV *lf) {
-    lpcnet_destroy(lf->net); lpcnet_quant_destroy(lf->q);
+    lpcnet_dump_destroy(lf->d); lpcnet_destroy(lf->net); lpcnet_quant_destroy(lf->q);
     free(lf);
+}
+
+void lpcnet_enc(LPCNetFreeDV *lf, short *pcm, char *frame) {
+    LPCNET_DUMP  *d = lf->d;
+    LPCNET_QUANT *q = lf->q;
+    float x[FRAME_SIZE];
+    float features[LPCNET_NB_FEATURES];
+   
+    for (int j=0; j<q->dec; j++) {
+        for (int i=0;i<FRAME_SIZE;i++) x[i] = pcm[i];
+        pcm += FRAME_SIZE;
+        
+        lpcnet_dump(d,x,features);
+
+        /* optionally convert cepstrals to log magnitudes */
+        if (q->logmag) {
+            float tmp[NB_BANDS];
+            idct(tmp, features);
+            for(int i=0; i<NB_BANDS; i++) features[i] = tmp[i];
+        }
+        
+        if ((q->f % q->dec) == 0) {
+            lpcnet_features_to_frame(q, features, frame);
+        }
+        q->f++;
+    }
 }
 
 void lpcnet_dec(LPCNetFreeDV *lf, char *frame, short* pcm)

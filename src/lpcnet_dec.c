@@ -39,6 +39,7 @@
 #include <getopt.h>
 
 #include "lpcnet_freedv.h"
+#include "lpcnet_dump.h"
 #include "lpcnet_quant.h"
 #include "lpcnet_freedv_internal.h"
 

@@ -35,9 +35,12 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 #include <getopt.h>
+#include "lpcnet_freedv.h"
 #include "lpcnet_dump.h"
 #include "lpcnet_quant.h"
+#include "lpcnet_freedv_internal.h"
 
 int main(int argc, char **argv) {
     FILE *fin, *fout;
@@ -105,11 +108,12 @@ int main(int argc, char **argv) {
         }
     }
 
-    LPCNET_DUMP  *d = lpcnet_dump_create();
-    LPCNET_QUANT *q = lpcnet_quant_create(direct_split);
+    LPCNetFreeDV *lf = lpcnet_freedv_create(direct_split);
+    LPCNET_QUANT *q = lf->q;
 
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
     q->pitch_bits = pitch_bits; q->dec = dec; q->m = m; q->vq = vq; q->num_stages = num_stages;
+    q->logmag = logmag;
     lpcnet_quant_compute_bits_per_frame(q);
     
     fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d bits_per_frame: %d frame: %2d ms bit_rate: %5.2f bits/s",
@@ -119,37 +123,24 @@ int main(int argc, char **argv) {
     fin = stdin;
     fout = stdout;
 
-    float x[FRAME_SIZE];
-    float features[LPCNET_NB_FEATURES];
-    char frame[q->bits_per_frame];
-    int i;
+    char frame[lpcnet_bits_per_frame(lf)];
     int f=0;
     int bits_written=0;
+    short pcm[lpcnet_samples_per_frame(lf)];
 
     while (1) {      
-        /* note one frame delay */
-        for (i=0;i<FRAME_SIZE;i++) x[i] = d->tmp[i];
-        int nread = fread(&d->tmp, sizeof(short), FRAME_SIZE, fin);
-        if (nread != FRAME_SIZE) break;
-        lpcnet_dump(d,x,features);
-        /* optionally convert cepstrals to log magnitudes */
-        if (logmag) {
-            float tmp[NB_BANDS];
-            idct(tmp, features);
-            for(i=0; i<NB_BANDS; i++) features[i] = tmp[i];
-        }
-        if ((q->f % q->dec) == 0) {
-            lpcnet_features_to_frame(q, features, frame);
-            bits_written += fwrite(frame, sizeof(char), q->bits_per_frame, fout);
-        }
-        q->f++;
+        int nread = fread(pcm, sizeof(short), lpcnet_samples_per_frame(lf), fin);
+        if (nread != lpcnet_samples_per_frame(lf)) break;
+
+        lpcnet_enc(lf, pcm, frame);
+        bits_written += fwrite(frame, sizeof(char), lpcnet_bits_per_frame(lf), fout);
 
         fflush(stdin);
         fflush(stdout);
         f++;
     }
 
-    lpcnet_dump_destroy(d); lpcnet_quant_destroy(q);
+    lpcnet_freedv_destroy(lf);
     fprintf(stderr, "bits_written %d\n", bits_written);
     fclose(fin); fclose(fout);
     return 0;

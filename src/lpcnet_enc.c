@@ -107,6 +107,7 @@ int main(int argc, char **argv) {
 
     LPCNET_DUMP  *d = lpcnet_dump_create();
     LPCNET_QUANT *q = lpcnet_quant_create(direct_split);
+
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
     q->pitch_bits = pitch_bits; q->dec = dec; q->m = m; q->vq = vq; q->num_stages = num_stages;
     lpcnet_quant_compute_bits_per_frame(q);

@@ -34,36 +34,13 @@
 */
 
 #include <math.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
 
-#include "arch.h"
-#include "freq.h"
+#include "lpcnet_freedv.h"
 #include "lpcnet_quant.h"
-// NB_FEATURES has a different value in lpcnet.h, need to reconcile some time
-#undef NB_FEATURES 
-#include "lpcnet.h"
-
-void lpcnet_dec(LPCNET_QUANT *q, LPCNetState *net, char *frame, short* pcm)
-{
-    float in_features[NB_TOTAL_FEATURES];
-    float features[NB_TOTAL_FEATURES];
-
-    for(int d=0; d<q->dec; d++) {
-        lpcnet_frame_to_features(q, frame, in_features);
-        /* optionally log magnitudes convert back to cepstrals */
-        if (q->logmag) {
-            float tmp[NB_BANDS];
-            dct(tmp, in_features);
-            for(int i=0; i<NB_BANDS; i++) in_features[i] = tmp[i];
-        }
-       
-        RNN_COPY(features, in_features, NB_TOTAL_FEATURES);
-        RNN_CLEAR(&features[18], 18);
-        lpcnet_synthesize(net, pcm, features, FRAME_SIZE);
-        pcm += FRAME_SIZE;
-    }
-}
+#include "lpcnet_freedv_internal.h"
 
 int main(int argc, char **argv) {
     FILE *fin, *fout;
@@ -139,7 +116,8 @@ int main(int argc, char **argv) {
         }
     }
     
-    LPCNET_QUANT *q = lpcnet_quant_create(direct_split);
+    LPCNetFreeDV *lf = lpcnet_freedv_create(direct_split);
+    LPCNET_QUANT *q = lf->q;
 
     // this program allows us to tweak params via command line
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
@@ -151,16 +129,14 @@ int main(int argc, char **argv) {
             q->dec, q->pred, q->num_stages, q->mbest, q->bits_per_frame, dec*10, (float)q->bits_per_frame/(dec*0.01));
     fprintf(stderr, "\n");
 
-    LPCNetState *net = lpcnet_create();
-
     fin = stdin;
     fout = stdout;
     int nbits = 0, nerrs = 0;
     char frame[q->bits_per_frame];
     int bits_read = 0;
+    short pcm[lpcnet_samples_per_frame(lf)];
 
     do {
-        short pcm[q->dec*FRAME_SIZE];
 
         bits_read = fread(frame, sizeof(char), q->bits_per_frame, fin);
         nbits += bits_read;
@@ -175,8 +151,8 @@ int main(int argc, char **argv) {
             }
         }            
 
-        lpcnet_dec(q,net,frame,pcm);
-        fwrite(pcm, sizeof(short), q->dec*FRAME_SIZE, fout);
+        lpcnet_dec(lf,frame,pcm);
+        fwrite(pcm, sizeof(short), lpcnet_samples_per_frame(lf), fout);
         
         if (fout == stdout) fflush(stdout);
         
@@ -184,8 +160,9 @@ int main(int argc, char **argv) {
     
     fclose(fin);
     fclose(fout);
-    lpcnet_destroy(net); lpcnet_quant_destroy(q);
 
+    lpcnet_freedv_destroy(lf);
+    
     if (ber != 0.0)
         fprintf(stderr, "nbits: %d nerr: %d BER: %4.3f\n", nbits, nerrs, (float)nerrs/nbits);
     return 0;

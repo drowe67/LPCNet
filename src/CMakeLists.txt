@@ -13,6 +13,7 @@ set(lpcnet_freedv_srcs
     4stage_pred_vq.c
     4stage_direct_split_vq.c
     lpcnet.c
+    lpcnet_freedv.c
     nnet.c
     ${lpcnet_SOURCE_DIR}/nnet_data.c
 )

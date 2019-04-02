@@ -138,8 +138,12 @@ int main(int argc, char **argv) {
             idct(tmp, features);
             for(i=0; i<NB_BANDS; i++) features[i] = tmp[i];
         }
-        if (lpcnet_features_to_frame(q, features, frame))
-            bits_written += fwrite(frame, sizeof(char), q->bits_per_frame, fout);       
+        if ((q->f % q->dec) == 0) {
+            lpcnet_features_to_frame(q, features, frame);
+            bits_written += fwrite(frame, sizeof(char), q->bits_per_frame, fout);
+        }
+        q->f++;
+
         fflush(stdin);
         fflush(stdout);
         f++;

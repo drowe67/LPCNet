@@ -339,8 +339,7 @@ void unpack_frame(int num_stages, int m[], int indexes[], int pitch_bits, int *p
     *pitch_gain_ind = ((int)frame[k]<<1) + frame[k+1];   
 }
 
-// Call every 10ms LPCNet freame with atest features. Returns 1 when
-// frame[] is valid
+// Call every q->dec LPCNet frames
 
 int lpcnet_features_to_frame(LPCNET_QUANT *q, float features[], char frame[]) {
     int i, k = NB_BANDS;
@@ -358,19 +357,14 @@ int lpcnet_features_to_frame(LPCNET_QUANT *q, float features[], char frame[]) {
     features[0] *= q->weight;
                    
     int pitch_ind, pitch_gain_ind;
-        
-    /* encoder */
-        
-    if ((q->f % q->dec) == 0) {
-        /* non-interpolated frame ----------------------------------------*/
+                
+    /* non-interpolated frame ----------------------------------------*/
 
-        quant_pred_mbest(q->features_quant, indexes, features, q->pred, q->num_stages, q->vq, q->m, k, q->mbest);
-        pitch_ind = pitch_encode(features[2*NB_BANDS], q->pitch_bits);
-        pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
-        pack_frame(q->num_stages, q->m, indexes, q->pitch_bits, pitch_ind, pitch_gain_ind, frame);
-        frame_valid = 1;
-    }
-    q->f++;
+    quant_pred_mbest(q->features_quant, indexes, features, q->pred, q->num_stages, q->vq, q->m, k, q->mbest);
+    pitch_ind = pitch_encode(features[2*NB_BANDS], q->pitch_bits);
+    pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
+    pack_frame(q->num_stages, q->m, indexes, q->pitch_bits, pitch_ind, pitch_gain_ind, frame);
+    frame_valid = 1;
     
     return frame_valid;
 }

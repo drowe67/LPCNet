@@ -92,8 +92,11 @@ int main(int argc, char *argv[]) {
     int bits_written = 0;
     
     while(fread(features, sizeof(float), NB_FEATURES, fin) == NB_FEATURES) {
-        if (lpcnet_features_to_frame(q, features, frame))
+        if ((q->f % q->dec) == 0) {
+            lpcnet_features_to_frame(q, features, frame);
             bits_written += fwrite(frame, sizeof(char), q->bits_per_frame, fout);
+        }
+        q->f++;
         
         fflush(stdin);
         fflush(stdout);

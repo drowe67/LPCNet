@@ -39,14 +39,6 @@
 #include "lpcnet_dump.h"
 #include "lpcnet_quant.h"
 
-// Two sorts of VQs available
-extern int   pred_num_stages;
-extern float pred_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
-extern int   pred_m[MAX_STAGES];
-extern int   direct_split_num_stages;
-extern float direct_split_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
-extern int   direct_split_m[MAX_STAGES];
-
 int main(int argc, char **argv) {
     FILE *fin, *fout;
 
@@ -61,6 +53,7 @@ int main(int argc, char **argv) {
     int   *m = pred_m;
     float *vq = pred_vq;
     int   logmag = 0;
+    int   direct_split = 0;
     
     /* quantiser options */
     
@@ -96,6 +89,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "pred = %f\n", pred);
             break;
         case 's':
+            direct_split = 1;
             m = direct_split_m; vq = direct_split_vq; pred = 0.0; logmag = 1; weight = 1.0;
             fprintf(stderr, "split VQ\n");
             break;
@@ -112,9 +106,9 @@ int main(int argc, char **argv) {
     }
 
     LPCNET_DUMP  *d = lpcnet_dump_create();
-    LPCNET_QUANT *q = lpcnet_quant_create(num_stages, m, vq);
+    LPCNET_QUANT *q = lpcnet_quant_create(direct_split);
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
-    q->pitch_bits = pitch_bits; q->dec = dec;
+    q->pitch_bits = pitch_bits; q->dec = dec; q->m = m; q->vq = vq; q->num_stages = num_stages;
     lpcnet_quant_compute_bits_per_frame(q);
     
     fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d bits_per_frame: %d frame: %2d ms bit_rate: %5.2f bits/s",

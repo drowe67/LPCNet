@@ -28,12 +28,19 @@ int lpcnet_verbose = 0;
 #define DEFAULT_PITCH_BITS 6
 #define DEFAULT_DEC        3
 
-LPCNET_QUANT *lpcnet_quant_create(int num_stages, int m[], float vq[]) {
+LPCNET_QUANT *lpcnet_quant_create(int direct_split) {
     LPCNET_QUANT *q = (LPCNET_QUANT*)malloc(sizeof(LPCNET_QUANT));
     if (q == NULL) return NULL;
-    q->weight = DEFAULT_WEIGHT; q->pred = DEFAULT_PRED; 
-    q->mbest = DEFAULT_MBEST; q->pitch_bits = DEFAULT_PITCH_BITS; q->dec = DEFAULT_DEC;
-    q->num_stages = num_stages; q->vq = vq; q->m = m; q->logmag = 0;
+    if (direct_split) {
+        q->weight = 1.0; q->pred = 0.0; 
+        q->mbest = DEFAULT_MBEST; q->pitch_bits = DEFAULT_PITCH_BITS; q->dec = DEFAULT_DEC;
+        q->num_stages = direct_split_num_stages; q->vq = direct_split_vq; q->m = direct_split_m; q->logmag = 1;
+    }
+    else {
+        q->weight = DEFAULT_WEIGHT; q->pred = DEFAULT_PRED; 
+        q->mbest = DEFAULT_MBEST; q->pitch_bits = DEFAULT_PITCH_BITS; q->dec = DEFAULT_DEC;
+        q->num_stages = pred_num_stages; q->vq = pred_vq; q->m = pred_m; q->logmag = 0;
+    }
     lpcnet_quant_compute_bits_per_frame(q);
 
     int i,d;

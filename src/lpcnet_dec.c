@@ -44,14 +44,6 @@
 #undef NB_FEATURES 
 #include "lpcnet.h"
 
-// Two sorts of VQs available
-extern int   pred_num_stages;
-extern float pred_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
-extern int   pred_m[MAX_STAGES];
-extern int   direct_split_num_stages;
-extern float direct_split_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
-extern int   direct_split_m[MAX_STAGES];
-
 void lpcnet_dec(LPCNET_QUANT *q, LPCNetState *net, char *frame, short* pcm)
 {
     float in_features[NB_TOTAL_FEATURES];
@@ -90,9 +82,6 @@ int main(int argc, char **argv) {
     int   logmag = 0;
     int   direct_split = 0;
 
-    dec = 3; pred = 0.9; mbest_survivors = 5; weight = 1.0/sqrt(NB_BANDS); pitch_bits = 6; num_stages = pred_num_stages;
-    m = pred_m; vq = pred_vq; logmag = 0;
-    
     /* quantiser options */
     
     static struct option long_options[] = {
@@ -132,7 +121,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "pred = %f\n", pred);
             break;
         case 's':
-            direct_split = 1;
+            direct_split = 1; m = direct_split_m; vq = direct_split_vq; pred = 0.0; logmag = 1; weight = 1.0;
             fprintf(stderr, "split VQ\n");
             break;
         case 'v':
@@ -149,15 +138,13 @@ int main(int argc, char **argv) {
             exit(1);
         }
     }
-
-    if (direct_split) {
-        m = direct_split_m; vq = direct_split_vq; pred = 0.0; logmag = 1; weight = 1.0;
-    } else {
-    }
     
-    LPCNET_QUANT *q = lpcnet_quant_create(num_stages, m, vq);
+    LPCNET_QUANT *q = lpcnet_quant_create(direct_split);
+
+    // this program allows us to tweak params via command line
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
     q->pitch_bits = pitch_bits; q->dec = dec; q->logmag = logmag;
+    q->num_stages = num_stages; q->m = m; q->vq = vq; 
     lpcnet_quant_compute_bits_per_frame(q);
     
     fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d bits_per_frame: %d frame: %2d ms bit_rate: %5.2f bits/s",

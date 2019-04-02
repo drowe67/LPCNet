@@ -32,7 +32,15 @@ typedef struct {
     float features_lin[2][NB_FEATURES];   /* adjacent frames features for linear interpolation  */
 } LPCNET_QUANT;
 
-LPCNET_QUANT *lpcnet_quant_create(int num_stages, int m[], float vq[]);
+// Two sorts of VQs available
+extern int   pred_num_stages;
+extern float pred_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
+extern int   pred_m[MAX_STAGES];
+extern int   direct_split_num_stages;
+extern float direct_split_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
+extern int   direct_split_m[MAX_STAGES];
+
+LPCNET_QUANT *lpcnet_quant_create(int direct_split);
 void lpcnet_quant_destroy(LPCNET_QUANT *q);
 void lpcnet_quant_compute_bits_per_frame(LPCNET_QUANT *q);
 

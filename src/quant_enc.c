@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    LPCNET_QUANT *q = lpcnet_quant_create(num_stages, pred_m, pred_vq);
+    LPCNET_QUANT *q = lpcnet_quant_create(0);
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
     q->pitch_bits = pitch_bits; q->dec = dec;
     lpcnet_quant_compute_bits_per_frame(q);

@@ -147,34 +147,38 @@ int main(int argc, char **argv) {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_TOTAL_FEATURES];
         short pcm[FRAME_SIZE];
-        if ((q->f % q->dec) == 0) {
-            bits_read = fread(frame, sizeof(char), q->bits_per_frame, fin);
-            nbits += bits_read;
-            if (ber != 0.0) {
-                int i;
-                for(i=0; i<q->bits_per_frame; i++) {
-                    float r = (float)rand()/RAND_MAX;
-                    if (r < ber) {
-                        frame[i] = (frame[i] ^ 1) & 0x1;
-                        nerrs++;
-                    }
+
+        fprintf(stderr, "q->f: %d q->dec: %d\n", q->f, q->dec);
+        bits_read = fread(frame, sizeof(char), q->bits_per_frame, fin);
+        nbits += bits_read;
+        if (ber != 0.0) {
+            int i;
+            for(i=0; i<q->bits_per_frame; i++) {
+                float r = (float)rand()/RAND_MAX;
+                if (r < ber) {
+                    frame[i] = (frame[i] ^ 1) & 0x1;
+                    nerrs++;
                 }
             }
-            
-        }
-        lpcnet_frame_to_features(q, frame, in_features);
-        /* optionally log magnitudes convert back to cepstrals */
-        if (logmag) {
-            float tmp[NB_BANDS];
-            dct(tmp, in_features);
-            for(i=0; i<NB_BANDS; i++) in_features[i] = tmp[i];
-       }
+        }            
+        
+        for(int d=0; d<q->dec; d++) {
+            lpcnet_frame_to_features(q, frame, in_features);
+            /* optionally log magnitudes convert back to cepstrals */
+            if (logmag) {
+                float tmp[NB_BANDS];
+                dct(tmp, in_features);
+                for(i=0; i<NB_BANDS; i++) in_features[i] = tmp[i];
+            }
        
-        RNN_COPY(features, in_features, NB_TOTAL_FEATURES);
-        RNN_CLEAR(&features[18], 18);
-        lpcnet_synthesize(net, pcm, features, FRAME_SIZE);
-        fwrite(pcm, sizeof(pcm[0]), FRAME_SIZE, fout);
+            RNN_COPY(features, in_features, NB_TOTAL_FEATURES);
+            RNN_CLEAR(&features[18], 18);
+            lpcnet_synthesize(net, pcm, features, FRAME_SIZE);
+            fwrite(pcm, sizeof(pcm[0]), FRAME_SIZE, fout);
+        }
+        
         if (fout == stdout) fflush(stdout);
+        
     } while(bits_read != 0);
     
     fclose(fin);

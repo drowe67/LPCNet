@@ -18,7 +18,18 @@ set(lpcnet_freedv_srcs
     ${lpcnet_SOURCE_DIR}/nnet_data.c
 )
 
-add_library(lpcnetfreedv STATIC ${lpcnet_freedv_srcs})
+add_library(lpcnetfreedv ${lpcnet_freedv_srcs})
+install(TARGETS lpcnetfreedv EXPORT lpcnet-config
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/lpcnet
+)
+
+install(EXPORT lpcnet-config
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lpcnet
+)
+
 
 add_executable(dump_data dump_data.c)
 target_link_libraries(dump_data lpcnetfreedv m codec2)

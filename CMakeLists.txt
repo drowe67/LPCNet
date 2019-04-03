@@ -5,6 +5,27 @@
 cmake_minimum_required(VERSION 3.0)
 project(LPCNet C)
 
+include(GNUInstallDirs)
+mark_as_advanced(CLEAR
+    CMAKE_INSTALL_BINDIR
+    CMAKE_INSTALL_INCLUDEDIR
+    CMAKE_INSTALL_LIBDIR
+)
+
+#
+# Prevent in-source builds
+# If an in-source build is attempted, you will still need to clean up a few
+# files manually.
+#
+set(CMAKE_DISABLE_SOURCE_CHANGES ON)
+set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
+if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+  message(FATAL_ERROR "In-source builds in ${CMAKE_BINARY_DIR} are not "
+   "allowed, please remove ./CMakeCache.txt and ./CMakeFiles/, create a "
+   "separate build directory and run cmake from there.")
+endif("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+
+# Set default flags
 set(CMAKE_C_FLAGS "-Wall -W -Wextra -Wno-unused-function -O3 -g -I. -MD ${CMAKE_C_FLAGS}")
 
 execute_process(COMMAND grep -c "avx2" /proc/cpuinfo
@@ -58,4 +79,3 @@ else()
 endif()
 
 add_subdirectory(src)
-

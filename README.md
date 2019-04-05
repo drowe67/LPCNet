@@ -2,11 +2,38 @@
 
 Experimental version of LPCNet being developed for over the air Digital Voice experiments with FreeDV.
 
+## Quickstart
+
+```
+$ git clone https://github.com/drowe67/codec2.git
+$ cd codec2 && mkdir build_linux && cd build_linux && cmake ../ && sudo make install
+$ cd ~
+$ git clone https://github.com/drowe67/LPCNet.git
+$ cd LPCNet && mkdir build_linux && cd build_linux && cmake ..
+$ make
+```
+
+Unquantised LPCNet:
+
+```
+$ cd ~/LPCNet/src
+$ sox ../../wav/wia.wav -t raw -r 16000 - | ./dump_data --c2pitch --test - - | ./test_lpcnet - - | aplay -f S16_LE -r 16000
+```
+
+LPCNet at 1733 bits/s using direct-split quantiser:
+```
+sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | aplay -f S16_LE -r 16000
+```
+
 # Reading Further
 
 1. [Original LPCNet Repo with more instructions and background](https://github.com/mozilla/LPCNet/)
 1. [LPCNet: DSP-Boosted Neural Speech Synthesis](https://people.xiph.org/~jm/demo/lpcnet/)
 1. [Sample model files](https://jmvalin.ca/misc_stuff/lpcnet_models/)
+
+# Credits
+
+Thanks [Jean-Marc Valin](https://people.xiph.org/~jm/demo/lpcnet/) for making LPCNet available, and [Richard](https://github.com/hobbes1069) for the CMake build system.
 
 # Speech Material for Training
 
@@ -18,11 +45,6 @@ sh /path/to/LPCNet/src/concat.sh
 ```
 
 # Quantiser Experiments
-
-Clone this repo, then:
-```
-$ make
-```
 
 The quantiser files used for these experiments (pred_v2.tgz and split.tgz) are [here](http://rowetel.com/downloads/deep/lpcnet_quant)
 
@@ -53,11 +75,11 @@ This lets us listen to the effect of quantisation error.  Once we think it sound
 
 ## Training a Predictive VQ
 
-Checkout and build [codec2-dev from SVN](http://rowetel.com/codec2.html):
+Clone and build [codec2](https://github.com/drowe67/codec2.git):
 
 ```
-$ svn co https://svn.code.sf.net/p/freetel/code/codec2-dev
-$ cd codec2-dev && mkdir build_linux && cd build_linux && cmake ../ && make
+$ git clone https://github.com/drowe67/codec2.git
+$ cd codec2 && mkdir build_linux && cd build_linux && cmake ../ && sudo make install
 ```
 
 In train_pred2.sh, adjust PATH for the location of codec2-dev on your machine.

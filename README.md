@@ -16,7 +16,7 @@ $ make
 Unquantised LPCNet:
 
 ```
-$ cd ~/LPCNet/src
+$ cd ~/LPCNet/build_linux/src
 $ sox ../../wav/wia.wav -t raw -r 16000 - | ./dump_data --c2pitch --test - - | ./test_lpcnet - - | aplay -f S16_LE -r 16000
 ```
 

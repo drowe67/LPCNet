@@ -28,12 +28,19 @@ int lpcnet_verbose = 0;
 #define DEFAULT_PITCH_BITS 6
 #define DEFAULT_DEC        3
 
-LPCNET_QUANT *lpcnet_quant_create(int num_stages, int m[], float vq[]) {
+LPCNET_QUANT *lpcnet_quant_create(int direct_split) {
     LPCNET_QUANT *q = (LPCNET_QUANT*)malloc(sizeof(LPCNET_QUANT));
     if (q == NULL) return NULL;
-    q->weight = DEFAULT_WEIGHT; q->pred = DEFAULT_PRED; 
-    q->mbest = DEFAULT_MBEST; q->pitch_bits = DEFAULT_PITCH_BITS; q->dec = DEFAULT_DEC;
-    q->num_stages = num_stages; q->vq = vq; q->m = m;
+    if (direct_split) {
+        q->weight = 1.0; q->pred = 0.0; 
+        q->mbest = DEFAULT_MBEST; q->pitch_bits = DEFAULT_PITCH_BITS; q->dec = DEFAULT_DEC;
+        q->num_stages = direct_split_num_stages; q->vq = direct_split_vq; q->m = direct_split_m; q->logmag = 1;
+    }
+    else {
+        q->weight = DEFAULT_WEIGHT; q->pred = DEFAULT_PRED; 
+        q->mbest = DEFAULT_MBEST; q->pitch_bits = DEFAULT_PITCH_BITS; q->dec = DEFAULT_DEC;
+        q->num_stages = pred_num_stages; q->vq = pred_vq; q->m = pred_m; q->logmag = 0;
+    }
     lpcnet_quant_compute_bits_per_frame(q);
 
     int i,d;
@@ -332,8 +339,7 @@ void unpack_frame(int num_stages, int m[], int indexes[], int pitch_bits, int *p
     *pitch_gain_ind = ((int)frame[k]<<1) + frame[k+1];   
 }
 
-// Call every 10ms LPCNet freame with atest features. Returns 1 when
-// frame[] is valid
+// Call every q->dec LPCNet frames
 
 int lpcnet_features_to_frame(LPCNET_QUANT *q, float features[], char frame[]) {
     int i, k = NB_BANDS;
@@ -351,19 +357,14 @@ int lpcnet_features_to_frame(LPCNET_QUANT *q, float features[], char frame[]) {
     features[0] *= q->weight;
                    
     int pitch_ind, pitch_gain_ind;
-        
-    /* encoder */
-        
-    if ((q->f % q->dec) == 0) {
-        /* non-interpolated frame ----------------------------------------*/
+                
+    /* non-interpolated frame ----------------------------------------*/
 
-        quant_pred_mbest(q->features_quant, indexes, features, q->pred, q->num_stages, q->vq, q->m, k, q->mbest);
-        pitch_ind = pitch_encode(features[2*NB_BANDS], q->pitch_bits);
-        pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
-        pack_frame(q->num_stages, q->m, indexes, q->pitch_bits, pitch_ind, pitch_gain_ind, frame);
-        frame_valid = 1;
-    }
-    q->f++;
+    quant_pred_mbest(q->features_quant, indexes, features, q->pred, q->num_stages, q->vq, q->m, k, q->mbest);
+    pitch_ind = pitch_encode(features[2*NB_BANDS], q->pitch_bits);
+    pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
+    pack_frame(q->num_stages, q->m, indexes, q->pitch_bits, pitch_ind, pitch_gain_ind, frame);
+    frame_valid = 1;
     
     return frame_valid;
 }

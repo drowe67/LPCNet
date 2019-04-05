@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    LPCNET_QUANT *q = lpcnet_quant_create(num_stages, pred_m, pred_vq);
+    LPCNET_QUANT *q = lpcnet_quant_create(0);
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
     q->pitch_bits = pitch_bits; q->dec = dec;
     lpcnet_quant_compute_bits_per_frame(q);
@@ -92,8 +92,11 @@ int main(int argc, char *argv[]) {
     int bits_written = 0;
     
     while(fread(features, sizeof(float), NB_FEATURES, fin) == NB_FEATURES) {
-        if (lpcnet_features_to_frame(q, features, frame))
+        if ((q->f % q->dec) == 0) {
+            lpcnet_features_to_frame(q, features, frame);
             bits_written += fwrite(frame, sizeof(char), q->bits_per_frame, fout);
+        }
+        q->f++;
         
         fflush(stdin);
         fflush(stdout);

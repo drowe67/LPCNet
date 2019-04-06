@@ -5,10 +5,7 @@
   DATE CREATED: Jan 2017
 
   Multistage vector quantiser search algorithm that keeps multiple
-  candidates from each stage.
-
-  TODO: A unit test with contrived examples.  This is a complex algorithm and
-        I am afraid I may have missed something subtle.
+  candidates from each stage - LPCNet version.
 
 \*---------------------------------------------------------------------------*/
 
@@ -38,7 +35,7 @@
 
 #include "mbest.h"
 
-struct MBEST *mbest_create(int entries, int stages) {
+struct MBEST *lpcnet_mbest_create(int entries, int stages) {
     int           i,j;
     struct MBEST *mbest;
 
@@ -60,7 +57,7 @@ struct MBEST *mbest_create(int entries, int stages) {
     return mbest;
 }
 
-void mbest_destroy(struct MBEST *mbest) {
+void lpcnet_mbest_destroy(struct MBEST *mbest) {
     assert(mbest != NULL);
     free(mbest->list);
     free(mbest);
@@ -77,7 +74,7 @@ void mbest_destroy(struct MBEST *mbest) {
 
 \*---------------------------------------------------------------------------*/
 
-void mbest_insert(struct MBEST *mbest, int index[], float error) {
+static void mbest_insert(struct MBEST *mbest, int index[], float error) {
     int                i, j, found;
     struct MBEST_LIST *list    = mbest->list;
     int                entries = mbest->entries;
@@ -96,7 +93,7 @@ void mbest_insert(struct MBEST *mbest, int index[], float error) {
 }
 
 
-void mbest_print(char title[], struct MBEST *mbest) {
+void lpcnet_mbest_print(char title[], struct MBEST *mbest) {
     int i,j;
 
     fprintf(stderr, "%s\n", title);
@@ -117,7 +114,7 @@ void mbest_print(char title[], struct MBEST *mbest) {
 
 \*---------------------------------------------------------------------------*/
 
-void mbest_search(
+void lpcnet_mbest_search(
 		  const float  *cb,     /* VQ codebook to search         */
 		  float         vec[],  /* target vector                 */
 		  float         w[],    /* weighting vector              */
@@ -143,33 +140,3 @@ void mbest_search(
 }
 
 
-/*---------------------------------------------------------------------------*\
-
-  mbest_search450
-
-  Searches vec[] to a codebbook of vectors, and maintains a list of the mbest
-  closest matches. Only searches the first NewAmp2_K Vectors
-
-  \*---------------------------------------------------------------------------*/
-
-void mbest_search450(const float  *cb, float vec[], float w[], int k,int shorterK, int m, struct MBEST *mbest, int index[])
-
-{
-    float   e;
-    int     i,j;
-    float   diff;
-
-    for(j=0; j<m; j++) {
-	e = 0.0;
-	for(i=0; i<k; i++) {
-            //Only search first NEWAMP2_K Vectors
-            if(i<shorterK){
-                diff = cb[j*k+i]-vec[i];
-                e += powf(diff*w[i],2.0);
-            }
-	}
-	index[0] = j;
-	mbest_insert(mbest, index, e);
-    }
-}
-   

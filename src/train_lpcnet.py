@@ -93,14 +93,17 @@ features = features[:, :, :nb_used_features]
 # nb_used_features=38, so 0...37
 features[:,:,18:36] = 0   # zero out 18..35, so pitch and pitch gain being fed in, lpc gain ignored
 
+# EXPERIMENTAL - try training with a small range of cepstrals
+#features[:,:,12:17] = 0 # zero out last 6, leaving 0..11, or a 12 element vector
+
 fpad1 = np.concatenate([features[0:1, 0:2, :], features[:-1, -2:, :]], axis=0)
 fpad2 = np.concatenate([features[1:, :2, :], features[0:1, -2:, :]], axis=0)
 features = np.concatenate([fpad1, features, fpad2], axis=1)
 
-# pitch feature uses as well as cesptrals
+# pitch feature used as well as cesptrals
 periods = (.1 + 50*features[:,:,36:37]+100).astype('int16')
 
-features[:,:,36:] = 0      # DR experiment - lets try zeroing out pitch and pitch gain
+# features[:,:,36:] = 0      # DR experiment - lets try zeroing out pitch and pitch gain
 
 in_data = np.concatenate([sig, pred, in_exc], axis=-1)
 
@@ -113,6 +116,7 @@ del in_exc
 checkpoint = ModelCheckpoint(prefix + '_{epoch:02d}.h5')
 
 # use this to reload a partially trained model
-#model.load_weights('lpcnet_190203_07.h5')
+#model.load_weights('lpcnet_190205_10.h5')
+
 model.compile(optimizer=Adam(0.001, amsgrad=True, decay=5e-5), loss='sparse_categorical_crossentropy')
 model.fit([in_data, features, periods], out_exc, batch_size=batch_size, epochs=nb_epochs, validation_split=0.1, callbacks=[checkpoint, lpcnet.Sparsify(2000, 40000, 400, (0.05, 0.05, 0.2))])

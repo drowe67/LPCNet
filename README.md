@@ -22,7 +22,7 @@ $ sox ../../wav/wia.wav -t raw -r 16000 - | ./dump_data --c2pitch --test - - | .
 
 LPCNet at 1733 bits/s using direct-split quantiser:
 ```
-sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | aplay -f S16_LE -r 16000
+$ sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | aplay -f S16_LE -r 16000
 ```
 
 # Reading Further
@@ -35,13 +35,23 @@ sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | ap
 
 Thanks [Jean-Marc Valin](https://people.xiph.org/~jm/demo/lpcnet/) for making LPCNet available, and [Richard](https://github.com/hobbes1069) for the CMake build system.
 
-# Speech Material for Training
+# Tips
+
+## Speech Material for Training
 
 Suitable training material can be obtained from the McGill University Telecommunications & Signal Processing Laboratory. Download the ISO and extract the 16k-LP7 directory, the src/concat.sh script can be used to generate a headerless file of training samples.
 
 ```
 cd 16k-LP7
 sh /path/to/LPCNet/src/concat.sh
+```
+
+## Playing files on a remote machine
+
+I use a server for training, but my laptop for listening:
+
+```
+david@laptop:~$ scp server:LPCNet/build_linux/speech_orig_16kb.raw /dev/stdout | aplay -f S16_LE -r 16000
 ```
 
 # Quantiser Experiments

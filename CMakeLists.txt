@@ -28,25 +28,29 @@ endif("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 # Set default flags
 set(CMAKE_C_FLAGS "-Wall -W -Wextra -Wno-unused-function -O3 -g -I. -MD ${CMAKE_C_FLAGS}")
 
-execute_process(COMMAND grep -c "avx2" /proc/cpuinfo
-    OUTPUT_VARIABLE AVX2)
-execute_process(COMMAND grep -c "avx " /proc/cpuinfo
-    OUTPUT_VARIABLE AVX)
-execute_process(COMMAND grep -c "neon" /proc/cpuinfo
-    OUTPUT_VARIABLE NEON)
-message("AVX2: ${AVX2} AVX: ${AVX} NEON: ${NEON}")
+if(UNIX)
+    execute_process(COMMAND grep -c "avx2" /proc/cpuinfo
+        OUTPUT_VARIABLE AVX2)
+    execute_process(COMMAND grep -c "avx " /proc/cpuinfo
+        OUTPUT_VARIABLE AVX)
+    execute_process(COMMAND grep -c "neon" /proc/cpuinfo
+        OUTPUT_VARIABLE NEON)
+else()
+    message(STATUS "System is not *nix, processor specific optimizations cannot be determined.")
+    message("   You can try setting them manually, e.g.: -DAVX2=1 or -DAVX=1 or -DNEON=1")
+endif()
 
-if(${AVX2} GREATER 0)
+if(${AVX2} OR ${AVX2} GREATER 0)
     message(STATUS "avx2 processor flags found.")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx2 -mfma")
-elseif(${AVX} GREATER 0)
+elseif(${AVX} OR ${AVX} GREATER 0)
 # AVX2 machines will also match on AVX
     message(STATUS "avx processor flags found.")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx")
 endif()
 
 # RPi
-if(${NEON} GREATER 0)
+if(${NEON} OR ${NEON} GREATER 0)
     message(STATUS "neon processor flags found.")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfpu=neon -march=armv8-a -mtune=cortex-a53")
 endif()

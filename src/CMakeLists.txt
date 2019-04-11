@@ -19,6 +19,12 @@ set(lpcnet_freedv_srcs
 )
 
 add_library(lpcnetfreedv SHARED ${lpcnet_freedv_srcs})
+set_target_properties(lpcnetfreedv PROPERTIES
+    PUBLIC_HEADER lpcnet_freedv.h
+)
+target_include_directories(lpcnetfreedv INTERFACE
+    $<INSTALL_INTERFACE:include/lpcnet>
+)
 install(TARGETS lpcnetfreedv EXPORT lpcnet-config
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

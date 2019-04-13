@@ -279,6 +279,9 @@ int main(int argc, char **argv) {
   float delta_f0 = 0.0;
   int fuzz = 1;
   int logmag = 0;
+  int band_mask[NB_BANDS];
+
+  for(i=0; i<NB_BANDS; i++) band_mask[i] = 1;
   
   st = rnnoise_create();
 
@@ -289,22 +292,37 @@ int main(int argc, char **argv) {
           {"c2pitch",   no_argument,      0, 'c'},
           {"help",      no_argument,      0, 'h'},
           {"nvec",      required_argument,0, 'n'},
-	  {"mag",       required_argument,0, 'i'},
+	  {"mag",       no_argument,      0, 'i'},
+	  {"mask",      required_argument,0, 'm'},
           {"train",     no_argument,      0, 'r'},
           {"test",      no_argument,      0, 't'},
           {"fuzz",      required_argument,0, 'z'},
           {0, 0, 0, 0}
       };
         
-      o = getopt_long(argc,argv,"chn:rtz:i",long_opts,&opt_idx);
+      o = getopt_long(argc,argv,"chn:rtz:im:",long_opts,&opt_idx);
         
       switch(o){
+      case 'c':
+          c2pitch_en = 1;
+          break;
       case 'i':
 	  logmag = 1;
 	  fprintf(stderr, "logmag: %d\n", logmag);
 	  break;
       case 'r':
           training = 1;
+          break;
+      case 'm':
+	  
+	  for(i=0; i<(int)strlen(optarg); i++)
+	      if (optarg[i] == '0')
+		  band_mask[i] = 0;
+	  fprintf(stderr, "band_mask: ");
+	  for(i=0; i<NB_BANDS; i++)
+	      fprintf(stderr, "%d", band_mask[i]);
+	  fprintf(stderr, "\n");
+
           break;
       case 'n':
 	  nvec = atof(optarg);
@@ -314,12 +332,10 @@ int main(int argc, char **argv) {
       case 't':
           training = 0;
           break;
-      case 'c':
-          c2pitch_en = 1;
-          break;
       case 'z':
           fuzz = atoi(optarg);
           break;
+	  
       case 'h':
       case '?':
           goto helpmsg;
@@ -342,7 +358,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "  or   %s --test [options] <speech> <features out>\n", argv[0]);
       fprintf(stderr, "\nOptions:\n");
       fprintf(stderr, "  -c --c2pitch  Codec 2 pitch estimator\n");
-      fprintf(stderr, "  -i --mag      magnitudes Ly rather than dct(Ly)\n");
+      fprintf(stderr, "  -i --mag      ouput magnitudes Ly rather than dct(Ly)\n");
       fprintf(stderr, "  -n --nvec     Number of training vectors to generate\n");
       fprintf(stderr, "  -z --fuzz     fuzz freq response and gain during training (default on)\n");
       exit(1);
@@ -443,6 +459,9 @@ int main(int argc, char **argv) {
     for (i=0;i<FRAME_SIZE;i++) x[i] += rand()/(float)RAND_MAX - .5;
     compute_frame_features(st, X, P, Ex, Ep, Exp, features, x, logmag);
 
+    for(i=0; i<NB_BANDS; i++)
+	features[i] *= band_mask[i];
+    
     if (c2pitch_en) {
         for(i=0; i<c2_Sn_size-c2_frame_size; i++)
             c2_Sn[i] = c2_Sn[i+c2_frame_size];

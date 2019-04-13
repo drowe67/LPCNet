@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
     int opt_idx = 0;
     while( o != -1 ) {
 	static struct option long_opts[] = {
-	    {"mag",       required_argument,0, 'i'},
+	    {"mag", no_argument,0, 'i'},
 	    {0, 0, 0, 0}
 	};
         

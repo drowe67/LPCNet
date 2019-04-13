@@ -1,11 +1,11 @@
 #!/bin/bash -x
 # tinytrain.sh
-# train using a tiny database, synthesis a few samples from within
+#
+# train using a tiny database, synthesise a few samples from within
 # training database.  Used to perform quick sanity checks with a few hrs training
 
 SRC=all_speech
-DATE=190406b
-TST=c01_01
+DATE=190410
 
 synth() {
   ./src/dump_data --test --c2pitch ~/Downloads/$1.sw $1.f32
@@ -20,5 +20,6 @@ train() {
   make test_lpcnet
 }
 
-synth c01_01 c01_01b
-synth mk61_01 mk61_01b
+train
+synth c01_01  "$DATE"_f.s16
+synth mk61_01 "$DATE"_m.s16

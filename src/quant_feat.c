@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
         {"hard",       required_argument, 0, 'h'},
         {"label",      required_argument, 0, 'l'},
         {"mbest",      required_argument, 0, 'm'},
-        {"mag",        required_argument, 0, 'i'},
+        {"mag",        no_argument      , 0, 'i'},
         {"pitchquant", required_argument, 0, 'o'},
         {"pred",       required_argument, 0, 'p'},
         {"quant",      required_argument, 0, 'q'},

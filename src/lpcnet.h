@@ -34,7 +34,7 @@
 typedef struct LPCNetState LPCNetState;
 LPCNetState *lpcnet_create();
 void lpcnet_destroy(LPCNetState *lpcnet);
-void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N);
+void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N, int logmag);
 
 // TODO: complete bit stream LPCNetFreeDV API functions, create/destroy, samples->bits, bits->samples
 typedef struct LPCNetFreeDV LPCNetFreeDV;

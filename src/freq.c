@@ -231,9 +231,8 @@ float lpc_from_cepstrum(float *lpc, const float *cepstrum)
    float Ex[NB_BANDS];
    float tmp[NB_BANDS];
    RNN_COPY(tmp, cepstrum, NB_BANDS);
-   //tmp[0] += 4;
-   //idct(Ex, tmp);
-   memcpy(Ex,tmp, sizeof(float)*NB_BANDS);
+   tmp[0] += 4;
+   idct(Ex, tmp);
    for (i=0;i<NB_BANDS;i++) Ex[i] = pow(10.f, Ex[i]);
    return lpc_from_bands(lpc, Ex);
 }

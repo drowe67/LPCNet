@@ -28,7 +28,20 @@ endif("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 # Set default flags
 set(CMAKE_C_FLAGS "-Wall -W -Wextra -Wno-unused-function -O3 -g -I. -MD ${CMAKE_C_FLAGS}")
 
-if(UNIX)
+# Check for OSX
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(MACOSX TRUE)
+endif()
+
+if(MACOSX)
+    message(STATUS "Looking for available CPU optimizations on an OSX system...")
+    execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.leaf7_features COMMAND grep -c AVX2
+        OUTPUT_VARIABLE AVX2)
+    execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c AVX
+        OUTPUT_VARIABLE AVX)
+
+elseif(UNIX)
+    message(STATUS "Looking for available CPU optimizations on Linux/BSD system...")
     execute_process(COMMAND grep -c "avx2" /proc/cpuinfo
         OUTPUT_VARIABLE AVX2)
     execute_process(COMMAND grep -c "avx " /proc/cpuinfo

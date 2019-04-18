@@ -15,6 +15,11 @@
 #include "freq.h"
 #include "lpcnet_quant.h"
 
+#ifdef __APPLE__
+#include <sys/types.h>
+#define uint u_int
+#endif
+
 #define NB_BANDS    18
 
 /* meaured using -m option, then pasted in here */

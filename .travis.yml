@@ -26,8 +26,10 @@ script:
     - cd src && sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s > /dev/null
     # Re-build codec2 with LPCNet and test FreeDV 2020 support
     - cd $CODEC2DIR/build_linux && rm -Rf *
+    - echo $BUILDDIR
     - cmake -DLPCNET_BUILD_DIR=$BUILDDIR ..
-    - make
-    - cd src
-    - ./freedv_tx 2020 $LPCNETDIR/wav/wia.wav - | ./freedv_rx 2020 - /dev/null
+    - cat CMakeCache.txt
+    #- make
+    #- cd src
+    #- ./freedv_tx 2020 $LPCNETDIR/wav/wia.wav - | ./freedv_rx 2020 - /dev/null
     

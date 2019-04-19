@@ -18,9 +18,11 @@ install:
 script:
     - echo "Build and install codec2 as we need -lcodec2"
     - git clone https://github.com/drowe67/codec2.git
-    - cd codec2 && mkdir build_linux && cd build_linux && cmake .. && sudo make install && sudo ldconfig
+    - cd codec2 && mkdir build_linux && cd build_linux && cmake .. && sudo make install  && sudo ldconfig
     - echo "now build and test LPCNet"
-    - cd ~ && mkdir -p $BUILDDIR && cd $BUILDDIR 
+    - cd ~
+    - mkdir -p $BUILDDIR
+    - cd $BUILDDIR 
     - cmake .. && make
     - cd src && sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s > /dev/null
     

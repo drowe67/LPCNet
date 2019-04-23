@@ -90,3 +90,7 @@ target_link_libraries(lpcnet_dec lpcnetfreedv m codec2)
 
 add_executable(idct idct.c)
 target_link_libraries(idct lpcnetfreedv m codec2)
+
+install(TARGETS lpcnet_enc lpcnet_dec
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )

@@ -109,7 +109,7 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const f
 }
 
 static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P,
-				   float *Ex, float *Ep, float *Exp, float *features, const float *in, int logmag) {
+				   float *Ex, float *Ep, float *Exp, float *features, const float *in, int logmag, int band_mask[]) {
   int i;
   float E = 0;
   float Ly[NB_BANDS];
@@ -148,6 +148,8 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
   features[NB_BANDS] -= 1.3;
   features[NB_BANDS+1] -= 0.9;
   */
+
+  /* smoothing of band-band variations */
   logMax = -2;
   follow = -2;
   for (i=0;i<NB_BANDS;i++) {
@@ -156,6 +158,17 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
     logMax = MAX16(logMax, Ly[i]);
     follow = MAX16(follow-2.5, Ly[i]);
     E += Ex[i];
+  }
+
+  // optional masking of bands, before LPC analysis
+  float last_non_zero = 0.0;
+  for(i=0; i<NB_BANDS; i++) {
+      if (band_mask[i])
+	  last_non_zero = Ly[i];
+      else {
+	  Ly[i] = last_non_zero;
+	  last_non_zero *= 0.8;
+      }
   }
 
   if (logmag) {
@@ -457,11 +470,8 @@ int main(int argc, char **argv) {
       x[i] *= g;
     }
     for (i=0;i<FRAME_SIZE;i++) x[i] += rand()/(float)RAND_MAX - .5;
-    compute_frame_features(st, X, P, Ex, Ep, Exp, features, x, logmag);
-
-    for(i=0; i<NB_BANDS; i++)
-	features[i] *= band_mask[i];
-    
+    compute_frame_features(st, X, P, Ex, Ep, Exp, features, x, logmag, band_mask);
+	 
     if (c2pitch_en) {
         for(i=0; i<c2_Sn_size-c2_frame_size; i++)
             c2_Sn[i] = c2_Sn[i+c2_frame_size];

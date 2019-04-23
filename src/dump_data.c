@@ -293,7 +293,9 @@ int main(int argc, char **argv) {
   int fuzz = 1;
   int logmag = 0;
   int band_mask[NB_BANDS];
-
+  int dump_fft = 0;
+  FILE *f_fft = NULL;
+  
   for(i=0; i<NB_BANDS; i++) band_mask[i] = 1;
   
   st = rnnoise_create();
@@ -302,22 +304,32 @@ int main(int argc, char **argv) {
   int opt_idx = 0;
   while( o != -1 ) {
       static struct option long_opts[] = {
-          {"c2pitch",   no_argument,      0, 'c'},
-          {"help",      no_argument,      0, 'h'},
-          {"nvec",      required_argument,0, 'n'},
-	  {"mag",       no_argument,      0, 'i'},
-	  {"mask",      required_argument,0, 'm'},
-          {"train",     no_argument,      0, 'r'},
-          {"test",      no_argument,      0, 't'},
-          {"fuzz",      required_argument,0, 'z'},
+          {"c2pitch",   no_argument,       0, 'c'},
+          {"dumpfft",   required_argument, 0, 'f'},
+          {"help",      no_argument,       0, 'h'},
+          {"nvec",      required_argument, 0, 'n'},
+	  {"mag",       no_argument,       0, 'i'},
+	  {"mask",      required_argument, 0, 'm'},
+          {"train",     no_argument,       0, 'r'},
+          {"test",      no_argument,       0, 't'},
+          {"fuzz",      required_argument, 0, 'z'},
           {0, 0, 0, 0}
       };
         
-      o = getopt_long(argc,argv,"chn:rtz:im:",long_opts,&opt_idx);
+      o = getopt_long(argc,argv,"chf:n:rtz:im:",long_opts,&opt_idx);
         
       switch(o){
       case 'c':
           c2pitch_en = 1;
+          break;
+      case 'f':
+          dump_fft = 1;
+          f_fft = fopen(optarg, "wb");
+          if (f_fft == NULL) {
+              fprintf(stderr,"Error opening output FFT logmag dump file: %s\n", optarg);
+              exit(1);
+          }
+          fprintf(stderr,"FFT dump file %s opened OK, %d log energy samples per frame\n", optarg, FREQ_SIZE);
           break;
       case 'i':
 	  logmag = 1;
@@ -370,10 +382,11 @@ int main(int argc, char **argv) {
       fprintf(stderr, "usage: %s --train [options] <speech> <features out> <pcm out>\n", argv[0]);
       fprintf(stderr, "  or   %s --test [options] <speech> <features out>\n", argv[0]);
       fprintf(stderr, "\nOptions:\n");
-      fprintf(stderr, "  -c --c2pitch  Codec 2 pitch estimator\n");
-      fprintf(stderr, "  -i --mag      ouput magnitudes Ly rather than dct(Ly)\n");
-      fprintf(stderr, "  -n --nvec     Number of training vectors to generate\n");
-      fprintf(stderr, "  -z --fuzz     fuzz freq response and gain during training (default on)\n");
+      fprintf(stderr, "  -c --c2pitch          Codec 2 pitch estimator\n");
+      fprintf(stderr, "  -i --mag              ouput magnitudes Ly rather than dct(Ly)\n");
+      fprintf(stderr, "  -n --nvec             Number of training vectors to generate\n");
+      fprintf(stderr, "  -z --fuzz             fuzz freq response and gain during training (default on)\n");
+      fprintf(stderr, "  -f --dumpfft FileName dump a file of fft log energy samples\n");
       exit(1);
   }
     
@@ -485,7 +498,13 @@ int main(int argc, char **argv) {
         //int pitch_index_lpcnet = 100*features[2*NB_BANDS] + 200;        
         //fprintf(stderr, "%f %d %d v: %f %f\n", f0, pitch_index, pitch_index, features[2*NB_BANDS+1], voicing);
     }
-   
+
+    if (dump_fft) {
+        float Plog[FREQ_SIZE];
+        for(i=0; i<FREQ_SIZE; i++) Plog[i] = log10(P[i].r*P[i].r+P[i].i*P[i].i);
+        fwrite(Plog, sizeof(float), FREQ_SIZE, f_fft);
+    }
+    
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);
     /* PCM is delayed by 1/2 frame to make the features centered on the frames. */
     for (i=0;i<FRAME_SIZE-TRAINING_OFFSET;i++) pcm[i+TRAINING_OFFSET] = float2short(x[i]);
@@ -499,6 +518,8 @@ int main(int argc, char **argv) {
   fclose(ffeat);
   if (fpcm) fclose(fpcm);
   if (c2pitch_en) { free(c2_Sn); codec2_pitch_destroy(c2pitch); }
+  if (dump_fft) fclose(f_fft);
+      
   rnnoise_destroy(st);
   return 0;
 }

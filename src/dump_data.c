@@ -313,10 +313,10 @@ int main(int argc, char **argv) {
           dump_fft = 1;
           f_fft = fopen(optarg, "wb");
           if (f_fft == NULL) {
-              fprintf(stderr,"Error opening output ffft dump file: %s\n", optarg);
+              fprintf(stderr,"Error opening output FFT logmag dump file: %s\n", optarg);
               exit(1);
           }
-          fprintf(stderr,"FFT dump file %s opened OK, %d complex sampless of %d bytes each per frame\n", optarg, FREQ_SIZE,  (int)sizeof(kiss_fft_cpx));
+          fprintf(stderr,"FFT dump file %s opened OK, %d log energy samples per frame\n", optarg, FREQ_SIZE);
           break;
       case 'i':
 	  logmag = 1;
@@ -373,7 +373,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "  -i --mag              ouput magnitudes Ly rather than dct(Ly)\n");
       fprintf(stderr, "  -n --nvec             Number of training vectors to generate\n");
       fprintf(stderr, "  -z --fuzz             fuzz freq response and gain during training (default on)\n");
-      fprintf(stderr, "  -f --dumpfft FileName dump a file of complex fft samples\n");
+      fprintf(stderr, "  -f --dumpfft FileName dump a file of fft log energy samples\n");
       exit(1);
   }
     
@@ -490,7 +490,9 @@ int main(int argc, char **argv) {
     }
 
     if (dump_fft) {
-        fwrite(P, sizeof(kiss_fft_cpx), FREQ_SIZE, f_fft);
+        float Plog[FREQ_SIZE];
+        for(i=0; i<FREQ_SIZE; i++) Plog[i] = log10(P[i].r*P[i].r+P[i].i*P[i].i);
+        fwrite(Plog, sizeof(float), FREQ_SIZE, f_fft);
     }
     
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);

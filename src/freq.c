@@ -65,6 +65,8 @@ void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
     int j;
     int band_size;
     band_size = (eband5ms[i+1]-eband5ms[i])*WINDOW_SIZE_5MS;
+    //fprintf(stderr, "i: %d band_size: %d eband5ms[i]*WINDOW_SIZE_5MS: %d \n", i, band_size, eband5ms[i]*WINDOW_SIZE_5MS);
+    // frac implements a triangular window of FFT energy
     for (j=0;j<band_size;j++) {
       float tmp;
       float frac = (float)j/band_size;
@@ -72,6 +74,7 @@ void compute_band_energy(float *bandE, const kiss_fft_cpx *X) {
       tmp += SQUARE(X[(eband5ms[i]*WINDOW_SIZE_5MS) + j].i);
       sum[i] += (1-frac)*tmp;
       sum[i+1] += frac*tmp;
+      //fprintf(stderr, "i: %d j: %d frac: %4.3f\n", i, j, frac);
     }
   }
   sum[0] *= 2;

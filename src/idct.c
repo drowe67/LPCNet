@@ -15,11 +15,6 @@
 #include "freq.h"
 #include "lpcnet_quant.h"
 
-#ifdef __APPLE__
-#include <sys/types.h>
-#define uint u_int
-#endif
-
 #define NB_BANDS    18
 
 /* meaured using -m option, then pasted in here */
@@ -33,8 +28,8 @@ float std[] = {
 int main(int argc, char *argv[]) {
     FILE *fin, *fout;
     fin = stdin; fout = stdout;
-    uint ret;
-    uint stride = NB_BANDS;
+    unsigned int ret;
+    unsigned int stride = NB_BANDS;
     int measure = 0;
     int scaling = 0;
     
@@ -68,7 +63,7 @@ int main(int argc, char *argv[]) {
     float sum[NB_BANDS] = {0.0};
     float sumsq[NB_BANDS] = {0.0};
     float dctLy[stride], Ly[stride];
-    uint i; for(i=0; i<stride; i++) Ly[stride] = 0.0;
+    unsigned int i; for(i=0; i<stride; i++) Ly[stride] = 0.0;
     long n = 0;
     while(fread(dctLy, sizeof(float), stride, fin) == stride) {
         idct(Ly, dctLy);

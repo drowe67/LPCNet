@@ -161,16 +161,19 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
   }
 
   // optional masking of bands, before LPC analysis
-  float last_non_zero = 0.0;
+  int last_non_zero = 0; float mean = 0.0;
   for(i=0; i<NB_BANDS; i++) {
       if (band_mask[i])
-	  last_non_zero = Ly[i];
-      else {
-	  Ly[i] = last_non_zero;
-	  last_non_zero *= 0.8;
-      }
+	  last_non_zero = i;
+      else
+          mean += Ly[i];
   }
-
+  mean /= (NB_BANDS-last_non_zero);
+  for(i=last_non_zero; i<NB_BANDS; i++) {
+      Ly[i] = mean;
+      //mean *= 0.9;
+  }
+  
   if (logmag) {
     memcpy(features, Ly, sizeof(float)*NB_BANDS);
     float Ex[NB_BANDS];
@@ -232,9 +235,10 @@ static void rand_resp(float *a, float *b) {
   b[1] = .75*uni_rand();
 }
 
-void write_audio(DenoiseState *st, const short *pcm, float noise_std, FILE *file) {
+void write_audio(DenoiseState *st, const short *pcm, float noise_std, FILE *file, FILE *shortfile) {
   int i;
   unsigned char data[4*FRAME_SIZE];
+  short  short_data[4*FRAME_SIZE];
   for (i=0;i<FRAME_SIZE;i++) {
     int noise;
     float p=0;
@@ -244,12 +248,16 @@ void write_audio(DenoiseState *st, const short *pcm, float noise_std, FILE *file
     e = lin2ulaw(pcm[i] - p);
     /* Signal. */
     data[4*i] = lin2ulaw(st->sig_mem[0]);
+    short_data[4*i] = st->sig_mem[0];
     /* Prediction. */
     data[4*i+1] = lin2ulaw(p);
+    short_data[4*i+1] = p;
     /* Excitation in. */
     data[4*i+2] = st->exc_mem;
+    short_data[4*i+2] = ulaw2lin(st->exc_mem);
     /* Excitation out. */
     data[4*i+3] = e;
+    short_data[4*i+3] = pcm[i] - p;
     /* Simulate error on excitation. */
     noise = (int)floor(.5 + noise_std*.707*(log_approx((float)rand()/RAND_MAX)-log_approx((float)rand()/RAND_MAX)));
     e += noise;
@@ -260,6 +268,8 @@ void write_audio(DenoiseState *st, const short *pcm, float noise_std, FILE *file
     st->exc_mem = e;
   }
   fwrite(data, 4*FRAME_SIZE, 1, file);
+  if (shortfile)
+      fwrite(short_data, 4*FRAME_SIZE, sizeof(short), shortfile);      
 }
 
 int main(int argc, char **argv) {
@@ -295,6 +305,7 @@ int main(int argc, char **argv) {
   int band_mask[NB_BANDS];
   int dump_fft = 0;
   FILE *f_fft = NULL;
+  FILE *fshort = NULL;
   
   for(i=0; i<NB_BANDS; i++) band_mask[i] = 1;
   
@@ -311,12 +322,13 @@ int main(int argc, char **argv) {
 	  {"mag",       no_argument,       0, 'i'},
 	  {"mask",      required_argument, 0, 'm'},
           {"train",     no_argument,       0, 'r'},
+          {"short",     required_argument, 0, 's'},
           {"test",      no_argument,       0, 't'},
           {"fuzz",      required_argument, 0, 'z'},
           {0, 0, 0, 0}
       };
         
-      o = getopt_long(argc,argv,"chf:n:rtz:im:",long_opts,&opt_idx);
+      o = getopt_long(argc,argv,"chf:n:rs:tz:im:",long_opts,&opt_idx);
         
       switch(o){
       case 'c':
@@ -337,6 +349,17 @@ int main(int argc, char **argv) {
 	  break;
       case 'r':
           training = 1;
+          break;
+      case 's':
+          if (!training) {
+              fprintf(stderr, "--short only used when training\n");
+              exit(1);
+          }
+          fshort = fopen(optarg, "wb");
+          if (fshort == NULL) {
+              fprintf(stderr,"Error opening output short file: %s\n", optarg);
+              exit(1);
+          }
           break;
       case 'm':
 	  
@@ -387,6 +410,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "  -n --nvec             Number of training vectors to generate\n");
       fprintf(stderr, "  -z --fuzz             fuzz freq response and gain during training (default on)\n");
       fprintf(stderr, "  -f --dumpfft FileName dump a file of fft log energy samples\n");
+      fprintf(stderr, "  -s --short   FileName dump (ulaw) pcm file in 16 bit short format as well\n");
       exit(1);
   }
     
@@ -508,7 +532,7 @@ int main(int argc, char **argv) {
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);
     /* PCM is delayed by 1/2 frame to make the features centered on the frames. */
     for (i=0;i<FRAME_SIZE-TRAINING_OFFSET;i++) pcm[i+TRAINING_OFFSET] = float2short(x[i]);
-    if (fpcm) write_audio(st, pcm, noise_std, fpcm);
+    if (fpcm) write_audio(st, pcm, noise_std, fpcm, fshort);
     //if (fpcm) fwrite(pcm, sizeof(short), FRAME_SIZE, fpcm);
     for (i=0;i<TRAINING_OFFSET;i++) pcm[i] = float2short(x[i+FRAME_SIZE-TRAINING_OFFSET]);
     old_speech_gain = speech_gain;
@@ -517,6 +541,7 @@ int main(int argc, char **argv) {
   fclose(f1);
   fclose(ffeat);
   if (fpcm) fclose(fpcm);
+  if (fshort) fclose(fshort);
   if (c2pitch_en) { free(c2_Sn); codec2_pitch_destroy(c2pitch); }
   if (dump_fft) fclose(f_fft);
       

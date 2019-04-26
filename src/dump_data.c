@@ -169,7 +169,7 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
           mean += Ly[i];
   }
   mean /= (NB_BANDS-last_non_zero);
-  for(i=last_non_zero; i<NB_BANDS; i++) {
+  for(i=last_non_zero+1; i<NB_BANDS; i++) {
       Ly[i] = mean;
       //mean *= 0.9;
   }
@@ -187,11 +187,6 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
     g = lpc_from_cepstrum(st->lpc, features);
   }
   
-#if 0
-  for (i=0;i<NB_BANDS;i++) printf("%f ", Ly[i]);
-  printf("\n");
-#endif
-
   features[2*NB_BANDS] = .01*(pitch_index-200);
   features[2*NB_BANDS+1] = gain;
   features[2*NB_BANDS+2] = log10(g);

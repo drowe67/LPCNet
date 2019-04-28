@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# trunc_dct.py
+# train_regen.py
 #
 # David Rowe April 2019
 #
@@ -14,6 +14,10 @@ import sys
 from keras.layers import Dense
 from keras import models,layers
 from keras import initializers
+
+if len(sys.argv) < 2:
+    print("usage: train_regen.py train_input.f32 [remove_mean 1|0]")
+    sys.exit(0)
 
 # constants
 
@@ -32,28 +36,26 @@ print("nb_frames: %d" % (nb_frames))
 
 # 0..17 mags, 36 = pitch, 37 = pitch gain, 38 = lpc-gain
 features = np.reshape(features, (nb_frames, nb_features))
-
-# remove mean from each feature vector, we calculate mean over nb_low
-# as that's all we will have in a decoder
-m = np.mean(features[:,:nb_low_bands],axis=1)
-features[:,:nb_bands] -= m[:,None]
-#train_dct -= m[None,:]
-print("mean:")
-print(m.shape)
-
-#features = features[:100000,:]
-# convert log10 or band energy to dB, so loss measures in meaningful units
-print("features:")
+#features=features[:10000,:]
+print("features shape:")
 print(features.shape)
+
+if len(sys.argv) > 2:
+    if sys.argv[2] == "1":
+        m = np.mean(features[:,:nb_bands],axis=1)
+    if sys.argv[2] == "2":
+        m = np.mean(features[:,:nb_low_bands],axis=1)
+    features[:,:nb_bands] -= m[:,None]
+
 train = np.concatenate( (features[:,:nb_low_bands], features[:,37:38]), axis=1)
-print("train:")
+print("train shape:")
 print(train.shape)
 target = features[:,nb_low_bands:nb_bands]
-print("target:")
+print("target shape:")
 print(target.shape)
 
 var=np.var(target)
-print("target var: %f" % (var))
+print("target variance (we aim to improve on this)! %f" % (var))
 
 model = models.Sequential()
 model.add(layers.Dense(256, activation='relu', input_dim=nb_low_bands+1))
@@ -67,45 +69,35 @@ model.add(layers.Dense(nb_high_bands, activation='linear'))
 from keras import optimizers
 model.compile(loss='mse', optimizer='adam')
 
-# fit model, using 20% of our data for vaildation
+# fit model, using 20% of our data for validation
 
-history = model.fit(train, target, validation_split=0.2, batch_size=32, epochs=10)
-model.save("trunc_mag.h5")
+history = model.fit(train, target, validation_split=0.2, batch_size=32, epochs=nb_epochs)
+model.save("regen_model.h5")
 
 import matplotlib.pyplot as plt
 
-# loss is MSE, or variance - plot std instead for each epoch
+# "loss" == MSE == variance
+# Plot std dev instead for each epoch, this
+# is equivalent to rms error is modelling of HF bands, a common measure we use for
+# quantisation
 
-plt.figure(1)
-plt.plot(np.sqrt(history.history['loss']))
-plt.plot(np.sqrt(history.history['val_loss']))
-plt.title('model loss')
-plt.ylabel('rms error (dB)')
-plt.xlabel('epoch')
-plt.legend(['train', 'valid'], loc='upper right')
+plot_en = 0;
+if plot_en:
+    plt.figure(1)
+    plt.plot(10*np.sqrt(history.history['loss']))
+    plt.plot(10*np.sqrt(history.history['val_loss']))
+    plt.title('model loss')
+    plt.ylabel('rms error (dB)')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'valid'], loc='upper right')
+    plt.show()
 
-# run model on training data and compare output to sanity check loss
+# run model on training data and measure variance, should be similar to training "loss"
 
 train_out = model.predict(train)
 err = (train_out - target)
 var = np.var(err)
-print(var.shape)
 std = np.std(err)
 print("var: %f std: %f" % (var,std))
 
-# generate ideal and NN regeneration of high bands on training data
-
-nb_test_frames=600
-test_in = train[:nb_test_frames,:]
-print("test_in:")
-print(test_in.shape)
-test_out = np.concatenate((features[:nb_test_frames,:nb_low_bands], model.predict(test_in)), axis=1)
-print("test_out:")
-print(test_out.shape)
-
-import scipy.io as sio
-sio.savemat("orig.mat", {"orig":features[:nb_test_frames,:nb_bands]})
-sio.savemat("test_out.mat", {"test_out":test_out})
-
-plt.show()
 

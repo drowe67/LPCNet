@@ -327,7 +327,7 @@ int main(int argc, char **argv) {
   if (strcmp(argv[dx], "-") == 0)
       f1 = stdin;
   else {
-      f1 = fopen(argv[dx], "r");
+      f1 = fopen(argv[dx], "rb");
       if (f1 == NULL) {
           fprintf(stderr,"Error opening input .s16 16kHz speech input file: %s\n", argv[dx]);
           exit(1);
@@ -336,14 +336,14 @@ int main(int argc, char **argv) {
   if (strcmp(argv[dx+1], "-") == 0)
       ffeat = stdout;
   else {
-      ffeat = fopen(argv[dx+1], "w");
+      ffeat = fopen(argv[dx+1], "wb");
       if (ffeat == NULL) {
           fprintf(stderr,"Error opening output feature file: %s\n", argv[dx+1]);
           exit(1);
       }
   }
   if (training) {
-      fpcm = fopen(argv[dx+2], "w");
+      fpcm = fopen(argv[dx+2], "wb");
       if (fpcm == NULL) {
           fprintf(stderr,"Error opening output PCM file: %s\n", argv[dx+2]);
           exit(1);

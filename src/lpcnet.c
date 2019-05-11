@@ -53,6 +53,7 @@ struct LPCNetState {
     float old_gain[FEATURES_DELAY];
     int frame_count;
     float deemph_mem;
+    FILE *ftest;                    /* used to dump states for automates tests */
 };
 
 
@@ -86,6 +87,10 @@ void run_frame_network(LPCNetState *lpcnet, float *condition, float *gru_a_condi
     compute_dense(&feature_dense2, condition, dense1_out);
     compute_dense(&gru_a_dense_feature, gru_a_condition, condition);
     if (lpcnet->frame_count < 1000) lpcnet->frame_count++;
+
+    if (lpcnet->ftest) {
+        fwrite(&in[NB_FEATURES], sizeof(float), EMBED_PITCH_OUT_SIZE, lpcnet->ftest);
+    }
 }
 
 void run_sample_network(NNetState *net, float *pdf, const float *condition, const float *gru_a_condition, int last_exc, int last_sig, int pred)
@@ -109,12 +114,22 @@ LPCNetState *lpcnet_create()
     LPCNetState *lpcnet;
     lpcnet = (LPCNetState *)calloc(sizeof(LPCNetState), 1);
     lpcnet->last_exc = 128;
+    lpcnet->ftest = NULL;
     return lpcnet;
 }
 
 void lpcnet_destroy(LPCNetState *lpcnet)
 {
+    if (lpcnet->ftest) fclose(lpcnet->ftest);
     free(lpcnet);
+}
+
+void lpcnet_open_test_file(LPCNetState *lpcnet, char file_name[]) {
+    lpcnet->ftest = fopen(file_name, "wb");
+    if (lpcnet->ftest == NULL) {
+        fprintf(stderr, "Error opening LPCNet test file: %s\n", file_name);
+        exit(1);
+    }
 }
 
 void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N)
@@ -137,6 +152,19 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
     memcpy(lpc, lpcnet->old_lpc[FEATURES_DELAY-1], LPC_ORDER*sizeof(lpc[0]));
     memmove(lpcnet->old_lpc[1], lpcnet->old_lpc[0], (FEATURES_DELAY-1)*LPC_ORDER*sizeof(lpc[0]));
     lpc_from_cepstrum(lpcnet->old_lpc[0], features);
+
+    if (lpcnet->ftest) {
+        float pitch_f = pitch;
+        fwrite(&pitch_f, sizeof(float), 1, lpcnet->ftest);
+        fwrite(&pitch_gain, sizeof(float), 1, lpcnet->ftest);
+        fwrite(lpc, sizeof(float), LPC_ORDER, lpcnet->ftest);
+        fwrite(condition, sizeof(float), FEATURE_DENSE2_OUT_SIZE, lpcnet->ftest);
+        if (lpcnet->frame_count==1) {
+            fprintf(stderr, "%d %d %d %d %d\n", EMBED_PITCH_OUT_SIZE, 1,1,LPC_ORDER,FEATURE_DENSE2_OUT_SIZE);
+            fprintf(stderr, "ftest cols = %d\n", EMBED_PITCH_OUT_SIZE+1+1+LPC_ORDER+FEATURE_DENSE2_OUT_SIZE);
+        }
+    }
+
     if (lpcnet->frame_count <= FEATURES_DELAY)
     {
         RNN_CLEAR(output, N);

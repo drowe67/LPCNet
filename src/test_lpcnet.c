@@ -34,7 +34,10 @@
 int main(int argc, char **argv) {
     FILE *fin, *fout;
     LPCNetState *net;
+    
     net = lpcnet_create();
+    lpcnet_open_test_file(net, "test_lpcnet_states.f32");
+    
     if (argc != 3)
     {
         fprintf(stderr, "usage: test_lpcnet <features.f32> <output.pcm>\n");
@@ -58,7 +61,8 @@ int main(int argc, char **argv) {
         }
     }
 
-   while (1) {
+    
+    while (1) {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_FEATURES];
         short pcm[FRAME_SIZE];

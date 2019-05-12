@@ -60,7 +60,6 @@ int main(int argc, char **argv) {
             exit(1);
         }
     }
-
     
     while (1) {
         float in_features[NB_TOTAL_FEATURES];

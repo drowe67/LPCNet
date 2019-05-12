@@ -11,7 +11,8 @@ export WINEPATH=$HOME/freedv-gui/codec2/build_win/src';'$HOME/freedv-gui/build_w
 p=$PWD
 
 # Windows
-cd build_win/src && make test_lpcnet
+cd build_win/src && make tdump test_lpcnet
+wine tdump.exe wia.wav wia.f32
 wine test_lpcnet.exe wia.f32 wia_out.raw
 cd $p
 

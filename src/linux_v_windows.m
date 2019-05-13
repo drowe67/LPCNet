@@ -8,7 +8,13 @@
 
 1;
 
-function check_vec(fig_num, name, vec1, vec2)
+function [vec1 vec2] = check_vec(fig_num, name, vec1, vec2)
+  # vector may be supplied as matrix that we need to reshape, e.g. for excitation signal
+  [rows cols] = size(vec1);
+  if cols != 1
+    vec1 = reshape(vec1', 1, rows*cols);
+    vec2= reshape(vec2', 1, rows*cols);
+  end
   figure(fig_num); clf;
   plot(vec1); hold on; plot(vec2); hold off;
   title(name);
@@ -79,9 +85,9 @@ check_vec(fig++, "pitch_gain", linux(:,st), windows(:,st)); st += n_pitch_gain;
 en = st + n_lpc-1; check_matrix(fig++, "lpc", linux(:,st:en), windows(:,st:en)); st += n_lpc;
 en = st + n_condition-1; check_matrix(fig++, "condition", linux(:,st:en), windows(:,st:en)); st += n_condition;
 en = st + n_gru_a-1; check_matrix(fig++, "gru a", linux(:,st:en), windows(:,st:en)); st += n_gru_a;
-en = st + n_last_sig-1; check_matrix(fig++, "last_sig", linux(:,st:en), windows(:,st:en)); st += n_last_sig;
-en = st + n_pred-1; check_matrix(fig++, "pred", linux(:,st:en), windows(:,st:en)); st += n_pred;
-en = st + n_exc-1; check_matrix(fig++, "exc", linux(:,st:en), windows(:,st:en)); st += n_exc;
-en = st + n_pcm-1; check_matrix(fig++, "pcm", linux(:,st:en), windows(:,st:en)); st += n_pcm;
 
+en = st + n_last_sig-1; last_sig = check_vec(fig++, "last_sig", linux(:,st:en), windows(:,st:en)); st += n_last_sig;
+en = st + n_pred-1; pred = check_vec(fig++, "pred", linux(:,st:en), windows(:,st:en)); st += n_pred;
+en = st + n_exc-1; exc = check_vec(fig++, "exc", linux(:,st:en), windows(:,st:en)); st += n_exc;
+en = st + n_pcm-1; pcm = check_vec(fig++, "pcm", linux(:,st:en), windows(:,st:en)); st += n_pcm;
 

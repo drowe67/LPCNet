@@ -360,7 +360,7 @@ void accum_embedding(const EmbeddingLayer *layer, float *output, int input)
 
 /* needed to replace Windows/gcc rand() with our own rand() function
    to get click free synthesised audio - not sure why */
-#define NNET_RAND_MAX 32767
+#define NNET_RAND_MAX 32768
 static uint32_t next = 1;
 uint16_t nnet_rand(void) {
     next = next * 1103515245 + 12345;
@@ -402,12 +402,14 @@ int sample_from_pdf(const float *pdf, int N, float exp_boost, float pdf_floor)
         tmp[i] = tmp[i-1] + MAX16(0, norm*tmp[i] - pdf_floor);
     }
     /* Do the sampling (from the cdf). */
-    float arand = ((float)nnet_rand()/NNET_RAND_MAX);
+    float annr = (float)nnet_rand();
+    float arand = (annr/NNET_RAND_MAX);
     r = tmp[N-1] * arand;
     
     for (i=0;i<N-1;i++)
     {
         if (r < tmp[i]) return i;
     }
+    fprintf(stderr, "DUAL_FC_OUT_SIZE: %d annr: %f arand: %f\n", DUAL_FC_OUT_SIZE, annr, arand);
     return N-1;
 }

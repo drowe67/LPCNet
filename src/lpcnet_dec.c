@@ -135,6 +135,7 @@ int main(int argc, char **argv) {
     }
     
     LPCNetFreeDV *lf = lpcnet_freedv_create(direct_split);
+    lpcnet_open_test_file(lf->net, "test_lpcnet_statesq.f32");
     LPCNET_QUANT *q = lf->q;
 
     // this program allows us to tweak params via command line

@@ -141,6 +141,7 @@ void lpcnet_open_test_file(LPCNetState *lpcnet, char file_name[]) {
 
 void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N)
 {
+    static int count = 0;
     int i;
     float condition[FEATURE_DENSE2_OUT_SIZE];
     float lpc[LPC_ORDER];
@@ -149,7 +150,7 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
     int pitch;
     float pitch_gain;
     /* FIXME: Remove this -- it's just a temporary hack to match the Python code. */
-    static int start = LPC_ORDER+1;
+    static int start = 0; /*(LPC_ORDER+1*/;
     /* FIXME: Do proper rounding once the Python code rounds properly. */
     pitch = (int)floor(.1 + 50*features[36]+100);
     pitch_gain = lpcnet->old_gain[FEATURES_DELAY-1];
@@ -166,15 +167,27 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
         fwrite(&pitch_gain, sizeof(float), 1, lpcnet->ftest);
         fwrite(lpc, sizeof(float), LPC_ORDER, lpcnet->ftest);
         fwrite(condition, sizeof(float), FEATURE_DENSE2_OUT_SIZE, lpcnet->ftest);
+        fwrite(gru_a_condition, sizeof(float), 3*GRU_A_STATE_SIZE, lpcnet->ftest);
         if (lpcnet->frame_count==1) {
-            fprintf(stderr, "%d %d %d %d %d\n", EMBED_PITCH_OUT_SIZE, 1,1,LPC_ORDER,FEATURE_DENSE2_OUT_SIZE);
-            fprintf(stderr, "ftest cols = %d\n", EMBED_PITCH_OUT_SIZE+1+1+LPC_ORDER+FEATURE_DENSE2_OUT_SIZE);
+            fprintf(stderr, "%d %d %d %d %d %d %d %d %d %d\n", EMBED_PITCH_OUT_SIZE, 1, 1, LPC_ORDER,FEATURE_DENSE2_OUT_SIZE,3*GRU_A_STATE_SIZE,N,N,N,N);
+            fprintf(stderr, "ftest cols = %d\n", EMBED_PITCH_OUT_SIZE+1+1+LPC_ORDER+FEATURE_DENSE2_OUT_SIZE+3*GRU_A_STATE_SIZE+N+N+N+N);
         }
     }
 
     if (lpcnet->frame_count <= FEATURES_DELAY)
     {
         RNN_CLEAR(output, N);
+        /* zero output when we return early on init */
+        for(i=0; i<N; i++)
+            output[i] = 0;
+        /* pad test file when we return early */
+        if (lpcnet->ftest) {
+            float dummy[4]= {0.0};
+            for(i=0; i<N; i++) {
+                fwrite(dummy, sizeof(float), 4, lpcnet->ftest);
+           }
+        }
+        
         return;
     }
     for (i=start;i<N;i++)
@@ -198,11 +211,18 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
         lpcnet->deemph_mem = pcm;
         if (pcm<-32767) pcm = -32767;
         if (pcm>32767) pcm = 32767;
+        if (lpcnet->ftest) {
+            float exc_f, last_sig_f;
+            last_sig_f = ulaw2lin(last_sig_ulaw);
+            fwrite(&last_sig_f, sizeof(float), 1, lpcnet->ftest);
+            fwrite(&pred, sizeof(float), 1, lpcnet->ftest);
+            exc_f = ulaw2lin(exc);
+            fwrite(&exc_f, sizeof(float), 1, lpcnet->ftest);
+            fwrite(&pcm, sizeof(float), 1, lpcnet->ftest);
+            count++;
+        }
         output[i] = (int)floor(.5 + pcm);
     }
     start = 0;
 }
 
-#if 1
-
-#endif

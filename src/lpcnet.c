@@ -74,15 +74,9 @@ void run_frame_network(LPCNetState *lpcnet, float *condition, float *gru_a_condi
     float conv2_out[FEATURE_CONV2_OUT_SIZE];
     float dense1_out[FEATURE_DENSE1_OUT_SIZE];
 
-    if (lpcnet->frame_count == 0)
-        fprintf(stderr, "FRAME_INPUT_SIZE: %d NB_FEATURES: %d EMBED_PITCH_OUT_SIZE: %d FEATURE_CONV2_OUT_SIZE: %d\n",
-                FRAME_INPUT_SIZE, NB_FEATURES, EMBED_PITCH_OUT_SIZE, FEATURE_CONV2_OUT_SIZE);
-
     net = &lpcnet->nnet;
     RNN_COPY(in, features, NB_FEATURES);
     compute_embedding(&embed_pitch, &in[NB_FEATURES], pitch);
-    if (lpcnet->frame_count == 0)
-        fprintf(stderr, "pitch: %d in: %f %f\n", pitch, in[NB_FEATURES], in[NB_FEATURES+1]);
     celt_assert(FRAME_INPUT_SIZE == feature_conv1.nb_inputs);
     compute_conv1d(&feature_conv1, conv1_out, net->feature_conv1_state, in);
     if (lpcnet->frame_count < FEATURE_CONV1_DELAY) RNN_CLEAR(conv1_out, FEATURE_CONV1_OUT_SIZE);
@@ -203,9 +197,6 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
         pred_ulaw = lin2ulaw(pred);
         run_sample_network(&lpcnet->nnet, pdf, condition, gru_a_condition, lpcnet->last_exc, last_sig_ulaw, pred_ulaw);
         exc = sample_from_pdf(pdf, DUAL_FC_OUT_SIZE, MAX16(0, 1.5f*pitch_gain - .5f), PDF_FLOOR);
-        if (fabs(ulaw2lin(exc)) > 30000) {
-            fprintf(stderr, "count: %d exc: %d %f\n", count, exc, (float)ulaw2lin(exc));
-        }
         pcm = pred + ulaw2lin(exc);
         RNN_MOVE(&lpcnet->last_sig[1], &lpcnet->last_sig[0], LPC_ORDER-1);
         lpcnet->last_sig[0] = pcm;

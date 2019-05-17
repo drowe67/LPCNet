@@ -286,7 +286,7 @@ int pitch_encode(float pitch_feature, int pitch_bits) {
     // we may not need any special precautions here.
     int periods = 0.1 + 50*pitch_feature + 100;
     if (periods < PITCH_MIN_PERIOD) periods = PITCH_MIN_PERIOD;
-    if (periods > PITCH_MAX_PERIOD) periods = PITCH_MAX_PERIOD;
+    if (periods >= PITCH_MAX_PERIOD) periods = PITCH_MAX_PERIOD-1;
 
     // should probably add rounding here
     int q = (periods - PITCH_MIN_PERIOD) >> (8 - pitch_bits);
@@ -295,6 +295,9 @@ int pitch_encode(float pitch_feature, int pitch_bits) {
 
 float pitch_decode(int pitch_bits, int q) {
     int periods_ = (q << (8 - pitch_bits)) + PITCH_MIN_PERIOD;
+    /* bit errors can push periods_ to 63*(8-6)+20 = 272 which breaks embedd layer */
+    if (periods_ < PITCH_MIN_PERIOD) periods_ = PITCH_MIN_PERIOD;
+    if (periods_ >= PITCH_MAX_PERIOD) periods_ = PITCH_MAX_PERIOD-1;
     return ((float)periods_ - 100.0 - 0.1)/50.0;
 }
                 

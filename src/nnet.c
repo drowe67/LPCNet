@@ -410,6 +410,6 @@ int sample_from_pdf(const float *pdf, int N, float exp_boost, float pdf_floor)
     {
         if (r < tmp[i]) return i;
     }
-    fprintf(stderr, "DUAL_FC_OUT_SIZE: %d annr: %f arand: %f\n", DUAL_FC_OUT_SIZE, annr, arand);
+    //fprintf(stderr, "DUAL_FC_OUT_SIZE: %d annr: %f arand: %f\n", DUAL_FC_OUT_SIZE, annr, arand);
     return N-1;
 }

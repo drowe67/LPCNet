@@ -35,6 +35,10 @@ sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | ap
 
 Thanks [Jean-Marc Valin](https://people.xiph.org/~jm/demo/lpcnet/) for making LPCNet available, and [Richard](https://github.com/hobbes1069) for the CMake build system.
 
+# Cross Compiling for Windows
+
+This code has been cross compiled to Windows using Fedora Linux 30, see the freedv-gui README.md, and build_winows.sh script.
+
 # Speech Material for Training
 
 Suitable training material can be obtained from the McGill University Telecommunications & Signal Processing Laboratory. Download the ISO and extract the 16k-LP7 directory, the src/concat.sh script can be used to generate a headerless file of training samples.

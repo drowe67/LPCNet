@@ -36,4 +36,6 @@ LPCNetState *lpcnet_create();
 void lpcnet_destroy(LPCNetState *lpcnet);
 void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N);
 
+void lpcnet_open_test_file(LPCNetState *lpcnet, char file_name[]);
+
 #endif

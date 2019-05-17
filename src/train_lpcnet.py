@@ -94,7 +94,7 @@ features = features[:, :, :nb_used_features]
 features[:,:,18:36] = 0   # zero out 18..35, so pitch and pitch gain being fed in, lpc gain ignored
 
 # EXPERIMENTAL - try training with a small range of features
-features[:,:,12:17] = 0 # zero out last 6, leaving 0..11, or a 12 element vector
+#features[:,:,12:17] = 0 # zero out last 6, leaving 0..11, or a 12 element vector
 
 fpad1 = np.concatenate([features[0:1, 0:2, :], features[:-1, -2:, :]], axis=0)
 fpad2 = np.concatenate([features[1:, :2, :], features[0:1, -2:, :]], axis=0)

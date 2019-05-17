@@ -13,11 +13,13 @@ figure(1); clf;
 mesh(feat_orig(1:n, 1:nb_bands))
 ylabel('Time'); xlabel('Frequency'); zlabel('Amplitude dB');
 axis([1 nb_bands 1 n 0 50]);
+print fig1_timefreq.png
 figure(2); clf;
 difference=feat_orig-feat_regen;
 mesh(difference(1:n, 1:nb_bands))
 ylabel('Time'); xlabel('Frequency'); zlabel('Amplitude dB');
 axis([1 nb_bands 1 n 0 50]);
+print fig2_timefreq_regen_error.png
 figure(3); clf;
 plot(feat_orig(50, 1:nb_bands),'b;frame 50 original;');
 hold on;
@@ -25,3 +27,4 @@ plot(feat_regen(50, 1:nb_bands),'g;frame 50 regen;');
 hold on;
 xlabel('Frequency'); ylabel('Amplitude dB');
 hold off;
+print fig3_fr50_orig_regen.png

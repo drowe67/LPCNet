@@ -327,7 +327,7 @@ int main(int argc, char **argv) {
   if (strcmp(argv[dx], "-") == 0)
       f1 = stdin;
   else {
-      f1 = fopen(argv[dx], "r");
+      f1 = fopen(argv[dx], "rb");
       if (f1 == NULL) {
           fprintf(stderr,"Error opening input .s16 16kHz speech input file: %s\n", argv[dx]);
           exit(1);
@@ -336,14 +336,14 @@ int main(int argc, char **argv) {
   if (strcmp(argv[dx+1], "-") == 0)
       ffeat = stdout;
   else {
-      ffeat = fopen(argv[dx+1], "w");
+      ffeat = fopen(argv[dx+1], "wb");
       if (ffeat == NULL) {
           fprintf(stderr,"Error opening output feature file: %s\n", argv[dx+1]);
           exit(1);
       }
   }
   if (training) {
-      fpcm = fopen(argv[dx+2], "w");
+      fpcm = fopen(argv[dx+2], "wb");
       if (fpcm == NULL) {
           fprintf(stderr,"Error opening output PCM file: %s\n", argv[dx+2]);
           exit(1);
@@ -427,35 +427,16 @@ int main(int argc, char **argv) {
             c2_Sn[i+c2_Sn_size-c2_frame_size] = x[i];
         float f0, voicing; int pitch_index;
         pitch_index = codec2_pitch_est(c2pitch, c2_Sn, &f0, &voicing);
+ 	if (pitch_index >= 2*PITCH_MAX_PERIOD) pitch_index = 2*PITCH_MAX_PERIOD-1;
+	if (pitch_index < 2*PITCH_MIN_PERIOD) pitch_index = 2*PITCH_MIN_PERIOD;
+	assert(pitch_index < 2*PITCH_MAX_PERIOD);
+	assert(pitch_index >= 2*PITCH_MIN_PERIOD);
         features[2*NB_BANDS] = 0.01*(pitch_index-200);
         // Tried using Codec 2 voicing est but poor results
         // features[2*NB_BANDS+1] = voicing;
         //int pitch_index_lpcnet = 100*features[2*NB_BANDS] + 200;        
         //fprintf(stderr, "%f %d %d v: %f %f\n", f0, pitch_index, pitch_index, features[2*NB_BANDS+1], voicing);
     }
-
-    // lower f0 by up to 20 Hz to get some coverage for lower pitch
-    // males.  Note we work in f0 domain, rather than pitch period
-    if (training) {
-        float pitch_index = 100*features[2*NB_BANDS] + 200;
-        float Fs=16000.0;
-        float f0 = Fs/pitch_index;
-        float f0_ = f0 + delta_f0;
-	float pitch_index_ = Fs/f0_;
-	if (pitch_index_ > 2*PITCH_MAX_PERIOD) pitch_index_ = 2*PITCH_MAX_PERIOD;
-	if (pitch_index_ < 2*PITCH_MIN_PERIOD) pitch_index_ = 2*PITCH_MIN_PERIOD;
-	/*
-	if (pitch_index_ > 2*PITCH_MAX_PERIOD) {
-	    fprintf(stderr, "f0: %f %f feat: %f %f\n", f0, f0_, feat, features[2*NB_BANDS]);
-	    fprintf(stderr, "pitch_index: %f pitch_index_: %f\n", pitch_index, pitch_index_);
-	}
-	*/
-	assert(pitch_index_ <= 2*PITCH_MAX_PERIOD);
-	assert(pitch_index_ >= 2*PITCH_MIN_PERIOD);
-	
-        features[2*NB_BANDS] = 0.01*(pitch_index_-200);       
-    }
-    
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);
     /* PCM is delayed by 1/2 frame to make the features centered on the frames. */
     for (i=0;i<FRAME_SIZE-TRAINING_OFFSET;i++) pcm[i+TRAINING_OFFSET] = float2short(x[i]);

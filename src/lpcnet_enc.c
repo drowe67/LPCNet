@@ -58,9 +58,14 @@ int main(int argc, char **argv) {
     int   logmag = 0;
     int   direct_split = 0;
     
+    fin = stdin;
+    fout = stdout;
+
     /* quantiser options */
     
     static struct option long_options[] = {
+        {"infile",       required_argument, 0, 'i'},
+        {"outfile",      required_argument, 0, 'u'},
         {"decimate",     required_argument, 0, 'd'},
         {"numstages",    required_argument, 0, 'n'},
         {"pitchquant",   required_argument, 0, 'o'},
@@ -73,8 +78,20 @@ int main(int argc, char **argv) {
     int   c;
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "d:n:o:p:sv", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "d:n:o:p:svi:u:", long_options, &opt_index)) != -1) {
         switch (c) {
+	case 'i':
+            if ((fin = fopen(optarg, "rb")) == NULL) {
+                fprintf(stderr, "Couldn't open input file: %s\n", optarg);
+                exit(1);
+            }
+            break;
+	case 'u':
+            if ((fout = fopen(optarg, "wb")) == NULL) {
+                fprintf(stderr, "Couldn't open output file: %s\n", optarg);
+                exit(1);
+            }
+            break;
         case 'd':
             dec = atoi(optarg);
             fprintf(stderr, "dec = %d\n", dec);
@@ -101,6 +118,7 @@ int main(int argc, char **argv) {
             break;
          default:
             fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n", argv[0]);
+            fprintf(stderr,"  [-i --infile]\n  [-u --outfile]\n");
             fprintf(stderr,"  [-n --numstages]\n  [-o --pitchbits nBits]\n");
             fprintf(stderr,"  [-p --pred predCoff] [-s --split]\n");
             fprintf(stderr,"  [-v --verbose]\n");
@@ -119,9 +137,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "dec: %d pred: %3.2f num_stages: %d mbest: %d bits_per_frame: %d frame: %2d ms bit_rate: %5.2f bits/s",
             q->dec, q->pred, q->num_stages, q->mbest, q->bits_per_frame, dec*10, (float)q->bits_per_frame/(dec*0.01));
     fprintf(stderr, "\n");
-
-    fin = stdin;
-    fout = stdout;
 
     char frame[lpcnet_bits_per_frame(lf)];
     int f=0;

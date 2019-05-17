@@ -35,6 +35,7 @@
 int main(int argc, char **argv) {
     FILE *fin, *fout;
     LPCNetState *net;
+<<<<<<< HEAD
     int logmag = 0;
 
     int o = 0;
@@ -60,6 +61,13 @@ int main(int argc, char **argv) {
     int dx = optind;
 
     if ((argc - dx) < 2)
+=======
+    
+    net = lpcnet_create();
+    lpcnet_open_test_file(net, "test_lpcnet_states.f32");
+    
+    if (argc != 3)
+>>>>>>> master
     {
     helpmsg:
         fprintf(stderr, "usage: test_lpcnet [--mag] <features.f32> <output.pcm>\n");
@@ -83,8 +91,12 @@ int main(int argc, char **argv) {
             exit(1);
         }
     }
+<<<<<<< HEAD
 
     net = lpcnet_create();
+=======
+    
+>>>>>>> master
     while (1) {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_FEATURES];

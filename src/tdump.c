@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   if (strcmp(argv[1], "-") == 0)
       f1 = stdin;
   else {
-      f1 = fopen(argv[1], "r");
+      f1 = fopen(argv[1], "rb");
       if (f1 == NULL) {
           fprintf(stderr,"Error opening input .s16 16kHz speech input file: %s\n", argv[1]);
           exit(1);
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
   if (strcmp(argv[2], "-") == 0)
       ffeat = stdout;
   else {
-      ffeat = fopen(argv[2], "w");
+      ffeat = fopen(argv[2], "wb");
       if (ffeat == NULL) {
           fprintf(stderr,"Error opening output feature file: %s\n", argv[2]);
           exit(1);
@@ -71,10 +71,12 @@ int main(int argc, char **argv) {
   float features[LPCNET_NB_FEATURES];
   int i;
   int f=0;
+  int nread;
+  
   while (1) {      
       /* note one frame delay */
       for (i=0;i<FRAME_SIZE;i++) x[i] = d->tmp[i];
-      int nread = fread(&d->tmp, sizeof(short), FRAME_SIZE, f1);
+      nread = fread(&d->tmp, sizeof(short), FRAME_SIZE, f1);
       if (nread != FRAME_SIZE) break;
       lpcnet_dump(d,x,features);
       fwrite(features, sizeof(float), LPCNET_NB_FEATURES, ffeat);

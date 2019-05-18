@@ -301,6 +301,8 @@ int main(int argc, char **argv) {
   int dump_fft = 0;
   FILE *f_fft = NULL;
   FILE *fshort = NULL;
+  int  nb_passes = 0;
+  int  nb_frames_per_pass = 0;
   
   for(i=0; i<NB_BANDS; i++) band_mask[i] = 1;
   
@@ -460,6 +462,9 @@ int main(int argc, char **argv) {
       rewind(f1);
       nread = fread(tmp, sizeof(short), FRAME_SIZE, f1);
       one_pass_completed = 1;
+      nb_passes++;
+      if (!nb_frames_per_pass)
+	  nb_frames_per_pass = count;
     }
     for (i=0;i<FRAME_SIZE;i++) E += tmp[i]*(float)tmp[i];
     if (training) {
@@ -543,7 +548,12 @@ int main(int argc, char **argv) {
   if (fshort) fclose(fshort);
   if (c2pitch_en) { free(c2_Sn); codec2_pitch_destroy(c2pitch); }
   if (dump_fft) fclose(f_fft);
+  if (training) {
+      int minutes = (float)nb_frames_per_pass*0.01/60.0;
       
+      fprintf(stderr, "frames_per_pass: %d (%d minutes) nb_passes: %d\n",
+	      nb_frames_per_pass, minutes, nb_passes);
+  }
   rnnoise_destroy(st);
   return 0;
 }

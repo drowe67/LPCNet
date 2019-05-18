@@ -126,6 +126,14 @@ void lpcnet_destroy(LPCNetState *lpcnet)
     free(lpcnet);
 }
 
+void lpcnet_open_test_file(LPCNetState *lpcnet, char file_name[]) {
+    lpcnet->ftest = fopen(file_name, "wb");
+    if (lpcnet->ftest == NULL) {
+        fprintf(stderr, "Error opening LPCNet test file: %s\n", file_name);
+        exit(1);
+    }
+}
+
 void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N, int logmag)
 {
     static int count = 0;
@@ -146,7 +154,6 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
     run_frame_network(lpcnet, condition, gru_a_condition, features, pitch);
     memcpy(lpc, lpcnet->old_lpc[FEATURES_DELAY-1], LPC_ORDER*sizeof(lpc[0]));
     memmove(lpcnet->old_lpc[1], lpcnet->old_lpc[0], (FEATURES_DELAY-1)*LPC_ORDER*sizeof(lpc[0]));
-<<<<<<< HEAD
     if (logmag) {
 	float tmp[NB_BANDS];
 	for (i=0;i<NB_BANDS;i++) tmp[i] = pow(10.f, features[i]);
@@ -154,8 +161,6 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
     }
     else
 	lpc_from_cepstrum(lpcnet->old_lpc[0], features);
-=======
-    lpc_from_cepstrum(lpcnet->old_lpc[0], features);
 
     if (lpcnet->ftest) {
         float pitch_f = pitch;
@@ -170,7 +175,6 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
         }
     }
 
->>>>>>> master
     if (lpcnet->frame_count <= FEATURES_DELAY)
     {
         RNN_CLEAR(output, N);

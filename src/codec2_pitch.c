@@ -92,10 +92,10 @@ CODEC2_PITCH *codec2_pitch_create(int *Sn_size, int *new_samples_each_call)
 
 /* returns an estimate of the pitch period, input is a buffer of samples on length pitch->m */
 
-int codec2_pitch_est(CODEC2_PITCH *pitch, float Sn[], float *f0, float *voicing)
+int codec2_pitch_est(CODEC2_PITCH *pitch, float Sn[], float *f0, float *voicing, float *snr)
 {
     COMP  Sw[FFT_ENC];	        /* DFT of Sn[] */
-    float pitch_samples, snr;
+    float pitch_samples;
     MODEL model;
     
     *f0 = nlp(pitch->nlp_states, Sn, pitch->c2const.n_samp, &pitch_samples, Sw, pitch->W, &pitch->prev_f0);
@@ -103,9 +103,9 @@ int codec2_pitch_est(CODEC2_PITCH *pitch, float Sn[], float *f0, float *voicing)
     dft_speech(&pitch->c2const, pitch->fft_fwd_cfg, Sw, Sn, pitch->w);
     two_stage_pitch_refinement(&pitch->c2const, &model, Sw);
     estimate_amplitudes(&model, Sw, pitch->W, 1);
-    snr = est_voicing_mbe(&pitch->c2const, &model, Sw, pitch->W);
+    *snr = est_voicing_mbe(&pitch->c2const, &model, Sw, pitch->W);
 
-    *voicing = 1.0 - 2.0/pow(10.0, snr/10.0);
+    *voicing = 1.0 - 2.0/pow(10.0, *snr/10.0);
     if (*voicing < 0.0) *voicing = 0.0;
     return (int)2*pitch_samples;
 }

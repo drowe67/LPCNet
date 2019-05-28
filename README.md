@@ -6,10 +6,11 @@ Experimental version of LPCNet being developed for over the air Digital Voice ex
 
 ```
 $ git clone https://github.com/drowe67/codec2.git
-$ cd codec2 && mkdir build_linux && cd build_linux && cmake ../ && sudo make install
+$ cd codec2 && mkdir build_linux && cd build_linux && cmake ../ && make
 $ cd ~
 $ git clone https://github.com/drowe67/LPCNet.git
-$ cd LPCNet && mkdir build_linux && cd build_linux && cmake ..
+$ cd LPCNet && mkdir build_linux && cd build_linux
+$ cmake -DCODEC2_BUILD_DIR=~/codec2/build_linux ..
 $ make
 ```
 

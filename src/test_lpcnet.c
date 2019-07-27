@@ -41,10 +41,10 @@ int main(int argc, char **argv) {
     int o = 0;
     int opt_idx = 0;
     while( o != -1 ) {
-	      static struct option long_opts[] = {
-	          {"mag", no_argument,0, 'i'},
-	          {0, 0, 0, 0}
-	      };
+        static struct option long_opts[] = {
+            {"mag", no_argument,0, 'i'},
+            {0, 0, 0, 0}
+        };
         
 	o = getopt_long(argc,argv,"ih",long_opts,&opt_idx);
         

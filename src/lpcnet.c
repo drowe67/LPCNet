@@ -134,7 +134,7 @@ void lpcnet_open_test_file(LPCNetState *lpcnet, char file_name[]) {
     }
 }
 
-void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N)
+void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N, int logmag)
 {
     static int count = 0;
     int i;
@@ -156,12 +156,12 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
     memmove(lpcnet->old_lpc[1], lpcnet->old_lpc[0], (FEATURES_DELAY-1)*LPC_ORDER*sizeof(lpc[0]));
 
     if (logmag) {
-	      float tmp[NB_BANDS];
-	      for (i=0;i<NB_BANDS;i++) tmp[i] = pow(10.f, features[i]);
-	      lpc_from_bands(lpcnet->old_lpc[0], tmp);
+        float tmp[NB_BANDS];
+        for (i=0;i<NB_BANDS;i++) tmp[i] = pow(10.f, features[i]);
+        lpc_from_bands(lpcnet->old_lpc[0], tmp);
     }
     else
-	      lpc_from_cepstrum(lpcnet->old_lpc[0], features);
+        lpc_from_cepstrum(lpcnet->old_lpc[0], features);
 
     if (lpcnet->ftest) {
         float pitch_f = pitch;

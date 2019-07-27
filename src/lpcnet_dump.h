@@ -50,6 +50,7 @@ typedef struct {
     CODEC2_PITCH *c2pitch;
     int c2_Sn_size, c2_frame_size;
     float *c2_Sn;
+    int c2voicing;
 } LPCNET_DUMP;
 
 LPCNET_DUMP *lpcnet_dump_create(void);

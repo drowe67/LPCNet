@@ -207,6 +207,7 @@ LPCNET_DUMP *lpcnet_dump_create(void) {
     assert(d->c2_Sn != NULL);
     for(i=0; i<d->c2_Sn_size; i++) d->c2_Sn[i] = 0.0;
 
+    d->c2voicing = 0;
     assert(LPCNET_NB_FEATURES == NB_FEATURES);
     return d;
 }
@@ -231,7 +232,7 @@ void lpcnet_dump(LPCNET_DUMP *d, float x[], float features[])
     for (i=0;i<FRAME_SIZE;i++) x[i] += rand()/(float)RAND_MAX - .5;
     compute_frame_features(d->st, X, Ex, features, x);
 
-    /* inject pitch from Codec 2 pitch estimator */
+    /* inject pitch and (optionally) voicing from Codec 2 pitch estimator */
     
     int c2_Sn_size = d->c2_Sn_size;
     int c2_frame_size = d->c2_frame_size;
@@ -240,10 +241,15 @@ void lpcnet_dump(LPCNET_DUMP *d, float x[], float features[])
         c2_Sn[i] = c2_Sn[i+c2_frame_size];
     for(i=0; i<c2_frame_size; i++)
         c2_Sn[i+c2_Sn_size-c2_frame_size] = x[i];
-    float f0, voicing; int pitch_index;
-    pitch_index = codec2_pitch_est(d->c2pitch, c2_Sn, &f0, &voicing);
+
+    float f0, voicing, snr; int pitch_index;
+    pitch_index = codec2_pitch_est(d->c2pitch, c2_Sn, &f0, &voicing, &snr);
     if (pitch_index >= 2*PITCH_MAX_PERIOD) pitch_index = 2*PITCH_MAX_PERIOD-1;
     if (pitch_index < 2*PITCH_MIN_PERIOD) pitch_index = 2*PITCH_MIN_PERIOD;
+
     features[2*NB_BANDS] = 0.01*(pitch_index-200);
+    if (d->c2voicing)
+        features[2*NB_BANDS+1] = voicing;
+
 }
     

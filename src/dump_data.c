@@ -293,6 +293,7 @@ int main(int argc, char **argv) {
   float noise_std=0;
   int training = -1;
   int c2pitch_en = 0;
+  int c2voicing_en = 0;
   int nvec = 5000000;
   float delta_f0 = 0.0;
   int fuzz = 1;
@@ -321,6 +322,7 @@ int main(int argc, char **argv) {
           {"train",     no_argument,       0, 'r'},
           {"short",     required_argument, 0, 's'},
           {"test",      no_argument,       0, 't'},
+          {"c2voicing", no_argument,       0, 'v'},
           {"fuzz",      required_argument, 0, 'z'},
           {0, 0, 0, 0}
       };
@@ -330,6 +332,9 @@ int main(int argc, char **argv) {
       switch(o){
       case 'c':
           c2pitch_en = 1;
+          break;
+      case 'v':
+          c2voicing_en = 1;
           break;
       case 'f':
           dump_fft = 1;
@@ -408,6 +413,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "  -z --fuzz             fuzz freq response and gain during training (default on)\n");
       fprintf(stderr, "  -f --dumpfft FileName dump a file of fft log energy samples\n");
       fprintf(stderr, "  -s --short   FileName dump (ulaw) pcm file in 16 bit short format as well\n");
+      fprintf(stderr, "  -c --c2voicing        Codec 2 voicing estimator\n");
       exit(1);
   }
     
@@ -514,15 +520,15 @@ int main(int argc, char **argv) {
             c2_Sn[i] = c2_Sn[i+c2_frame_size];
         for(i=0; i<c2_frame_size; i++)
             c2_Sn[i+c2_Sn_size-c2_frame_size] = x[i];
-        float f0, voicing; int pitch_index;
-        pitch_index = codec2_pitch_est(c2pitch, c2_Sn, &f0, &voicing);
- 	if (pitch_index >= 2*PITCH_MAX_PERIOD) pitch_index = 2*PITCH_MAX_PERIOD-1;
-	if (pitch_index < 2*PITCH_MIN_PERIOD) pitch_index = 2*PITCH_MIN_PERIOD;
-	assert(pitch_index < 2*PITCH_MAX_PERIOD);
-	assert(pitch_index >= 2*PITCH_MIN_PERIOD);
+        float f0, voicing, snr; int pitch_index;
+        pitch_index = codec2_pitch_est(c2pitch, c2_Sn, &f0, &voicing, &snr);
+      	if (pitch_index >= 2*PITCH_MAX_PERIOD) pitch_index = 2*PITCH_MAX_PERIOD-1;
+	      if (pitch_index < 2*PITCH_MIN_PERIOD) pitch_index = 2*PITCH_MIN_PERIOD;
+	      assert(pitch_index < 2*PITCH_MAX_PERIOD);
+	      assert(pitch_index >= 2*PITCH_MIN_PERIOD);
+
         features[2*NB_BANDS] = 0.01*(pitch_index-200);
-        // Tried using Codec 2 voicing est but poor results
-        // features[2*NB_BANDS+1] = voicing;
+        if (c2voicing_en) features[2*NB_BANDS+1] = voicing;
         //int pitch_index_lpcnet = 100*features[2*NB_BANDS] + 200;        
         //fprintf(stderr, "%f %d %d v: %f %f\n", f0, pitch_index, pitch_index, features[2*NB_BANDS+1], voicing);
     }

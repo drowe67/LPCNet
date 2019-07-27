@@ -6,10 +6,11 @@ Experimental version of LPCNet being developed for over the air Digital Voice ex
 
 ```
 $ git clone https://github.com/drowe67/codec2.git
-$ cd codec2 && mkdir build_linux && cd build_linux && cmake ../ && sudo make install
+$ cd codec2 && mkdir build_linux && cd build_linux && cmake ../ && make
 $ cd ~
 $ git clone https://github.com/drowe67/LPCNet.git
-$ cd LPCNet && mkdir build_linux && cd build_linux && cmake ..
+$ cd LPCNet && mkdir build_linux && cd build_linux
+$ cmake -DCODEC2_BUILD_DIR=~/codec2/build_linux ..
 $ make
 ```
 
@@ -22,7 +23,7 @@ $ sox ../../wav/wia.wav -t raw -r 16000 - | ./dump_data --c2pitch --test - - | .
 
 LPCNet at 1733 bits/s using direct-split quantiser:
 ```
-$ sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | aplay -f S16_LE -r 16000
+sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | aplay -f S16_LE -r 16000
 ```
 
 # Reading Further
@@ -37,7 +38,7 @@ Thanks [Jean-Marc Valin](https://people.xiph.org/~jm/demo/lpcnet/) for making LP
 
 # Cross Compiling for Windows
 
-This code has been cross compiled to Windows using Fedora Linux 30, see the freedv-gui README.md, and build_winows.sh script.
+This code has been cross compiled to Windows using Fedora Linux 30, see the freedv-gui README.md, and build_windows.sh script.
 
 # Speech Material for Training
 
@@ -46,14 +47,6 @@ Suitable training material can be obtained from the McGill University Telecommun
 ```
 cd 16k-LP7
 sh /path/to/LPCNet/src/concat.sh
-```
-
-## Playing files on a remote machine
-
-I use a server for training, but my laptop for listening:
-
-```
-david@laptop:~$ scp server:LPCNet/build_linux/speech_orig_16kb.raw /dev/stdout | aplay -f S16_LE -r 16000
 ```
 
 # Quantiser Experiments

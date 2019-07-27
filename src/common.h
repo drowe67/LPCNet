@@ -56,8 +56,8 @@ static RNN_INLINE int lin2ulaw(float x)
 }
 
 
-/** RNNoise wrapper for malloc(). To do your own dynamic allocation, all you need t
-o do is replace this function and rnnoise_free */
+/** RNNoise wrapper for malloc(). To do your own dynamic allocation,
+    all you need to do is replace this function and rnnoise_free */
 #ifndef OVERRIDE_RNNOISE_ALLOC
 static RNN_INLINE void *rnnoise_alloc (size_t size)
 {

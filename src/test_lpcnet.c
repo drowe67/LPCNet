@@ -35,15 +35,16 @@
 int main(int argc, char **argv) {
     FILE *fin, *fout;
     LPCNetState *net;
+  
     int logmag = 0;
 
     int o = 0;
     int opt_idx = 0;
     while( o != -1 ) {
-	static struct option long_opts[] = {
-	    {"mag", no_argument,0, 'i'},
-	    {0, 0, 0, 0}
-	};
+	      static struct option long_opts[] = {
+	          {"mag", no_argument,0, 'i'},
+	          {0, 0, 0, 0}
+	      };
         
 	o = getopt_long(argc,argv,"ih",long_opts,&opt_idx);
         
@@ -59,8 +60,7 @@ int main(int argc, char **argv) {
     }
     int dx = optind;
 
-    if ((argc - dx) < 2)
-    {
+    if ((argc - dx) < 2) {
     helpmsg:
         fprintf(stderr, "usage: test_lpcnet [--mag] <features.f32> <output.pcm>\n");
         return 0;
@@ -85,6 +85,8 @@ int main(int argc, char **argv) {
     }
 
     net = lpcnet_create();
+    lpcnet_open_test_file(net, "test_lpcnet_states.f32");
+  
     while (1) {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_FEATURES];

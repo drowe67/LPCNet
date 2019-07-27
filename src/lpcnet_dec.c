@@ -60,9 +60,14 @@ int main(int argc, char **argv) {
     int   logmag = 0;
     int   direct_split = 0;
 
+    fin = stdin;
+    fout = stdout;
+
     /* quantiser options */
     
     static struct option long_options[] = {
+        {"infile",      required_argument, 0, 'i'},
+        {"outfile",     required_argument, 0, 'u'},
         {"ber",         required_argument, 0, 'b'},
         {"decimate",    required_argument, 0, 'd'},
         {"numstages",   required_argument, 0, 'n'},
@@ -76,8 +81,20 @@ int main(int argc, char **argv) {
     int   c;
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "b:d:n:o:p:sv", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "b:d:n:o:p:svi:u:", long_options, &opt_index)) != -1) {
         switch (c) {
+ 	case 'i':
+            if ((fin = fopen(optarg, "rb")) == NULL) {
+                fprintf(stderr, "Couldn't open input file: %s\n", optarg);
+                exit(1);
+            }
+            break;
+	case 'u':
+            if ((fout = fopen(optarg, "wb")) == NULL) {
+                fprintf(stderr, "Couldn't open output file: %s\n", optarg);
+                exit(1);
+            }
+            break;
         case 'b':
             ber = atof(optarg);
             fprintf(stderr, "BER = %f\n", ber);
@@ -118,6 +135,7 @@ int main(int argc, char **argv) {
     }
     
     LPCNetFreeDV *lf = lpcnet_freedv_create(direct_split);
+    lpcnet_open_test_file(lf->net, "test_lpcnet_statesq.f32");
     LPCNET_QUANT *q = lf->q;
 
     // this program allows us to tweak params via command line
@@ -130,8 +148,6 @@ int main(int argc, char **argv) {
             q->dec, q->pred, q->num_stages, q->mbest, q->bits_per_frame, dec*10, (float)q->bits_per_frame/(dec*0.01));
     fprintf(stderr, "\n");
 
-    fin = stdin;
-    fout = stdout;
     int nbits = 0, nerrs = 0;
     char frame[q->bits_per_frame];
     int bits_read = 0;

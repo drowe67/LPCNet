@@ -241,8 +241,12 @@ void lpcnet_dump(LPCNET_DUMP *d, float x[], float features[])
         c2_Sn[i] = c2_Sn[i+c2_frame_size];
     for(i=0; i<c2_frame_size; i++)
         c2_Sn[i+c2_Sn_size-c2_frame_size] = x[i];
+
     float f0, voicing, snr; int pitch_index;
-    pitch_index = codec2_pitch_est(d->c2pitch, c2_Sn, &f0, &voicing, &snr);
+    pitch_index = codec2_pitch_est(d->c2pitch, c2_Sn, &f0, &voicing), &snr;
+    if (pitch_index >= 2*PITCH_MAX_PERIOD) pitch_index = 2*PITCH_MAX_PERIOD-1;
+    if (pitch_index < 2*PITCH_MIN_PERIOD) pitch_index = 2*PITCH_MIN_PERIOD;
+
     features[2*NB_BANDS] = 0.01*(pitch_index-200);
     if (d->c2voicing)
         features[2*NB_BANDS+1] = voicing;

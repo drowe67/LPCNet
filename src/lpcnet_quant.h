@@ -48,8 +48,6 @@ void lpcnet_quant_compute_bits_per_frame(LPCNET_QUANT *q);
 extern FILE *lpcnet_fsv;
 extern int lpcnet_verbose;
 
-int quantise(const float * cb, float vec[], float w[], int k, int m, float *se);
-
 void quant_pred(float vec_out[],  /* prev quant vector, and output */
                 float vec_in[],
                 float pred,

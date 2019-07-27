@@ -41,4 +41,6 @@ typedef struct LPCNetFreeDV LPCNetFreeDV;
 int lpcnet_bits_per_frame(LPCNetFreeDV *);
 int lpcnet_samples_per_frame(LPCNetFreeDV *);
 
+void lpcnet_open_test_file(LPCNetState *lpcnet, char file_name[]);
+
 #endif

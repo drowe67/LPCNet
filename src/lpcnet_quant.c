@@ -28,6 +28,8 @@ int lpcnet_verbose = 0;
 #define DEFAULT_PITCH_BITS 6
 #define DEFAULT_DEC        3
 
+static int quantise(const float * cb, float vec[], float w[], int k, int m, float *se);
+
 LPCNET_QUANT *lpcnet_quant_create(int direct_split) {
     LPCNET_QUANT *q = (LPCNET_QUANT*)malloc(sizeof(LPCNET_QUANT));
     if (q == NULL) return NULL;
@@ -133,7 +135,7 @@ void quant_pred_mbest(float vec_out[],
     float target[k];
     
     for(i=0; i<num_stages; i++) {
-        mbest_stage[i] = mbest_create(mbest_survivors, num_stages);
+        mbest_stage[i] = lpcnet_mbest_create(mbest_survivors, num_stages);
         index[i] = 0;
     }
 
@@ -150,7 +152,7 @@ void quant_pred_mbest(float vec_out[],
     /* now quantise err[] using multi-stage mbest search, preserving
        mbest_survivors at each stage */
     
-    mbest_search(vq, err, w, k, m[0], mbest_stage[0], index);
+    lpcnet_mbest_search(vq, err, w, k, m[0], mbest_stage[0], index);
     if (lpcnet_verbose) MBEST_PRINT("Stage 1:", mbest_stage[0]);
     
     for(s=1; s<num_stages; s++) {
@@ -172,7 +174,7 @@ void quant_pred_mbest(float vec_out[],
                 }
             }
             pv("   target: ", target);
-            mbest_search(&vq[s*k*MAX_ENTRIES], target, w, k, m[s], mbest_stage[s], index);
+            lpcnet_mbest_search(&vq[s*k*MAX_ENTRIES], target, w, k, m[s], mbest_stage[s], index);
         }
         char str[80]; sprintf(str,"Stage %d:", s+1);
         if (lpcnet_verbose) MBEST_PRINT(str, mbest_stage[s]);
@@ -195,7 +197,7 @@ void quant_pred_mbest(float vec_out[],
     quant_pred_output(vec_out, indexes, err, pred, num_stages, vq, k);
     
     for(i=0; i<num_stages; i++)
-        mbest_destroy(mbest_stage[i]);
+        lpcnet_mbest_destroy(mbest_stage[i]);
 }
 
 
@@ -241,7 +243,7 @@ void quant_pred_output(float vec_out[],
 
 \*---------------------------------------------------------------------------*/
 
-int quantise(const float * cb, float vec[], float w[], int k, int m, float *se)
+static int quantise(const float * cb, float vec[], float w[], int k, int m, float *se)
 /* float   cb[][K];	current VQ codebook		*/
 /* float   vec[];	vector to quantise		*/
 /* float   w[];         weighting vector                */
@@ -284,7 +286,7 @@ int pitch_encode(float pitch_feature, int pitch_bits) {
     // we may not need any special precautions here.
     int periods = 0.1 + 50*pitch_feature + 100;
     if (periods < PITCH_MIN_PERIOD) periods = PITCH_MIN_PERIOD;
-    if (periods > PITCH_MAX_PERIOD) periods = PITCH_MAX_PERIOD;
+    if (periods >= PITCH_MAX_PERIOD) periods = PITCH_MAX_PERIOD-1;
 
     // should probably add rounding here
     int q = (periods - PITCH_MIN_PERIOD) >> (8 - pitch_bits);
@@ -293,6 +295,9 @@ int pitch_encode(float pitch_feature, int pitch_bits) {
 
 float pitch_decode(int pitch_bits, int q) {
     int periods_ = (q << (8 - pitch_bits)) + PITCH_MIN_PERIOD;
+    /* bit errors can push periods_ to 63*(8-6)+20 = 272 which breaks embedd layer */
+    if (periods_ < PITCH_MIN_PERIOD) periods_ = PITCH_MIN_PERIOD;
+    if (periods_ >= PITCH_MAX_PERIOD) periods_ = PITCH_MAX_PERIOD-1;
     return ((float)periods_ - 100.0 - 0.1)/50.0;
 }
                 

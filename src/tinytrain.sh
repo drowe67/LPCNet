@@ -4,7 +4,7 @@
 # training database.  Used to perform quick sanity checks with a few hrs training
 
 SRC=all_speech
-DATE=190727b
+DATE=190727e
 
 synth() {
   ./src/dump_data --test --c2pitch ~/Downloads/$1.sw $1.f32

@@ -24,6 +24,7 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <getopt.h>
 #include <math.h>
 #include <stdio.h>
 #include "arch.h"
@@ -34,31 +35,57 @@
 int main(int argc, char **argv) {
     FILE *fin, *fout;
     LPCNetState *net;
-    net = lpcnet_create();
-    if (argc != 3)
-    {
-        fprintf(stderr, "usage: test_lpcnet <features.f32> <output.pcm>\n");
+    int logmag = 0;
+
+    int o = 0;
+    int opt_idx = 0;
+    while( o != -1 ) {
+        static struct option long_opts[] = {
+            {"mag", no_argument,0, 'i'},
+            {0, 0, 0, 0}
+        };
+        
+	o = getopt_long(argc,argv,"ih",long_opts,&opt_idx);
+        
+	switch(o){
+	case 'i':
+	    logmag = 1;
+	    fprintf(stderr, "logmag: %d\n", logmag);
+	    break;
+	case '?':
+	    goto helpmsg;
+	    break;
+	}
+    }
+    int dx = optind;
+
+    if ((argc - dx) < 2) {
+    helpmsg:
+        fprintf(stderr, "usage: test_lpcnet [--mag] <features.f32> <output.pcm>\n");
         return 0;
     }
-    if (strcmp(argv[1], "-") == 0) fin = stdin;
+
+    if (strcmp(argv[dx], "-") == 0) fin = stdin;
     else {
-        fin = fopen(argv[1], "rb");
+        fin = fopen(argv[dx], "rb");
         if (fin == NULL) {
-            fprintf(stderr, "Can't open %s\n", argv[1]);
+            fprintf(stderr, "Can't open %s\n", argv[dx]);
             exit(1);
         }
     }
     
-    if (strcmp(argv[2], "-") == 0) fout = stdout;
+    if (strcmp(argv[dx+1], "-") == 0) fout = stdout;
     else {
-        fout = fopen(argv[2], "wb");
+        fout = fopen(argv[dx+1], "wb");
         if (fout == NULL) {
-            fprintf(stderr, "Can't open %s\n", argv[2]);
+            fprintf(stderr, "Can't open %s\n", argv[dx+1]);
             exit(1);
         }
     }
 
-   while (1) {
+    net = lpcnet_create();
+    //lpcnet_open_test_file(net, "test_lpcnet_states.f32");
+    while (1) {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_FEATURES];
         short pcm[FRAME_SIZE];
@@ -66,7 +93,7 @@ int main(int argc, char **argv) {
         if (nread != NB_TOTAL_FEATURES) break;
         RNN_COPY(features, in_features, NB_FEATURES);
         RNN_CLEAR(&features[18], 18);
-        lpcnet_synthesize(net, pcm, features, FRAME_SIZE);
+        lpcnet_synthesize(net, pcm, features, FRAME_SIZE, logmag);
         fwrite(pcm, sizeof(pcm[0]), FRAME_SIZE, fout);
         if (fout == stdout) fflush(stdout);
     }

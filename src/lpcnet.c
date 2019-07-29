@@ -117,7 +117,7 @@ void lpcnet_destroy(LPCNetState *lpcnet)
     free(lpcnet);
 }
 
-void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N)
+void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N, int logmag)
 {
     int i;
     float condition[FEATURE_DENSE2_OUT_SIZE];

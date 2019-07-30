@@ -15,6 +15,7 @@ set(lpcnet_freedv_srcs
     lpcnet.c
     lpcnet_freedv.c
     nnet.c
+    nnet_rw.c
     ${lpcnet_SOURCE_DIR}/nnet_data.c
 )
 

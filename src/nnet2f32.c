@@ -20,8 +20,7 @@ void read_embedding_weights(char *name, const EmbeddingLayer *l, FILE *f32) {
     int n = l->nb_inputs*l->dim;
     printf("%s: %d\n", name, n);
     int ret;
-    ret = fread(l->embedding_weights, sizeof(float), n, f32);
-    assert(ret == n);
+    ret = fread(l->embedding_weights, sizeof(float), n, f32); assert(ret == n);
 }
 
 void check_embedding_weights(char *name, const EmbeddingLayer *l, FILE *f32) {
@@ -84,8 +83,9 @@ void read_dense_weights(char *name, const DenseLayer *l, FILE *f32) {
     int nbias = l->nb_neurons;
     int nweights = l->nb_inputs*l->nb_neurons;
     printf("%s: %d %d\n", name, nweights, nbias);
-    fread((float*)l->bias, sizeof(float), nbias, f32);
-    fread((float*)l->input_weights, sizeof(float), nweights, f32);
+    int ret;
+    ret = fread(l->bias, sizeof(float), nbias, f32); assert(ret == nbias);
+    ret = fread(l->input_weights, sizeof(float), nweights, f32); assert(ret == nweights);
 }
 
 void write_mdense_weights(char *name, const MDenseLayer *l, FILE *f32) {
@@ -114,9 +114,10 @@ void read_mdense_weights(char *name, const MDenseLayer *l, FILE *f32) {
     int nbias = l->nb_neurons*l->nb_channels;
     int nfactor = l->nb_neurons*l->nb_channels;
     printf("%s: %d %d %d\n", name, ninput, nbias, nfactor);
-    fread((float*)l->bias, sizeof(float), nbias, f32);
-    fread((float*)l->input_weights, sizeof(float), ninput, f32);
-    fread((float*)l->factor, sizeof(float), nfactor, f32);
+    int ret;
+    ret = fread(l->bias, sizeof(float), nbias, f32); assert(ret == nbias);
+    ret = fread(l->input_weights, sizeof(float), ninput, f32); assert(ret == ninput);
+    ret = fread(l->factor, sizeof(float), nfactor, f32); assert(ret == nfactor);
 }
 
 void write_conv1d_weights(char *name, const Conv1DLayer *l, FILE *f32) {
@@ -137,8 +138,9 @@ void check_conv1d_weights(char *name, const Conv1DLayer *l, FILE *f32) {
 void read_conv1d_weights(char *name, const Conv1DLayer *l, FILE *f32) {
     int n = l->nb_inputs*l->kernel_size*l->nb_neurons;
     printf("%s: %d %d\n", name, n, l->nb_neurons);
-    fread((float*)l->input_weights, sizeof(float), n, f32);
-    fread((float*)l->bias, sizeof(float), l->nb_neurons, f32);
+    int ret;
+    ret = fread(l->input_weights, sizeof(float), n, f32); assert(ret == n);
+    ret = fread(l->bias, sizeof(float), l->nb_neurons, f32); assert(ret == l->nb_neurons);
 }
 
 void write_gru_weights(char *name, const GRULayer *l, FILE *f32) {
@@ -167,9 +169,10 @@ void read_gru_weights(char *name, const GRULayer *l, FILE *f32) {
     int ninput = l->nb_inputs*l->nb_neurons*3;
     int nrecurrent = l->nb_neurons*l->nb_neurons*3;
     printf("%s: %d %d %d\n", name, nbias, ninput, nrecurrent);
-    fread((float*)l->bias, sizeof(float), nbias, f32);
-    fread((float*)l->input_weights, sizeof(float), ninput, f32);
-    fread((float*)l->recurrent_weights, sizeof(float), nrecurrent, f32);
+    int ret;
+    ret = fread(l->bias, sizeof(float), nbias, f32); assert(ret == nbias);
+    ret = fread(l->input_weights, sizeof(float), ninput, f32); assert(ret == ninput);
+    ret = fread(l->recurrent_weights, sizeof(float), nrecurrent, f32); assert(ret == nrecurrent);
 }
 
 int sparse_sgemv_count_idx(int rows, const int *idx)
@@ -217,17 +220,18 @@ void read_sparse_gru_weights(char *name, const SparseGRULayer *l, FILE *f32) {
     int nrecurrent = l->nb_neurons*l->nb_neurons*3;
     int nidx = sparse_sgemv_count_idx(ndiag, l->idx);
     printf("%s: %d %d %d %d\n", name, nbias, ndiag, nrecurrent, nidx);
-    fread((float*)l->bias, sizeof(float), nbias, f32);
-    fread((float*)l->diag_weights, sizeof(float), ndiag, f32);
-    fread((float*)l->recurrent_weights, sizeof(float), nrecurrent, f32);
-    fread((int*)l->idx, sizeof(int), nidx, f32);
+    int ret;
+    ret = fread(l->bias, sizeof(float), nbias, f32); assert(ret == nbias);
+    ret = fread(l->diag_weights, sizeof(float), ndiag, f32); assert(ret == ndiag);
+    ret = fread(l->recurrent_weights, sizeof(float), nrecurrent, f32); assert(ret == nrecurrent);
+    ret = fread(l->idx, sizeof(int), nidx, f32);
 }
 
 void test_write(char *fn) {
     FILE *f32 = fopen(fn, "wb");
     assert(f32 != NULL);
 
-    printf("test write....\n");
+    printf("writing ....\n");
     write_embedding_weights("gru_a_embed_sig.....", &gru_a_embed_sig, f32);
     write_embedding_weights("gru_a_embed_pred....", &gru_a_embed_pred, f32);
     write_embedding_weights("gru_a_embed_exc.....", &gru_a_embed_pred, f32);

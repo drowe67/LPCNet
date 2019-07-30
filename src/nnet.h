@@ -82,7 +82,7 @@ typedef struct {
 } Conv1DLayer;
 
 typedef struct {
-  const float *embedding_weights;
+  float *embedding_weights;
   int nb_inputs;
   int dim;
 } EmbeddingLayer;

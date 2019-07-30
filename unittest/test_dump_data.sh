@@ -24,7 +24,7 @@ TEST_TARG_RAW=190727e_f.raw
 
 # test_synth
 
-../build_linux/src/dump_data --test --c2pitch ~/Downloads/$TEST_SRC $TEST_OUT_F32
+../build_linux/src/dump_data --test --c2pitch --mag ~/Downloads/$TEST_SRC $TEST_OUT_F32
 ../build_linux/src/test_lpcnet --mag $TEST_OUT_F32 $TEST_OUT_RAW
 diff $TEST_OUT_F32 $TEST_TARG_F32 || { echo "ERROR in test .f32 output! Exiting..."; exit 1; }
 echo "test .f32 OK"

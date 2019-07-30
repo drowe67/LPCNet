@@ -30,6 +30,7 @@
 #include "nnet.h"
 #include "common.h"
 #include "arch.h"
+#include "freq.h"
 #include "lpcnet.h"
 
 
@@ -136,7 +137,28 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
     run_frame_network(lpcnet, condition, gru_a_condition, features, pitch);
     memcpy(lpc, lpcnet->old_lpc[FEATURES_DELAY-1], LPC_ORDER*sizeof(lpc[0]));
     memmove(lpcnet->old_lpc[1], lpcnet->old_lpc[0], (FEATURES_DELAY-1)*LPC_ORDER*sizeof(lpc[0]));
-    lpc_from_cepstrum(lpcnet->old_lpc[0], features);
+
+#define NEW
+#ifdef NEW
+    if (logmag) {
+        float tmp[NB_BANDS];
+        for (i=0;i<NB_BANDS;i++) tmp[i] = pow(10.f, features[i]);
+        lpc_from_bands(lpcnet->old_lpc[0], tmp);
+    }
+    else
+	lpc_from_cepstrum(lpcnet->old_lpc[0], features);
+#else
+	lpc_from_cepstrum(lpcnet->old_lpc[0], features);
+#endif
+/*
+    for(i=0; i<NB_BANDS; i++) {
+	fprintf(stderr, "features[%d]: %f\n", i, features[i]);
+    }
+    for(i=0; i<=LPC_ORDER; i++) {
+	fprintf(stderr, "lpc[%d]: %f\n", i, lpcnet->old_lpc[0][i]);
+    }
+    //exit(0);
+    */
     if (lpcnet->frame_count <= FEATURES_DELAY)
     {
         RNN_CLEAR(output, N);

@@ -64,3 +64,6 @@ target_link_libraries(lpcnet_dec lpcnetfreedv m codec2)
 
 add_executable(idct idct.c)
 target_link_libraries(idct lpcnetfreedv m)
+
+add_executable(nnet2f32 nnet2f32.c)
+target_link_libraries(nnet2f32 lpcnetfreedv m)

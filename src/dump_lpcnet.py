@@ -78,9 +78,28 @@ def printSparseVector(f, A, name):
                 idx = np.append(idx, j)
                 W = np.concatenate([W, A[j, i*16:(i+1)*16]])
         idx[pos] = nb_nonzero
-    printVector(f, W, name)
     #idx = np.tile(np.concatenate([np.array([N]), np.arange(N)]), 3*N//16)
+
+    # set a maximum length to accomodate run time loading of other
+    # networks that may not have been sparsified, or sparsified to
+    # different lengths
+    
+    print(A.shape[0]*A.shape[1])
+    print(W.shape)
+    print(idx.shape)
+    max_W = A.shape[0]*A.shape[1]
+    sz = max_W - W.shape[0]
+    zeropad = np.zeros((sz,), dtype='int')
+    W = np.concatenate((W,zeropad))
+    
+    max_idx = 32767
+    sz = 32767 - idx.shape[0]
+    zeropad = np.zeros((sz,), dtype='int')
+    idx = np.concatenate((idx,zeropad))
+
+    printVector(f, W, name)
     printVector(f, idx, name + '_idx', dtype='int')
+    
     return;
 
 def dump_layer_ignore(self, f, hf):

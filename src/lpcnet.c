@@ -24,6 +24,7 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include "nnet_data.h"
@@ -75,6 +76,7 @@ void run_frame_network(LPCNetState *lpcnet, float *condition, float *gru_a_condi
     float dense1_out[FEATURE_DENSE1_OUT_SIZE];
     net = &lpcnet->nnet;
     RNN_COPY(in, features, NB_FEATURES);
+    assert(pitch <= 255); assert(pitch > 0);
     compute_embedding(&embed_pitch, &in[NB_FEATURES], pitch);
     compute_conv1d(&feature_conv1, conv1_out, net->feature_conv1_state, in);
     if (lpcnet->frame_count < FEATURE_CONV1_DELAY) RNN_CLEAR(conv1_out, FEATURE_CONV1_OUT_SIZE);

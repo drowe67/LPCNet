@@ -30,7 +30,8 @@
 #include "arch.h"
 #include "lpcnet.h"
 #include "freq.h"
-
+#include "nnet_rw.h"
+#include "nnet_data.h"
 
 int main(int argc, char **argv) {
     FILE *fin, *fout;
@@ -41,16 +42,21 @@ int main(int argc, char **argv) {
     int opt_idx = 0;
     while( o != -1 ) {
         static struct option long_opts[] = {
-            {"mag", no_argument,0, 'i'},
+            {"mag", no_argument, 0, 'i'},
+            {"nnet", required_argument, 0, 'n'},
             {0, 0, 0, 0}
         };
         
-	o = getopt_long(argc,argv,"ih",long_opts,&opt_idx);
+	o = getopt_long(argc,argv,"ihn:",long_opts,&opt_idx);
         
 	switch(o){
 	case 'i':
 	    logmag = 1;
 	    fprintf(stderr, "logmag: %d\n", logmag);
+	    break;
+	case 'n':
+	    fprintf(stderr, "loading nnet: %s\n", optarg);
+	    nnet_read(optarg);
 	    break;
 	case '?':
 	    goto helpmsg;
@@ -84,7 +90,15 @@ int main(int argc, char **argv) {
     }
 
     net = lpcnet_create();
+    
     //lpcnet_open_test_file(net, "test_lpcnet_states.f32");
+    #ifdef TEST_UNUSED_BAISES
+    /* so are top biases used? */
+    fprintf(stderr, "gru_a_dense_feature.nb_neurons: %d\n", gru_a_dense_feature.nb_neurons);
+    for(int i=gru_a_dense_feature.nb_neurons; i<2*gru_a_dense_feature.nb_neurons; i++) {
+	gru_a_dense_feature.bias[i] = 0.0;
+    }
+    #endif
     while (1) {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_FEATURES];

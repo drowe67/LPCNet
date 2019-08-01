@@ -1,7 +1,7 @@
 /*
   nnet2f32.c
 
-  Writes current compiled-in model to a binary file of floats.
+  Writes current compiled-in model to a binary file of floats, and runs a few tests.
 */
 
 #include <assert.h>

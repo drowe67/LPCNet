@@ -15,6 +15,7 @@ set(lpcnet_freedv_srcs
     lpcnet.c
     lpcnet_freedv.c
     nnet.c
+    nnet_rw.c
     ${lpcnet_SOURCE_DIR}/nnet_data.c
 )
 
@@ -90,6 +91,9 @@ target_link_libraries(lpcnet_dec lpcnetfreedv m codec2)
 
 add_executable(idct idct.c)
 target_link_libraries(idct lpcnetfreedv m codec2)
+
+add_executable(nnet2f32 nnet2f32.c)
+target_link_libraries(nnet2f32 lpcnetfreedv m)
 
 install(TARGETS lpcnet_enc lpcnet_dec
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

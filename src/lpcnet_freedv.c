@@ -73,7 +73,7 @@ void lpcnet_dec(LPCNetFreeDV *lf, char *frame, short* pcm)
        
         RNN_COPY(features, in_features, NB_TOTAL_FEATURES);
         RNN_CLEAR(&features[18], 18);
-        lpcnet_synthesize(net, pcm, features, FRAME_SIZE);
+        lpcnet_synthesize(net, pcm, features, FRAME_SIZE, 0);
         pcm += FRAME_SIZE;
     }
 }

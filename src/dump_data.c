@@ -109,7 +109,8 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const f
 }
 
 static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_cpx *P,
-                                  float *Ex, float *Ep, float *Exp, float *features, const float *in) {
+				   float *Ex, float *Ep, float *Exp, float *features, const float *in,
+				   int logmag) {
   int i;
   float E = 0;
   float Ly[NB_BANDS];
@@ -143,11 +144,7 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
   compute_band_corr(Exp, X, P);
   for (i=0;i<NB_BANDS;i++) Exp[i] = Exp[i]/sqrt(.001+Ex[i]*Ep[i]);
   dct(tmp, Exp);
-  /*
-  for (i=0;i<NB_BANDS;i++) features[NB_BANDS+i] = tmp[i];
-  features[NB_BANDS] -= 1.3;
-  features[NB_BANDS+1] -= 0.9;
-  */
+
   logMax = -2;
   follow = -2;
   for (i=0;i<NB_BANDS;i++) {
@@ -157,22 +154,24 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, kiss_fft_c
     follow = MAX16(follow-2.5, Ly[i]);
     E += Ex[i];
   }
-  dct(features, Ly);
-  features[0] -= 4;
-  g = lpc_from_cepstrum(st->lpc, features);
-#if 0
-  for (i=0;i<NB_BANDS;i++) printf("%f ", Ly[i]);
-  printf("\n");
-#endif
+
+  if (logmag) {
+    memcpy(features, Ly, sizeof(float)*NB_BANDS);
+    float Ex[NB_BANDS];
+    RNN_COPY(Ex, Ly, NB_BANDS);
+    for (i=0;i<NB_BANDS;i++) Ex[i] = pow(10.f, Ly[i]);
+    g = lpc_from_bands(st->lpc, Ex);
+  }
+  else {
+    dct(features, Ly);
+    features[0] -= 4;
+    g = lpc_from_cepstrum(st->lpc, features);
+  }
 
   features[2*NB_BANDS] = .01*(pitch_index-200);
   features[2*NB_BANDS+1] = gain;
   features[2*NB_BANDS+2] = log10(g);
   for (i=0;i<LPC_ORDER;i++) features[2*NB_BANDS+3+i] = st->lpc[i];
-#if 0
-  for (i=0;i<NB_FEATURES;i++) printf("%f ", features[i]);
-  printf("\n");
-#endif
 }
 
 static void biquad(float *y, float mem[2], const float *x, const float *b, const float *a, int N) {
@@ -265,7 +264,8 @@ int main(int argc, char **argv) {
   int training = -1;
   int c2pitch_en = 0;
   int nvec = 5000000;
-  float delta_f0 = 0.0;
+  int fuzz = 1;
+  int logmag = 0;
   
   st = rnnoise_create();
 
@@ -275,13 +275,15 @@ int main(int argc, char **argv) {
       static struct option long_opts[] = {
           {"c2pitch",   no_argument,      0, 'c'},
           {"help",      no_argument,      0, 'h'},
+	  {"mag",       no_argument,      0, 'i'},
           {"nvec",      required_argument,0, 'n'},
           {"train",     no_argument,      0, 'r'},
+          {"fuzz",      required_argument,0, 'z'},
           {"test",      no_argument,      0, 't'},
           {0, 0, 0, 0}
       };
         
-      o = getopt_long(argc,argv,"chn:rt",long_opts,&opt_idx);
+      o = getopt_long(argc,argv,"chn:rtz:i",long_opts,&opt_idx);
         
       switch(o){
       case 'r':
@@ -292,11 +294,18 @@ int main(int argc, char **argv) {
 	  assert(nvec > 0);
 	  fprintf(stderr, "nvec: %d\n", nvec);
 	  break;
+      case 'i':
+	  logmag = 1;
+	  fprintf(stderr, "logmag: %d\n", logmag);
+	  break;
       case 't':
           training = 0;
           break;
       case 'c':
           c2pitch_en = 1;
+          break;
+      case 'z':
+          fuzz = atoi(optarg);
           break;
       case 'h':
       case '?':
@@ -320,7 +329,9 @@ int main(int argc, char **argv) {
       fprintf(stderr, "  or   %s --test [options] <speech> <features out>\n", argv[0]);
       fprintf(stderr, "\nOptions:\n");
       fprintf(stderr, "  -c --c2pitch  Codec 2 pitch estimator\n");
+      fprintf(stderr, "  -i --mag      ouput magnitudes Ly rather than dct(Ly)\n");
       fprintf(stderr, "  -n --nvec     Number of training vectors to generate\n");
+      fprintf(stderr, "  -z --fuzz     fuzz freq response and gain during training (default on)\n");
       exit(1);
   }
     
@@ -395,7 +406,7 @@ int main(int argc, char **argv) {
       last_silent = silent;
     }
     if (count>=nvec && one_pass_completed) break;
-    if (training && ++gain_change_count > 2821) {
+    if (fuzz && training && ++gain_change_count > 2821) {
       float tmp;
       speech_gain = pow(10., (-20+(rand()%40))/20.);
       if (rand()%20==0) speech_gain *= .01;
@@ -404,9 +415,8 @@ int main(int argc, char **argv) {
       rand_resp(a_sig, b_sig);
       tmp = (float)rand()/RAND_MAX;
       noise_std = 4*tmp*tmp;
-      delta_f0 = -20.0*(float)rand()/RAND_MAX; /* between 0 and -20Hz */
-      fprintf(stderr, "speech_gain: %f noise_std: %f delta_f0: %f a_sig: %f %fb_sig: %f %f\n",
-              speech_gain, noise_std, delta_f0, a_sig[0], a_sig[1], b_sig[0], b_sig[1]);
+      fprintf(stderr, "speech_gain: %f noise_std: %f a_sig: %f %fb_sig: %f %f\n",
+              speech_gain, noise_std, a_sig[0], a_sig[1], b_sig[0], b_sig[1]);
     }
     biquad(x, mem_hp_x, x, b_hp, a_hp, FRAME_SIZE);
     biquad(x, mem_resp_x, x, b_sig, a_sig, FRAME_SIZE);
@@ -418,7 +428,7 @@ int main(int argc, char **argv) {
       x[i] *= g;
     }
     for (i=0;i<FRAME_SIZE;i++) x[i] += rand()/(float)RAND_MAX - .5;
-    compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
+    compute_frame_features(st, X, P, Ex, Ep, Exp, features, x, logmag);
 
     if (c2pitch_en) {
         for(i=0; i<c2_Sn_size-c2_frame_size; i++)

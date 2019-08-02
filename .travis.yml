@@ -28,12 +28,12 @@ script:
     # simple sanity check
     - cd src && sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s > /dev/null
     # some LPCNet ctests
+    - ls -l
     - cd $BUILDDIR && ctest
     # Re-build codec2 with LPCNet and test FreeDV 2020 support
     - cd $CODEC2DIR/build_linux
     - make clean
     - cmake -DLPCNET_BUILD_DIR=$BUILDDIR ..
-    - ls -l
     - make
     - cd src
     # sanity check

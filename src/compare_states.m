@@ -56,7 +56,7 @@ function f = check_vec(fig_num, name, vec1, vec2, fig_en=0)
     plot(vec1); hold on; plot(vec2); hold off;
     title(name);
   end
-  diff = max(vec1-vec2);
+  diff = max(abs(vec1-vec2));
   if diff < 1E-3
     f = 0; printf("%s [PASS]\n", name);
   else
@@ -74,7 +74,8 @@ function f = check_matrix(fig_num, name, mat1, mat2, fig_en=0)
     mesh(mat1(1:plotr,1:plotc)); hold on; mesh(mat2(1:plotr,1:plotc)); hold off;
     title(name);
   end
-  mdiff = mat1-mat2; diff = max(mdiff(:));
+  
+  mdiff = mat1-mat2; diff = max(abs(mdiff(:)));
   if diff < 1E-3
     f = 0;
     printf("%s [PASS]\n", name);

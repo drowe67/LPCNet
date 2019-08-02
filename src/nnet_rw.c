@@ -223,7 +223,7 @@ void nnet_write(char *fn) {
     printf("writing ....\n");
     write_embedding_weights("gru_a_embed_sig.....", &gru_a_embed_sig, f32);
     write_embedding_weights("gru_a_embed_pred....", &gru_a_embed_pred, f32);
-    write_embedding_weights("gru_a_embed_exc.....", &gru_a_embed_pred, f32);
+    write_embedding_weights("gru_a_embed_exc.....", &gru_a_embed_exc, f32);
     write_dense_weights    ("gru_a_dense_feature.", &gru_a_dense_feature, f32);
     write_embedding_weights("embed_pitch.........", &embed_pitch, f32);
     write_conv1d_weights   ("feature_conv1.......", &feature_conv1, f32);
@@ -244,7 +244,7 @@ void nnet_read_and_check(char *fn) {
     FILE *f32 = fopen(fn, "rb"); assert(f32 != NULL);
     check_embedding_weights("gru_a_embed_sig.....", &gru_a_embed_sig, f32);
     check_embedding_weights("gru_a_embed_pred....", &gru_a_embed_pred, f32);
-    check_embedding_weights("gru_a_embed_exc.....", &gru_a_embed_pred, f32);
+    check_embedding_weights("gru_a_embed_exc.....", &gru_a_embed_exc, f32);
     check_dense_weights    ("gru_a_dense_feature.", &gru_a_dense_feature, f32);
     check_embedding_weights("embed_pitch.........", &embed_pitch, f32);
     check_conv1d_weights   ("feature_conv1.......", &feature_conv1, f32);
@@ -265,7 +265,7 @@ void nnet_read(char *fn) {
     FILE *f32 = fopen(fn, "rb"); assert(f32 != NULL);
     read_embedding_weights("gru_a_embed_sig.....", &gru_a_embed_sig, f32);
     read_embedding_weights("gru_a_embed_pred....", &gru_a_embed_pred, f32);
-    read_embedding_weights("gru_a_embed_exc.....", &gru_a_embed_pred, f32);
+    read_embedding_weights("gru_a_embed_exc.....", &gru_a_embed_exc, f32);
     read_dense_weights    ("gru_a_dense_feature.", &gru_a_dense_feature, f32);
     read_embedding_weights("embed_pitch.........", &embed_pitch, f32);
     read_conv1d_weights   ("feature_conv1.......", &feature_conv1, f32);

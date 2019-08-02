@@ -163,8 +163,10 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
         fwrite(condition, sizeof(float), FEATURE_DENSE2_OUT_SIZE, lpcnet->ftest);
         fwrite(gru_a_condition, sizeof(float), 3*GRU_A_STATE_SIZE, lpcnet->ftest);
         if (lpcnet->frame_count==1) {
-            fprintf(stderr, "%d %d %d %d %d %d %d %d %d %d\n", EMBED_PITCH_OUT_SIZE, 1, 1, LPC_ORDER,FEATURE_DENSE2_OUT_SIZE,3*GRU_A_STATE_SIZE,N,N,N,N);
-            fprintf(stderr, "ftest cols = %d\n", EMBED_PITCH_OUT_SIZE+1+1+LPC_ORDER+FEATURE_DENSE2_OUT_SIZE+3*GRU_A_STATE_SIZE+N+N+N+N);
+            fprintf(stderr, "%d %d %d %d %d %d %d %d %d %d\n", EMBED_PITCH_OUT_SIZE, 1, 1, LPC_ORDER,
+		    FEATURE_DENSE2_OUT_SIZE,3*GRU_A_STATE_SIZE,N,N,N,N);
+            fprintf(stderr, "ftest cols = %d\n",
+		    EMBED_PITCH_OUT_SIZE+1+1+LPC_ORDER+FEATURE_DENSE2_OUT_SIZE+3*GRU_A_STATE_SIZE+N+N+N+N);
         }
     }
 

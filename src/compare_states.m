@@ -33,7 +33,7 @@ function f = compare_states(fn_one, fn_two, fig_en=0)
                              f+= check_vec(fig++, "pitch_gain", linux(:,st), windows(:,st), fig_en);          st += n_pitch_gain;
   en = st + n_lpc-1;         f+= check_matrix(fig++, "lpc", linux(:,st:en), windows(:,st:en), fig_en);        st += n_lpc;
   en = st + n_condition-1;   f+= check_matrix(fig++, "condition", linux(:,st:en), windows(:,st:en), fig_en);  st += n_condition;
-  en = st + n_gru_a-1;       f+= check_matrix(fig++, "gru a", linux(:,st:en), windows(:,st:en), fig_en);      st += n_gru_a;
+  en = st + n_gru_a-1;       f+= check_matrix(fig++, "gru_a_condition", linux(:,st:en), windows(:,st:en), fig_en); st += n_gru_a;
 
   en = st + n_last_sig-1;    f+= check_vec(fig++, "last_sig", linux(:,st:en), windows(:,st:en), fig_en);      st += n_last_sig;
   en = st + n_pred-1;        f+= check_vec(fig++, "pred", linux(:,st:en), windows(:,st:en), fig_en);          st += n_pred;
@@ -58,9 +58,15 @@ function f = check_vec(fig_num, name, vec1, vec2, fig_en=0)
   end
   diff = max(abs(vec1-vec2));
   if diff < 1E-3
-    f = 0; printf("%s [PASS]\n", name);
+    f = 0; printf("%-15s [PASS]\n", name);
   else
-    f = 1; printf("%s [FAIL]\n", name);
+    f = 1; first_error = 1; diffv = abs(vec1-vec2);
+    for r=1:length(vec1)
+      if first_error && (diffv(r) > 1E-3)
+        first_error = 0;
+        printf("%-15s [FAIL] at sample %d vec1: %f vec2: %f %f\n", name, r, vec1(r), vec2(r), vec1(r)-vec2(r));
+      end
+    end
   end
 endfunction
 
@@ -78,10 +84,10 @@ function f = check_matrix(fig_num, name, mat1, mat2, fig_en=0)
   mdiff = mat1-mat2; diff = max(abs(mdiff(:)));
   if diff < 1E-3
     f = 0;
-    printf("%s [PASS]\n", name);
+    printf("%-15s [PASS]\n", name);
   else
     f = 1;
-    printf("%s [FAIL]\n", name);
+    printf("%-15s [FAIL]\n", name);
     % find first row where problem occurs
     [rows cols]= size(mat1);
     first_error = 1; nerr = 0;

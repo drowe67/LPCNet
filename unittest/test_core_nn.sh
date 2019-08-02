@@ -36,8 +36,9 @@ if [ ! -z $SYNTH_TEST ]; then
     ../build_linux/src/dump_data --test --c2pitch ../wav/$SYNTH_SRC $SYNTH_OUT_F32
     diff $SYNTH_OUT_F32 $SYNTH_TARG_F32 || { echo "ERROR in synth .f32 output! Exiting..."; exit 1; }
     echo "synth .f32 OK"
-    ../build_linux/src/test_lpcnet -l $SYNTH_STATES_OUT $SYNTH_OUT_F32 $SYNTH_OUT_RAW
-    octave -p ../src --no-gui <<< "ret=compare_states('../unittest/birch_states_targ.f32', '../unittest/birch_states_out.f32'); quit(ret)"
+    #../build_linux/src/test_lpcnet -l $SYNTH_STATES_OUT $SYNTH_OUT_F32 $SYNTH_OUT_RAW
+    ../build_linux/src/test_lpcnet -n lpcnet_190215.f32 -l $SYNTH_STATES_OUT $SYNTH_OUT_F32 $SYNTH_OUT_RAW
+    octave -p ../src --no-gui <<< "ret=compare_states('$SYNTH_STATES_TARG', '$SYNTH_STATES_OUT'); quit(ret)"
     if [ ! $? -eq 0 ]; then { echo "ERROR in synth states Octave output! Exiting..."; exit 1; } fi
     echo "synth states Octave OK"			    
     diff $SYNTH_STATES_OUT $SYNTH_STATES_TARG || { echo "ERROR in synth states output! Exiting ..."; exit 1; }

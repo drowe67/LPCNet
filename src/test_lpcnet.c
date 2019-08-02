@@ -96,13 +96,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    #ifdef TEST_UNUSED_BAISES
-    /* so are top biases used? */
-    fprintf(stderr, "gru_a_dense_feature.nb_neurons: %d\n", gru_a_dense_feature.nb_neurons);
-    for(int i=gru_a_dense_feature.nb_neurons; i<2*gru_a_dense_feature.nb_neurons; i++) {
-	gru_a_dense_feature.bias[i] = 0.0;
-    }
-    #endif
     while (1) {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_FEATURES];

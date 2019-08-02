@@ -38,21 +38,28 @@ int main(int argc, char **argv) {
     LPCNetState *net;
     int logmag = 0;
 
+    net = lpcnet_create();
+    
     int o = 0;
     int opt_idx = 0;
     while( o != -1 ) {
         static struct option long_opts[] = {
             {"mag", no_argument, 0, 'i'},
             {"nnet", required_argument, 0, 'n'},
+            {"logstates", required_argument, 0, 'l'},
             {0, 0, 0, 0}
         };
         
-	o = getopt_long(argc,argv,"ihn:",long_opts,&opt_idx);
+	o = getopt_long(argc,argv,"ihn:l:",long_opts,&opt_idx);
         
 	switch(o){
 	case 'i':
 	    logmag = 1;
 	    fprintf(stderr, "logmag: %d\n", logmag);
+	    break;
+	case 'l':
+	    fprintf(stderr, "logstates file: %s\n", optarg);
+	    lpcnet_open_test_file(net, optarg);
 	    break;
 	case 'n':
 	    fprintf(stderr, "loading nnet: %s\n", optarg);
@@ -67,7 +74,7 @@ int main(int argc, char **argv) {
 
     if ((argc - dx) < 2) {
     helpmsg:
-        fprintf(stderr, "usage: test_lpcnet [--mag] <features.f32> <output.pcm>\n");
+        fprintf(stderr, "usage: test_lpcnet [--mag] [--logstates statesfile] <features.f32> <output.pcm>\n");
         return 0;
     }
 
@@ -89,9 +96,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    net = lpcnet_create();
-    
-    //lpcnet_open_test_file(net, "test_lpcnet_states.f32");
     #ifdef TEST_UNUSED_BAISES
     /* so are top biases used? */
     fprintf(stderr, "gru_a_dense_feature.nb_neurons: %d\n", gru_a_dense_feature.nb_neurons);

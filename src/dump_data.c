@@ -266,7 +266,9 @@ int main(int argc, char **argv) {
   int nvec = 5000000;
   int fuzz = 1;
   int logmag = 0;
-  
+  int  nb_passes = 0;
+  int  nb_frames_per_pass = 0;  
+
   st = rnnoise_create();
 
   int o = 0;
@@ -290,7 +292,7 @@ int main(int argc, char **argv) {
           training = 1;
           break;
       case 'n':
-	  nvec = atoi(optarg);
+	  nvec = atof(optarg);
 	  assert(nvec > 0);
 	  fprintf(stderr, "nvec: %d\n", nvec);
 	  break;
@@ -386,6 +388,9 @@ int main(int argc, char **argv) {
       rewind(f1);
       nread = fread(tmp, sizeof(short), FRAME_SIZE, f1);
       one_pass_completed = 1;
+      nb_passes++;
+      if (!nb_frames_per_pass)
+	  nb_frames_per_pass = count;
     }
     for (i=0;i<FRAME_SIZE;i++) E += tmp[i]*(float)tmp[i];
     if (training) {
@@ -460,6 +465,11 @@ int main(int argc, char **argv) {
   fclose(ffeat);
   if (fpcm) fclose(fpcm);
   if (c2pitch_en) { free(c2_Sn); codec2_pitch_destroy(c2pitch); }
+  if (training) {
+      int minutes = (float)nb_frames_per_pass*0.01/60.0;     
+      fprintf(stderr, "frames_per_pass: %d (%d minutes) nb_passes: %d\n",
+	      nb_frames_per_pass, minutes, nb_passes);
+  }
   rnnoise_destroy(st);
   return 0;
 }

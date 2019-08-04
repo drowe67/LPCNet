@@ -1,9 +1,11 @@
 #!/bin/bash
 # test_core_nn.sh
 #
-# Some tests for core NN, e.g. generation of test data using
-# dump_data, and unquantised synthesis using and test_lpcnet
 
+# Some tests for core NN, e.g. generation of test data using
+# dump_data, and unquantised synthesis using and test_lpcnet.  Used to
+# ensure no existing features are broken during experimentation and
+# development.
 
 # test generation of training data (doesn't really test training as that takes hours)
 # TODO: This test not working yet

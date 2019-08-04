@@ -54,15 +54,15 @@ if [ ! -z $SYNTH_20h ]; then
     echo "synth .raw OK"
 fi
 
-# Testing log mag operation, using 190727e network.  Not checking states in this test
+# Testing log mag operation, using 190804a network.  Not checking states in this test
     
 if [ ! -z $SYNTH_mag ]; then
-    ../build_linux/src/dump_data --mag --test --c2pitch ../wav/birch.wav birch.f32
-    diff birch_mag.f32 birch.f32 || { echo "ERROR in synth .f32 output! Exiting..."; exit 1; }
-    echo "synth .f32 OK"
-    ../build_linux/src/test_lpcnet --mag -n lpcnet_190727e.f32 birch.f32 birch_out.raw
-    diff birch_190727e_targ.raw birch_out.raw || { echo "ERROR in synth .raw output! Exiting..."; exit 1; }
-    echo "synth .raw OK"
+    ../build_linux/src/dump_data --mag --test --c2pitch ../wav/c01_01.wav c01_01.f32
+    diff c01_01_mag.f32 c01_01.f32 || { echo "ERROR in synth .f32 output! Exiting..."; exit 1; }
+    echo "mag .f32 OK"
+    ../build_linux/src/test_lpcnet --mag -n lpcnet_190804a.f32 c01_01.f32 c01_01_out.raw
+    diff c01_01_190804a_targ.raw c01_01_out.raw || { echo "ERROR in synth .raw output! Exiting..."; exit 1; }
+    echo "mag .raw OK"
 fi
 
 echo "all tests PASSED"

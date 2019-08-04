@@ -263,6 +263,7 @@ int main(int argc, char **argv) {
   float noise_std=0;
   int training = -1;
   int c2pitch_en = 0;
+  int c2voicing_en = 0;
   int nvec = 5000000;
   int fuzz = 1;
   int logmag = 0;
@@ -276,6 +277,7 @@ int main(int argc, char **argv) {
   while( o != -1 ) {
       static struct option long_opts[] = {
           {"c2pitch",   no_argument,      0, 'c'},
+          {"c2voicing", no_argument,       0, 'v'},
           {"help",      no_argument,      0, 'h'},
 	  {"mag",       no_argument,      0, 'i'},
           {"nvec",      required_argument,0, 'n'},
@@ -306,6 +308,9 @@ int main(int argc, char **argv) {
       case 'c':
           c2pitch_en = 1;
           break;
+      case 'v':
+          c2voicing_en = 1;
+          break;
       case 'z':
           fuzz = atoi(optarg);
           break;
@@ -330,10 +335,11 @@ int main(int argc, char **argv) {
       fprintf(stderr, "usage: %s --train [options] <speech> <features out> <pcm out>\n", argv[0]);
       fprintf(stderr, "  or   %s --test [options] <speech> <features out>\n", argv[0]);
       fprintf(stderr, "\nOptions:\n");
-      fprintf(stderr, "  -c --c2pitch  Codec 2 pitch estimator\n");
-      fprintf(stderr, "  -i --mag      ouput magnitudes Ly rather than dct(Ly)\n");
-      fprintf(stderr, "  -n --nvec     Number of training vectors to generate\n");
-      fprintf(stderr, "  -z --fuzz     fuzz freq response and gain during training (default on)\n");
+      fprintf(stderr, "  -c --c2pitch   Codec 2 pitch estimator\n");
+      fprintf(stderr, "  -v --c2voicing Codec 2 voicing estimator\n");
+      fprintf(stderr, "  -i --mag       ouput magnitudes Ly rather than dct(Ly)\n");
+      fprintf(stderr, "  -n --nvec      Number of training vectors to generate\n");
+      fprintf(stderr, "  -z --fuzz      fuzz freq response and gain during training (default on)\n");
       exit(1);
   }
     
@@ -447,10 +453,7 @@ int main(int argc, char **argv) {
 	assert(pitch_index < 2*PITCH_MAX_PERIOD);
 	assert(pitch_index >= 2*PITCH_MIN_PERIOD);
         features[2*NB_BANDS] = 0.01*(pitch_index-200);
-        // Tried using Codec 2 voicing est but poor results
-        // features[2*NB_BANDS+1] = voicing;
-        //int pitch_index_lpcnet = 100*features[2*NB_BANDS] + 200;        
-        //fprintf(stderr, "%f %d %d v: %f %f\n", f0, pitch_index, pitch_index, features[2*NB_BANDS+1], voicing);
+        if (c2voicing_en) features[2*NB_BANDS+1] = voicing;
     }
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);
     /* PCM is delayed by 1/2 frame to make the features centered on the frames. */

@@ -8,15 +8,15 @@
 #   $ ../src/tinytrain.sh
 
 SRC=all_speech
-DATE=190804a
+DATE=190804b
 
 synth() {
-  ./src/dump_data --mag --test --c2pitch ~/Downloads/$1.sw $1.f32
+  ./src/dump_data --mag --test --c2pitch --c2voicing ~/Downloads/$1.sw $1.f32
   ./src/test_lpcnet --mag $1.f32 "$2".raw
 }
 
 train() {
-  ./src/dump_data --mag --train --c2pitch -z 0 -n 1E6 ~/Downloads/$SRC.sw $SRC.f32 $SRC.pcm
+  ./src/dump_data --mag --train --c2pitch --c2voicing -z 0 -n 1E6 ~/Downloads/$SRC.sw $SRC.f32 $SRC.pcm
   ../src/train_lpcnet.py $SRC.f32 $SRC.pcm lpcnet_$DATE
   ../src/dump_lpcnet.py lpcnet_"$DATE"_10.h5
   cp nnet_data.c src

@@ -27,15 +27,15 @@ target_include_directories(lpcnetfreedv INTERFACE
     $<INSTALL_INTERFACE:include/lpcnet>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
-install(TARGETS lpcnetfreedv EXPORT lpcnet-config
+install(TARGETS lpcnetfreedv EXPORT lpcnetfreedv-config
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/lpcnet
 )
 
-install(EXPORT lpcnet-config
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lpcnet
+install(EXPORT lpcnetfreedv-config
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lpcnetfreedv
 )
 # Export libfreedv target for import into codec2 from build tree.
 export(TARGETS lpcnetfreedv

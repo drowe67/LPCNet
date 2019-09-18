@@ -337,7 +337,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "\nOptions:\n");
       fprintf(stderr, "  -c --c2pitch   Codec 2 pitch estimator\n");
       fprintf(stderr, "  -v --c2voicing Codec 2 voicing estimator\n");
-      fprintf(stderr, "  -i --mag       ouput magnitudes Ly rather than dct(Ly)\n");
+      fprintf(stderr, "  -i --mag       output magnitudes Ly rather than dct(Ly)\n");
       fprintf(stderr, "  -n --nvec      Number of training vectors to generate\n");
       fprintf(stderr, "  -z --fuzz      fuzz freq response and gain during training (default on)\n");
       exit(1);

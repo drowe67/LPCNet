@@ -1,17 +1,13 @@
 #!/bin/bash -x
-# tinytrain.sh
-# train using a tiny database, synthesis a few samples from within
-# training database.  Used to perform quick sanity checks with a few hrs training
+# peter_david_train.sh
+#
+# LPCNet produced rough speech with these too speakers.  This script
+# is an experiment to train and test a LPCNet model using _just_ these
+# two speakers.
 #
 # usage:
 #   $ cd LPCNet/build_linux
-#   $ ../src/tinytrain.sh
-
-# TODO:
-# + maybe rname to a separate train script so we can repeat in future
-# + test utterance of Peter and I
-# + this is an unusual test of very small training database, to see if it can
-#   work within this
+#   $ ../src/peter_david_train.sh
 
 SRC1=david_16kHz.wav             # 122s
 SRC2=vk5apr_recording_21_may.wav # 64s
@@ -34,7 +30,6 @@ train() {
 }
 
 #train
-#synth c01_01 $DATE'_f'
-#synth mk61_01 $DATE'_m'
-#synth wia $DATE'_wia'
 synth bob $DATE'_bob'
+#synth cq_16kHz $DATE'_cq_16kHz'
+#synth peter $DATE'_peter'

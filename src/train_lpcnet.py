@@ -46,7 +46,7 @@ config = tf.ConfigProto()
 
 set_session(tf.Session(config=config))
 
-nb_epochs = 10
+nb_epochs = 20
 
 # Try reducing batch_size if you run out of memory on your GPU
 batch_size = 32

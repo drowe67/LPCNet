@@ -13,7 +13,7 @@ SRC1=david_16kHz.wav             # 122s
 SRC2=vk5apr_recording_21_may.wav # 64s
 SRC=train_src
 
-DATE=190920a
+DATE=190920b
 
 synth() {
    ./src/dump_data --test --c2pitch --c2voicing ~/Downloads/$1.sw $1.f32 

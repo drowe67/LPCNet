@@ -14,7 +14,7 @@ SRC4=wianews-2019-01-20.s16      # 62 minutes
 SRC5=soldersmoke202.sw           # 76 minutes, lot of material with target voices
 SRC=train_src
 
-DATE=190920c
+DATE=190922a
 
 synth() {
   ./src/dump_data --test --c2pitch --c2voicing ~/Downloads/$1.sw $1.f32
@@ -22,15 +22,13 @@ synth() {
 }
 
 train() {
-    # repeat David and Peter to get 60 minutes worth, so it weights training
+    # repeat David and Peter to get 142 minutes worth, so it weights training
     # for this type of speaker that we are struggling with
     x=$(mktemp)
-    sox ~/Downloads/$SRC1 ~/Downloads/$SRC2 $x'.wav' repeat 20
+    sox ~/Downloads/$SRC1 ~/Downloads/$SRC2 $x'.wav' repeat 60
     ls -l $x.wav
     # combine all samples, evaluation data at end of larger database of mixed speakers
     sox $x.wav \
-	-t sw -r 16000 -c 1 ~/Downloads/$SRC4 \
-        -t sw -r 16000 -c 1 ~/Downloads/$SRC5 \
 	-t sw -r 16000 -c 1 ~/Downloads/$SRC3 \
 	-t sw $SRC.sw
     ls -l $SRC.sw
@@ -41,8 +39,9 @@ train() {
     make test_lpcnet
 }
 
-train
-synth c01_01 $DATE'_f'
-synth mk61_01 $DATE'_m'
-synth cq_16kHz $DATE'_cq_16kHz'
-synth peter $DATE'_peter'
+#train
+#synth c01_01 $DATE'_f'
+#synth mk61_01 $DATE'_m'
+#synth cq_16kHz $DATE'_cq_16kHz'
+#synth peter $DATE'_peter'
+synth wia $DATE'_wia'

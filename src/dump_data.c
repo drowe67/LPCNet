@@ -426,8 +426,8 @@ int main(int argc, char **argv) {
       rand_resp(a_sig, b_sig);
       tmp = (float)rand()/RAND_MAX;
       noise_std = 4*tmp*tmp;
-      fprintf(stderr, "speech_gain: %f noise_std: %f a_sig: %f %fb_sig: %f %f\n",
-              speech_gain, noise_std, a_sig[0], a_sig[1], b_sig[0], b_sig[1]);
+      //fprintf(stderr, "speech_gain: %f noise_std: %f a_sig: %f %fb_sig: %f %f\n",
+      //        speech_gain, noise_std, a_sig[0], a_sig[1], b_sig[0], b_sig[1]);
     }
     biquad(x, mem_hp_x, x, b_hp, a_hp, FRAME_SIZE);
     biquad(x, mem_resp_x, x, b_sig, a_sig, FRAME_SIZE);
@@ -469,9 +469,10 @@ int main(int argc, char **argv) {
   if (fpcm) fclose(fpcm);
   if (c2pitch_en) { free(c2_Sn); codec2_pitch_destroy(c2pitch); }
   if (training) {
-      int minutes = (float)nb_frames_per_pass*0.01/60.0;     
-      fprintf(stderr, "frames_per_pass: %d (%d minutes) nb_passes: %d\n",
-	      nb_frames_per_pass, minutes, nb_passes);
+      int minutes = (float)count*0.01/60.0;     
+      int minutes_per_pass = (float)nb_frames_per_pass*0.01/60.0;     
+      fprintf(stderr, "frames: %d (%d minutes) frames_per_pass: %d (%d minutes) nb_passes: %d\n",
+	      count, minutes, nb_frames_per_pass, minutes_per_pass, nb_passes);
   }
   rnnoise_destroy(st);
   return 0;

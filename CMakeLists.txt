@@ -73,7 +73,7 @@ endif()
 
 # grab latest NN model (or substitute your own)
 set(LPCNET_ROOT http://rowetel.com/downloads/deep/)
-set(LPCNET_FILE lpcnet_190215_v1.1.tgz)
+set(LPCNET_FILE lpcnet_190924a_v1.0.tgz)
 set(LPCNET_URL ${LPCNET_ROOT}${LPCNET_FILE})
 
 # Work around not having the FetchContent module.

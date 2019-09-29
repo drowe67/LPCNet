@@ -35,6 +35,7 @@ script:
     - find $LPCNETDIR -name nnet_data.c
     - md5sum `find $LPCNETDIR -name nnet_data.c`
     - md5sum $LPCNETDIR/unittest/*
+    - ./src/diff32 --cont ../unittest/birch.f32 ../unittest/birch_targ.f32
     # Re-build codec2 with LPCNet and test FreeDV 2020 support
     #- cd $CODEC2DIR/build_linux
     #- make clean

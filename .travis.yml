@@ -26,13 +26,15 @@ script:
     - cd $LPCNETDIR && mkdir -p $BUILDDIR && cd $BUILDDIR
     - cmake --version
     - cmake -DCODEC2_BUILD_DIR=$CODEC2DIR/build_linux .. && make
-    - ls -l $BUILDDIR
-    - ls -l $BUILDDIR/src
-    - find $LPCNETDIR -name nnet_data.c
     # simple sanity check
     - cd src && sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s > /dev/null
     # some LPCNet ctests
     - cd $BUILDDIR && ctest -V
+    - ls -l $BUILDDIR
+    - ls -l $BUILDDIR/src
+    - find $LPCNETDIR -name nnet_data.c
+    - md5sum `find /home/david/LPCNet/ -name nnet_data.c`
+    - md5sum $LPCNETDIR/unittest/*
     # Re-build codec2 with LPCNet and test FreeDV 2020 support
     #- cd $CODEC2DIR/build_linux
     #- make clean

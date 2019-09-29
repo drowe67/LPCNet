@@ -33,7 +33,7 @@ script:
     - ls -l $BUILDDIR
     - ls -l $BUILDDIR/src
     - find $LPCNETDIR -name nnet_data.c
-    - md5sum `find /home/david/LPCNet/ -name nnet_data.c`
+    - md5sum `find $LPCNETDIR -name nnet_data.c`
     - md5sum $LPCNETDIR/unittest/*
     # Re-build codec2 with LPCNet and test FreeDV 2020 support
     #- cd $CODEC2DIR/build_linux

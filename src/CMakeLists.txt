@@ -77,6 +77,9 @@ target_link_libraries(quant2c m)
 add_executable(diff32 diff32.c)
 target_link_libraries(diff32 m)
 
+add_executable(ramp ramp.c)
+target_link_libraries(ramp m)
+
 add_executable(quant_enc quant_enc.c)
 target_link_libraries(quant_enc lpcnetfreedv m codec2)
 

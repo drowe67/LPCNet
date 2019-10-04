@@ -25,6 +25,14 @@ LPCNet at 1733 bits/s using direct-split quantiser:
 ```
 sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | aplay -f S16_LE -r 16000
 ```
+# CTests
+
+```
+$ cd ~/LPCNet/build_linux
+$ ctest
+```
+
+Note, due to precision/library issues several tests (1-3) will only pass on certain machines such as Ubuntu 16 and 18, Ubuntu 17 is known to fail.
 
 # Reading Further
 

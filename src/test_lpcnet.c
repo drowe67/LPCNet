@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
 
     if ((argc - dx) < 2) {
     helpmsg:
-        fprintf(stderr, "usage: test_lpcnet [--mag] [--logstates statesfile] <features.f32> <output.pcm>\n");
+        fprintf(stderr, "usage: test_lpcnet [--mag] [--logstates statesfile] [--nnet lpcnet_xxx.f32] <features.f32> <output.pcm>\n");
         return 0;
     }
 

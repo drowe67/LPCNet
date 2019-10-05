@@ -422,10 +422,7 @@ int main(int argc, char *argv[]) {
             float tmp[NB_BANDS];
             dct(tmp, features_out);
             for(i=0; i<NB_BANDS; i++) features_out[i] = tmp[i];
-       }
-
-        /* need to recompute LPCs after every frame, as we have quantised, or interpolated */
-        lpc_from_cepstrum(&features_out[2*NB_BANDS+3], features_out);
+        }
 
         for(i=0; i<NB_FEATURES; i++) {
             if (isnan(features_out[i])) {

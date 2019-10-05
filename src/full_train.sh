@@ -12,7 +12,7 @@ SRC2=vk5apr_recording_21_may.wav # 64s
 SRC3=all_speechcat.sw            # 185 minutes, wide range of speakers
 SRC=train_src
 
-DATE=190924a
+DATE=191005
 
 synth() {
   ./src/dump_data --test --c2pitch ~/Downloads/$1.sw $1.f32

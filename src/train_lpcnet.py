@@ -90,7 +90,7 @@ features = np.reshape(features, (nb_frames, feature_chunk_size, nb_features))
 features = features[:, :, :nb_used_features]
 # 0..37 features total
 # 0..17 cepstrals, 36 = pitch, 37 = pitch gain, 38 = lpc-gain
-# nb_used_features=38, so 0...37
+# nb_used_features=38, so 0...37, so lpc-gain not used
 features[:,:,18:36] = 0   # zero out 18..35, so pitch and pitch gain being fed in, lpc gain ignored
 
 fpad1 = np.concatenate([features[0:1, 0:2, :], features[:-1, -2:, :]], axis=0)
@@ -99,8 +99,6 @@ features = np.concatenate([fpad1, features, fpad2], axis=1)
 
 # pitch feature uses as well as cesptrals
 periods = (.1 + 50*features[:,:,36:37]+100).astype('int16')
-
-features[:,:,36:] = 0      # DR experiment - lets try zeroing out pitch and pitch gain
 
 in_data = np.concatenate([sig, pred, in_exc], axis=-1)
 

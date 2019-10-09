@@ -102,12 +102,13 @@ int codec2_pitch_est(CODEC2_PITCH *pitch, float Sn[], float *f0, float *voicing)
     model.Wo = 2.0*M_PI/pitch_samples;
     dft_speech(&pitch->c2const, pitch->fft_fwd_cfg, Sw, Sn, pitch->w);
     two_stage_pitch_refinement(&pitch->c2const, &model, Sw);
+    pitch_samples = 2.0*M_PI/model.Wo;
     estimate_amplitudes(&model, Sw, pitch->W, 1);
     snr = est_voicing_mbe(&pitch->c2const, &model, Sw, pitch->W);
 
     *voicing = 1.0 - 2.0/pow(10.0, snr/10.0);
     if (*voicing < 0.0) *voicing = 0.0;
-    return (int)2*pitch_samples;
+    return round(2.0*pitch_samples);
 }
 
 void codec2_pitch_destroy(CODEC2_PITCH *pitch)

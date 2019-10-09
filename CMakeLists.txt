@@ -76,7 +76,7 @@ endif()
 
 # grab latest NN model (or substitute your own)
 set(LPCNET_ROOT http://rowetel.com/downloads/deep/)
-set(LPCNET_FILE lpcnet_190215.tgz)
+set(LPCNET_FILE lpcnet_191005_v1.0.tgz)
 set(LPCNET_URL ${LPCNET_ROOT}${LPCNET_FILE})
 
 # Work around not having the FetchContent module.
@@ -116,3 +116,19 @@ else()
 endif()
 
 add_subdirectory(src)
+
+# Ctests ----------------------------------------------------------------------
+
+include(CTest)
+enable_testing()
+
+add_test(NAME core_synthesis_default
+         COMMAND sh -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; SYNTH=1 ./test_core_nn.sh")
+add_test(NAME core_synthesis_load_20h
+         COMMAND sh -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; SYNTH_20h=1 ./test_core_nn.sh")
+add_test(NAME core_synthesis_mag
+         COMMAND sh -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; SYNTH_mag=1 ./test_core_nn.sh")
+add_test(NAME nnet2f32
+         COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}; ./src/nnet2f32 t.f32")
+add_test(NAME SIMD_functions
+         COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}; ./src/test_vec")

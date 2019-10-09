@@ -15,6 +15,7 @@ set(lpcnet_freedv_srcs
     lpcnet.c
     lpcnet_freedv.c
     nnet.c
+    nnet_rw.c
     ${lpcnet_SOURCE_DIR}/nnet_data.c
 )
 
@@ -76,6 +77,9 @@ target_link_libraries(quant2c m)
 add_executable(diff32 diff32.c)
 target_link_libraries(diff32 m)
 
+add_executable(ramp ramp.c)
+target_link_libraries(ramp m)
+
 add_executable(quant_enc quant_enc.c)
 target_link_libraries(quant_enc lpcnetfreedv m codec2)
 
@@ -90,6 +94,9 @@ target_link_libraries(lpcnet_dec lpcnetfreedv m codec2)
 
 add_executable(idct idct.c)
 target_link_libraries(idct lpcnetfreedv m codec2)
+
+add_executable(nnet2f32 nnet2f32.c)
+target_link_libraries(nnet2f32 lpcnetfreedv m)
 
 install(TARGETS lpcnet_enc lpcnet_dec
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

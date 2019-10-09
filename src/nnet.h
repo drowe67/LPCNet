@@ -35,17 +35,17 @@
 #define ACTIVATION_SOFTMAX 4
 
 typedef struct {
-  const float *bias;
-  const float *input_weights;
+  float *bias;
+  float *input_weights;
   int nb_inputs;
   int nb_neurons;
   int activation;
 } DenseLayer;
 
 typedef struct {
-  const float *bias;
-  const float *input_weights;
-  const float *factor;
+  float *bias;
+  float *input_weights;
+  float *factor;
   int nb_inputs;
   int nb_neurons;
   int nb_channels;
@@ -53,9 +53,9 @@ typedef struct {
 } MDenseLayer;
 
 typedef struct {
-  const float *bias;
-  const float *input_weights;
-  const float *recurrent_weights;
+  float *bias;
+  float *input_weights;
+  float *recurrent_weights;
   int nb_inputs;
   int nb_neurons;
   int activation;
@@ -63,18 +63,18 @@ typedef struct {
 } GRULayer;
 
 typedef struct {
-  const float *bias;
-  const float *diag_weights;
-  const float *recurrent_weights;
-  const int *idx;
+  float *bias;
+  float *diag_weights;
+  float *recurrent_weights;
+  int *idx;
   int nb_neurons;
   int activation;
   int reset_after;
 } SparseGRULayer;
 
 typedef struct {
-  const float *bias;
-  const float *input_weights;
+  float *bias;
+  float *input_weights;
   int nb_inputs;
   int kernel_size;
   int nb_neurons;
@@ -82,7 +82,7 @@ typedef struct {
 } Conv1DLayer;
 
 typedef struct {
-  const float *embedding_weights;
+  float *embedding_weights;
   int nb_inputs;
   int dim;
 } EmbeddingLayer;

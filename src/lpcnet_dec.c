@@ -43,6 +43,8 @@
 #include "lpcnet_quant.h"
 #include "lpcnet_freedv_internal.h"
 
+void lpcnet_open_test_file(LPCNetState *lpcnet, char file_name[]);
+
 int main(int argc, char **argv) {
     FILE *fin, *fout;
 

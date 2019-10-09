@@ -24,6 +24,7 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include "nnet_data.h"
@@ -147,7 +148,15 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
     /* FIXME: Remove this -- it's just a temporary hack to match the Python code. */
     static int start = 0; /*(LPC_ORDER+1*/;
     /* FIXME: Do proper rounding once the Python code rounds properly. */
-    pitch = (int)floor(.1 + 50*features[36]+100);
+
+    pitch = (int)floor(.1 + 50*features[36]+100);    
+    assert(pitch >=0); assert(pitch <= 255);    
+    /* latest networks (using the codec 2 pitch estimator) are trained
+       with pitch estimates between 40 and 255, but due to the pitch
+       quantiser design and bit errors it's possible to get pitch
+       values down to 32, which upsets the pitch embed matrix */
+    if (pitch < 40) pitch = 40;
+    
     pitch_gain = lpcnet->old_gain[FEATURES_DELAY-1];
     memmove(&lpcnet->old_gain[1], &lpcnet->old_gain[0], (FEATURES_DELAY-1)*sizeof(lpcnet->old_gain[0]));
     lpcnet->old_gain[0] = features[PITCH_GAIN_FEATURE];

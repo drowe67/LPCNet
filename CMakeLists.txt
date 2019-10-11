@@ -30,6 +30,23 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
    "separate build directory and run cmake from there.")
 endif("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 
+
+# Set project version information. This should probably be done via external
+# file at some point.
+#
+set(LPCNET_VERSION_MAJOR 0)
+set(LPCNET_VERSION_MINOR 1)
+# Set to patch level if needed, otherwise leave FALSE.
+# Must be positive (non-zero) if set, since 0 == FALSE in CMake.
+set(LPCNET_VERSION_PATCH FALSE)
+set(LPCNET_VERSION "${LPCNET_VERSION_MAJOR}.${LPCNET_VERSION_MINOR}")
+# Patch level version bumps should not change API/ABI.
+set(SOVERSION "${LPCNET_VERSION_MAJOR}.${LPCNET_VERSION_MINOR}")
+if(LPCNET_VERSION_PATCH)
+    set(LPCNET_VERSION "${LPCNET_VERSION}.${LPCNET_VERSION_PATCH}")
+endif()
+message(STATUS "LPCNet version: ${LPCNET_VERSION}")
+
 # Set default flags
 set(CMAKE_C_FLAGS "-Wall -W -Wextra -Wno-unused-function -O3 -g -I. -MD ${CMAKE_C_FLAGS} -DENABLE_ASSERTIONS")
 

@@ -42,6 +42,7 @@
 #include "lpcnet_dump.h"
 #include "lpcnet_quant.h"
 #include "lpcnet_freedv_internal.h"
+#include "nnet_rw.h"
 
 void lpcnet_open_test_file(LPCNetState *lpcnet, char file_name[]);
 
@@ -72,6 +73,7 @@ int main(int argc, char **argv) {
         {"outfile",     required_argument, 0, 'u'},
         {"ber",         required_argument, 0, 'b'},
         {"decimate",    required_argument, 0, 'd'},
+        {"nnet",        required_argument, 0, 'r'},
         {"numstages",   required_argument, 0, 'n'},
         {"pitchquant",  required_argument, 0, 'o'},
         {"pred",        required_argument, 0, 'p'},
@@ -83,7 +85,7 @@ int main(int argc, char **argv) {
     int   c;
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "b:d:n:o:p:svi:u:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "b:d:n:o:p:svi:u:r:", long_options, &opt_index)) != -1) {
         switch (c) {
  	case 'i':
             if ((fin = fopen(optarg, "rb")) == NULL) {
@@ -117,6 +119,10 @@ int main(int argc, char **argv) {
             pred = atof(optarg);
             fprintf(stderr, "pred = %f\n", pred);
             break;
+	case 'r':
+	    fprintf(stderr, "loading nnet: %s\n", optarg);
+	    nnet_read(optarg);
+	    break;            
         case 's':
             direct_split = 1; m = direct_split_m; vq = direct_split_vq; pred = 0.0; logmag = 1; weight = 1.0;
             fprintf(stderr, "split VQ\n");
@@ -140,6 +146,7 @@ int main(int argc, char **argv) {
     lpcnet_open_test_file(lf->net, "test_lpcnet_statesq.f32");
     LPCNET_QUANT *q = lf->q;
 
+    
     // this program allows us to tweak params via command line
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;
     q->pitch_bits = pitch_bits; q->dec = dec; q->logmag = logmag;

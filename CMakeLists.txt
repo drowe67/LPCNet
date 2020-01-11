@@ -2,6 +2,8 @@
 #          flags manually on cmd line
 #       2/ Should we standardise on just AVX?  As machine we run on
 #          may be different to machine we build on
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "Minimum OS X deployment version")
+
 cmake_minimum_required(VERSION 3.0)
 project(LPCNet C)
 

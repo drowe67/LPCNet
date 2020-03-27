@@ -35,6 +35,7 @@ from keras.callbacks import ModelCheckpoint
 from ulaw import ulaw2lin, lin2ulaw
 import keras.backend as K
 import h5py
+import argparse
 
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
@@ -46,23 +47,33 @@ config = tf.ConfigProto()
 
 set_session(tf.Session(config=config))
 
-nb_epochs = 10
-
 # Try reducing batch_size if you run out of memory on your GPU
 batch_size = 32
+# with of feature records used for training
+nb_features = 55
 
-model, _, _ = lpcnet.new_lpcnet_model(training=True)
+parser = argparse.ArgumentParser(description='LPCNet training')
+parser.add_argument('feature_file', help='.f32 file of float features')
+parser.add_argument('s16_file', help='16 bit signed short speech sample file')
+parser.add_argument('prefix', help='.h5 file prefix to easily identify each experiment')
+parser.add_argument('--frame_size', type=int, default=160, help='frames size in samples')
+parser.add_argument('--delay', type=int, default=0, help='number of frames delay in features compared to speech')
+parser.add_argument('--epochs', type=int, default=20, help='Number of training epochs')
+args = parser.parse_args()
+
+nb_epochs = nb.epochs
+
+model, _, _ = lpcnet.new_lpcnet_model(frame_size=args.frame_size, training=True)
 
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['sparse_categorical_accuracy'])
 model.summary()
 
-feature_file = sys.argv[1]
-pcm_file = sys.argv[2]            # 16 bit unsigned short PCM samples
-prefix = sys.argv[3]              # prefix to put on .h5 files to easily name each experiment
+feature_file = args.feature_file
+pcm_file = args.pcm_file           
+prefix = args.prefix              
 frame_size = model.frame_size
-nb_features = 55
 nb_used_features = model.nb_used_features
-feature_chunk_size = 15
+feature_chunk_size = 15 # time window for conv1d/receptive field
 pcm_chunk_size = frame_size*feature_chunk_size
 
 # u for unquantised, load 16 bit PCM samples and convert to mu-law
@@ -97,8 +108,11 @@ fpad1 = np.concatenate([features[0:1, 0:2, :], features[:-1, -2:, :]], axis=0)
 fpad2 = np.concatenate([features[1:, :2, :], features[0:1, -2:, :]], axis=0)
 features = np.concatenate([fpad1, features, fpad2], axis=1)
 
-# pitch feature uses as well as cesptrals
+# pitch feature uses as well as ceptrals
 periods = (.1 + 50*features[:,:,36:37]+100).astype('int16')
+# sanity check training data aginst pitch embedding range
+assert periods >= 0, "pitch embedding < 0"
+assert periods < 256 "pitch embeddeding > 255"
 
 in_data = np.concatenate([sig, pred, in_exc], axis=-1)
 

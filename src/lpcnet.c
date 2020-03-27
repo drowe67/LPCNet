@@ -54,8 +54,9 @@ struct LPCNetState {
     float old_lpc[FEATURES_DELAY][LPC_ORDER];
     float old_gain[FEATURES_DELAY];
     int frame_count;
+    float preemph;
     float deemph_mem;
-    FILE *ftest;                    /* used to dump states for automates tests */
+    FILE *ftest;                    /* used to dump states for automated tests */
 };
 
 
@@ -118,6 +119,7 @@ LPCNetState *lpcnet_create()
     lpcnet = (LPCNetState *)calloc(sizeof(LPCNetState), 1);
     lpcnet->last_exc = 128;
     lpcnet->ftest = NULL;
+    lpcnet->preemph = PREEMPH;
     return lpcnet;
 }
 
@@ -135,7 +137,11 @@ void lpcnet_open_test_file(LPCNetState *lpcnet, char file_name[]) {
     }
 }
 
-void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N, int logmag)
+void lpcnet_set_preemph(LPCNetState *lpcnet, float preemph) {
+    lpcnet->preemph = preemph;
+}
+
+void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N, int mag)
 {
     static int count = 0;
     int i;
@@ -164,13 +170,23 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
     memcpy(lpc, lpcnet->old_lpc[FEATURES_DELAY-1], LPC_ORDER*sizeof(lpc[0]));
     memmove(lpcnet->old_lpc[1], lpcnet->old_lpc[0], (FEATURES_DELAY-1)*LPC_ORDER*sizeof(lpc[0]));
 
-    if (logmag) {
-        float tmp[NB_BANDS];
+    switch (mag) {
+    case 0:
+	lpc_from_cepstrum(lpcnet->old_lpc[0], features);
+	break;
+    case 1:
+    {
+	float tmp[NB_BANDS];
         for (i=0;i<NB_BANDS;i++) tmp[i] = pow(10.f, features[i]);
         lpc_from_bands(lpcnet->old_lpc[0], tmp);
     }
-    else
-	lpc_from_cepstrum(lpcnet->old_lpc[0], features);
+	break;
+    case 2:
+        for (i=0;i<LPC_ORDER;i++) lpcnet->old_lpc[0][i] = 0.0;
+	break;
+    default:
+	assert(0);
+    }
 
     if (lpcnet->ftest) {
         float pitch_f = pitch;
@@ -220,7 +236,7 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
         RNN_MOVE(&lpcnet->last_sig[1], &lpcnet->last_sig[0], LPC_ORDER-1);
         lpcnet->last_sig[0] = pcm;
         lpcnet->last_exc = exc;
-        pcm += PREEMPH*lpcnet->deemph_mem;
+        pcm += lpcnet->preemph*lpcnet->deemph_mem;
         lpcnet->deemph_mem = pcm;
         if (pcm<-32767) pcm = -32767;
         if (pcm>32767) pcm = 32767;

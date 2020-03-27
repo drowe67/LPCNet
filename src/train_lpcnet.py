@@ -36,9 +36,13 @@ from ulaw import ulaw2lin, lin2ulaw
 import keras.backend as K
 import h5py
 import argparse
-
+import os
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
+import matplotlib.pyplot as plt
+
+# less verbose tensorflow ....
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 config = tf.ConfigProto()
 
 # use this option to reserve GPU memory, e.g. for running more than
@@ -54,14 +58,13 @@ nb_features = 55
 
 parser = argparse.ArgumentParser(description='LPCNet training')
 parser.add_argument('feature_file', help='.f32 file of float features')
-parser.add_argument('s16_file', help='16 bit signed short speech sample file')
+parser.add_argument('packed_ulaw_file', help='file of 4 multiplexed ulaw samples per speech sample')
 parser.add_argument('prefix', help='.h5 file prefix to easily identify each experiment')
 parser.add_argument('--frame_size', type=int, default=160, help='frames size in samples')
-parser.add_argument('--delay', type=int, default=0, help='number of frames delay in features compared to speech')
 parser.add_argument('--epochs', type=int, default=20, help='Number of training epochs')
 args = parser.parse_args()
 
-nb_epochs = nb.epochs
+nb_epochs = args.epochs
 
 model, _, _ = lpcnet.new_lpcnet_model(frame_size=args.frame_size, training=True)
 
@@ -69,7 +72,7 @@ model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=
 model.summary()
 
 feature_file = args.feature_file
-pcm_file = args.pcm_file           
+pcm_file = args.packed_ulaw_file           
 prefix = args.prefix              
 frame_size = model.frame_size
 nb_used_features = model.nb_used_features
@@ -95,7 +98,17 @@ in_exc = np.reshape(data[2::4], (nb_frames, pcm_chunk_size, 1))
 out_exc = np.reshape(data[3::4], (nb_frames, pcm_chunk_size, 1))
 del data
 
-print("ulaw std = ", np.std(out_exc))
+"""
+# plot ulaw signals to sanity check
+testf=10
+print(sig.shape)
+#plt.plot(sig[testf,:],label="sig")
+#plt.plot(pred[testf,:],label="pred")
+plt.plot(in_exc[testf,:],label="in_exc")
+plt.plot(out_exc[testf,:],label="out_exc")
+plt.legend()
+plt.show()
+"""
 
 features = np.reshape(features, (nb_frames, feature_chunk_size, nb_features))
 features = features[:, :, :nb_used_features]
@@ -104,6 +117,14 @@ features = features[:, :, :nb_used_features]
 # nb_used_features=38, so 0...37, so lpc-gain not used
 features[:,:,18:36] = 0   # zero out 18..35, so pitch and pitch gain being fed in, lpc gain ignored
 
+"""
+# plot features to sanity check
+print(features.shape)
+testf=10
+plt.plot(features[testf,:,37:38])
+plt.show()
+"""
+
 fpad1 = np.concatenate([features[0:1, 0:2, :], features[:-1, -2:, :]], axis=0)
 fpad2 = np.concatenate([features[1:, :2, :], features[0:1, -2:, :]], axis=0)
 features = np.concatenate([fpad1, features, fpad2], axis=1)
@@ -111,8 +132,15 @@ features = np.concatenate([fpad1, features, fpad2], axis=1)
 # pitch feature uses as well as ceptrals
 periods = (.1 + 50*features[:,:,36:37]+100).astype('int16')
 # sanity check training data aginst pitch embedding range
-assert periods >= 0, "pitch embedding < 0"
-assert periods < 256 "pitch embeddeding > 255"
+assert np.any(periods >= 0), "pitch embedding < 0"
+assert np.any(periods < 256), "pitch embeddeding > 255"
+
+"""
+# plot pitch to sanity check
+print(features.shape, periods.shape)
+plt.plot(periods.reshape(-1)[:1000])
+plt.show()
+"""
 
 in_data = np.concatenate([sig, pred, in_exc], axis=-1)
 

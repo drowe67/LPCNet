@@ -36,7 +36,6 @@ import numpy as np
 import h5py
 import sys
 
-frame_size = 160
 pcm_bits = 8
 embed_size = 128
 pcm_levels = 2**pcm_bits
@@ -113,7 +112,7 @@ class PCMInit(Initializer):
             'seed': self.seed
         }
 
-def new_lpcnet_model(rnn_units1=384, rnn_units2=16, nb_used_features = 38, training=False, use_gpu=True):
+def new_lpcnet_model(frame_size = 160, rnn_units1=384, rnn_units2=16, nb_used_features = 38, training=False, use_gpu=True):
     pcm = Input(shape=(None, 3))
     feat = Input(shape=(None, nb_used_features))
     pitch = Input(shape=(None, 1))

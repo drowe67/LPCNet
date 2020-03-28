@@ -7,7 +7,7 @@ PATH=$PATH:$HOME/codec2/build_linux/src:$HOME/LPCNet/build_linux/src:$HOME/LPCNe
 
 train=$1
 model=$2
-epochs=05
+epochs=20
 
 c2sim ~/Downloads/${train}.sw --ten_ms_centre ${train}_10ms.sw --rateKWov ${train}.f32
 sw2packedulaw ${train}_10ms.sw ${train}_10ms.pulaw
@@ -19,4 +19,4 @@ make test_lpcnet
 
 test=all_8k
 c2sim ~/Downloads/${test}.sw --rateKWov ${test}.f32
-test_lpcnet --mag 2 --frame_size 80 ${test}.f32 - > test_700c.sw
+test_lpcnet --mag 2 --frame_size 80 --pre 0 ${test}.f32 - > ${model}_${test}.sw

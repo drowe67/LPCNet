@@ -5,20 +5,24 @@
   training, this code is a cut/paste from dump_data.c witha few other
   options.
 
-  Generate some training data:
-
-    ~/codec2/build_linux/src/c2sim ~/Downloads/all_8k.sw --ten_ms_centre all_8k_10ms.sw --rateKWov all_8k.f32 --lpc 10
-
-  Then:
+  By varying the LPC predictor coefficients we can try no predictor,
+  first order, and regular LPC.
 
   1. No prediction (WaveRNN I guess):
-    $ ./src/sw2packedulaw --frame_size 80 all_8k_10ms.sw all_8k_none.pulaw
+    $ ~/codec2/build_linux/src/c2sim ~/Downloads/all_8k.sw --ten_ms_centre all_8k_10ms.sw --rateKWov all_8k.f32 
+    $ ./src/sw2packedulaw --frame_size 80 all_8k_10ms.sw all_8k.f32 all_8k_none.pulaw
+    $ ../src/plot_pulaw.py all_8k_none.pulaw
+
   2. First order predictor:
-    $ ./src/sw2packedulaw --frame_size 80 --first all_8k_10ms.sw all_8k_first.pulaw
+    $ ~/codec2/build_linux/src/c2sim ~/Downloads/all_8k.sw --ten_ms_centre all_8k_10ms.sw --rateKWov all_8k.f32 --first
+    $ ./src/sw2packedulaw --frame_size 80 all_8k_10ms.sw all_8k.f32 all_8k_first.pulaw
+
   3. LPC with ulaw Q in the loop and noise injection (standard LPCNet design):
-    $ ./src/sw2packedulaw --frame_size 80 --lpc all_8k.f32 all_8k_10ms.sw all_8k.pulaw
+    $ ~/codec2/build_linux/src/c2sim ~/Downloads/all_8k.sw --ten_ms_centre all_8k_10ms.sw --rateKWov all_8k.f32 --lpc 10
+    $ ./src/sw2packedulaw --frame_size 80all_8k_10ms.sw  all_8k.f32 all_8k.pulaw
+
   4. LPC with no Q in the loop or noise injection (linear):
-    $ ./src/sw2packedulaw --frame_size 80 --linear --lpc all_8k.f32 all_8k_10ms.sw all_8k_linear.pulaw
+    $ ./src/sw2packedulaw --frame_size 80 --linear all_8k_10ms.sw all_8k.f32 all_8k_linear.pulaw
 
   See plot_pulaw.py to inspect output .pulaw files
 */
@@ -101,12 +105,9 @@ void write_audio_linear(DenoiseState *st, const short *pcm, FILE *file, int fram
 }
 
 int main(int argc, char *argv[]) {
-    FILE *ffeature = NULL;
-    int withlpc = 0;
     int linear = 0;
     int frame_size = FRAME_SIZE;
     
-    /* note default is running without LPCs (WaveRNN rather than LPCNet) */
     DenoiseState st;
     memset(&st, 0, sizeof(DenoiseState));
     st.exc_mem = 128;
@@ -115,8 +116,6 @@ int main(int argc, char *argv[]) {
     int opt_idx = 0;
     while( o != -1 ) {
         static struct option long_opts[] = {
-            {"lpc", required_argument, 0, 'o'},
-            {"first", no_argument, 0, 'p'},
             {"linear", no_argument, 0, 'l'},
             {"frame_size", required_argument, 0, 'f'},
             {0, 0, 0, 0}
@@ -129,19 +128,8 @@ int main(int argc, char *argv[]) {
 	    frame_size = atoi(optarg);
 	    fprintf(stderr, "frame_size: %d\n", frame_size);
 	    break;
-	case 'p':
-	    st.lpc[0] = -0.9;
-	    break;
 	case 'l':
 	    linear = 1;
-	    break;
-	case 'o':
-	    ffeature = fopen(optarg, "rb");
-	    if (ffeature == NULL) {
-		fprintf(stderr, "Can't open %s\n", optarg);
-		exit(1);
-	    }
-	    withlpc = 1;
 	    break;
 	case '?':
 	    goto helpmsg;
@@ -150,38 +138,40 @@ int main(int argc, char *argv[]) {
     }
     int dx = optind;
 
-    if ((argc - dx) < 2) {
+    if ((argc - dx) < 3) {
     helpmsg:
-        fprintf(stderr, "usage: s2packedulaw [--first] [--lpc FeatureFile.f32] Input.s16 Output.pulaw\n");
+        fprintf(stderr, "usage: s2packedulaw Input.s16 FeatureFile.f32 Output.pulaw\n");
         return 0;
     }
 
     FILE *fsw = fopen(argv[dx], "rb");
     if (fsw == NULL) {
-	fprintf(stderr, "Can't open %s\n", argv[1]);
+	fprintf(stderr, "Can't open %s\n", argv[dx]);
 	exit(1);
     }
     
-    FILE *fpackedpcm = fopen(argv[dx+1], "wb");
+    FILE *ffeature = fopen(argv[dx+1], "rb");
+    if (ffeature == NULL) {
+	fprintf(stderr, "Can't open %s\n", argv[dx+1]);
+	exit(1);
+    }
+    
+    FILE *fpackedpcm = fopen(argv[dx+2], "wb");
     if (fpackedpcm == NULL) {
-	fprintf(stderr, "Can't open %s\n", argv[2]);
+	fprintf(stderr, "Can't open %s\n", argv[dx+2]);
 	exit(1);
     }
     
     short frame[frame_size];
     while (fread(frame, sizeof(short), frame_size, fsw) == (unsigned)frame_size) {
-	if (withlpc) {
-	    float features[NB_FEATURES];
-	    int ret = fread(features, sizeof(float), NB_FEATURES, ffeature);
-	    if (ret != NB_FEATURES) {
-		fprintf(stderr, "feature file ended early!\n");
-		exit(1);		
-	    }
-	    for(int i=0; i<CODEC2_LPC_ORDER; i++) {
-		st.lpc[i] = features[18+i];
-		//fprintf(stderr, "%5.3f ", features[18+i]);
-	    }
-	    //fprintf(stderr, "\n");
+	float features[NB_FEATURES];
+	int ret = fread(features, sizeof(float), NB_FEATURES, ffeature);
+	if (ret != NB_FEATURES) {
+	    fprintf(stderr, "feature file ended early!\n");
+	    exit(1);		
+	}
+	for(int i=0; i<CODEC2_LPC_ORDER; i++) {
+	    st.lpc[i] = features[18+i];
 	}
 	if (linear)
 	    write_audio_linear(&st, frame, fpackedpcm, frame_size);
@@ -191,6 +181,7 @@ int main(int argc, char *argv[]) {
     }
 
     fclose(fsw);
+    fclose(ffeature);
     fclose(fpackedpcm);
     return 0;
 }

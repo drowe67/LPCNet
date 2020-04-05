@@ -141,7 +141,7 @@ void lpcnet_set_preemph(LPCNetState *lpcnet, float preemph) {
     lpcnet->preemph = preemph;
 }
 
-void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features, int N, int mag)
+void lpcnet_synthesize(LPCNetState *lpcnet, short *output, float *features, int N, int mag)
 {
     static int count = 0;
     int i;
@@ -182,11 +182,20 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, const float *features
     }
 	break;
     case 2:
-        for (i=0;i<LPC_ORDER;i++) lpcnet->old_lpc[0][i] = features[i+NB_BANDS];
+        for (i=0;i<LPC_ORDER;i++) {
+	    lpcnet->old_lpc[0][i] = features[i+NB_BANDS];
+	    fprintf(stderr, "%f ", lpcnet->old_lpc[0][i]);
+	}
+	fprintf(stderr, "\n");
 	break;
     default:
 	assert(0);
     }
+
+    /* We optinally use this part of feature vector to pass in LPCs,
+     * but we don't want any non zero values here hitting the
+     * frame rate network.  TODO: better design */
+    RNN_CLEAR(&features[18], 18); 
 
     if (lpcnet->ftest) {
         float pitch_f = pitch;

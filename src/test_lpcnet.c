@@ -116,7 +116,6 @@ int main(int argc, char **argv) {
         int nread = fread(in_features, sizeof(features[0]), NB_TOTAL_FEATURES, fin);
         if (nread != NB_TOTAL_FEATURES) break;
         RNN_COPY(features, in_features, NB_FEATURES);
-        RNN_CLEAR(&features[18], 18);
         lpcnet_synthesize(net, pcm, features, frame_size, mag);
         fwrite(pcm, sizeof(pcm[0]), frame_size, fout);
         if (fout == stdout) fflush(stdout);

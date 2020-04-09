@@ -96,7 +96,7 @@ endif()
 # grab latest NN model (or substitute your own)
 set(LPCNET_ROOT http://rowetel.com/downloads/deep/)
 set(LPCNET_FILE lpcnet_191005_v1.0.tgz)
-set(LPCNET_URL ${LPCNET_ROOT}${LPCNET_FILE})
+option(LPCNET_URL "URL of the NN model data" ${LPCNET_ROOT}${LPCNET_FILE})
 
 # Work around not having the FetchContent module.
 if(CMAKE_VERSION VERSION_LESS 3.11.4)

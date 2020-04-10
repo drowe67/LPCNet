@@ -16,7 +16,7 @@ train2=train_8k
 test1=all_8k
 test2=all_speech_subset_8k
 datestamp=$1
-epochs=10
+epochs=05
 log=${1}.txt
 train=${datestamp}_train
 
@@ -33,15 +33,11 @@ experiment() {
     echo "train starting" ${2}
     echo "------------------------------------------------------------------------------"
     
-    sox -r 8000 -c 1 ~/Downloads/${train1}.sw \
-	-r 8000 -c 1 ~/Downloads/${train2}.sw \
-	-t sw -r 8000 -c 1 ${train}.sw
-    
     c2sim ${train}.sw --ten_ms_centre ${train}_10ms.sw --rateKWov ${train}.f32 ${1}
     sw2packedulaw --frame_size 80 ${train}_10ms.sw ${train}.f32 ${train}_10ms.pulaw
     
-    train_lpcnet.py ${train}.f32 ${train}_10ms.pulaw ${datestamp} --epochs ${epochs} --frame_size 80
-    dump_lpcnet.py ${datestamp}_${epochs}.h5
+    train_lpcnet.py ${train}.f32 ${train}_10ms.pulaw ${datestamp}_${2} --epochs ${epochs} --frame_size 80
+    dump_lpcnet.py ${datestamp}_${2}_${epochs}.h5
     cp nnet_data.c src
     make test_lpcnet
 
@@ -51,8 +47,11 @@ experiment() {
 
 rm -f $log
 
-# Quantised 700C vectors at 10ms frame rate (note LPCs unquantised)
-
+# assemble some training speech
+sox -r 8000 -c 1 ~/Downloads/${train1}.sw \
+    -r 8000 -c 1 ~/Downloads/${train2}.sw \
+    -t sw -r 8000 -c 1 ${train}.sw
+    
 (
     experiment "" "none"           # no prediction
 

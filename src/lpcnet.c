@@ -184,9 +184,7 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, float *features, int 
     case 2:
         for (i=0;i<LPC_ORDER;i++) {
 	    lpcnet->old_lpc[0][i] = features[i+NB_BANDS];
-	    fprintf(stderr, "%f ", lpcnet->old_lpc[0][i]);
 	}
-	fprintf(stderr, "\n");
 	break;
     default:
 	assert(0);

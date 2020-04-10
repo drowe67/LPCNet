@@ -155,4 +155,4 @@ checkpoint = ModelCheckpoint(prefix + '_{epoch:02d}.h5')
 # use this to reload a partially trained model
 #model.load_weights('lpcnet_190203_07.h5')
 model.compile(optimizer=Adam(0.001, amsgrad=True, decay=5e-5), loss='sparse_categorical_crossentropy')
-model.fit([in_data, features, periods], out_exc, batch_size=batch_size, epochs=nb_epochs, validation_split=0.1, callbacks=[checkpoint, lpcnet.Sparsify(2000, 40000, 400, (0.05, 0.05, 0.2))])
+model.fit([in_data, features, periods], out_exc, batch_size=batch_size, epochs=nb_epochs, callbacks=[checkpoint, lpcnet.Sparsify(2000, 40000, 400, (0.05, 0.05, 0.2))])

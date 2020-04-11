@@ -49,6 +49,7 @@ int main(int argc, char **argv) {
             {"logstates", required_argument, 0, 'l'},
             {"mag", required_argument, 0, 'i'},
             {"nnet", required_argument, 0, 'n'},
+            {"no_pitch_embedding", no_argument, 0, 'e'},
             {"pre", required_argument, 0, 'p'},
            {0, 0, 0, 0}
         };
@@ -56,6 +57,9 @@ int main(int argc, char **argv) {
 	o = getopt_long(argc,argv,"ihn:l:",long_opts,&opt_idx);
         
 	switch(o){
+	case 'e':
+	    lpcnet_set_pitch_embedding(net, 0);
+	    break;
 	case 'f':
 	    frame_size = atoi(optarg);
 	    fprintf(stderr, "frame_size: %d\n", frame_size);

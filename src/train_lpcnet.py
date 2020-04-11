@@ -62,6 +62,7 @@ parser.add_argument('packed_ulaw_file', help='file of 4 multiplexed ulaw samples
 parser.add_argument('prefix', help='.h5 file prefix to easily identify each experiment')
 parser.add_argument('--frame_size', type=int, default=160, help='frames size in samples')
 parser.add_argument('--epochs', type=int, default=20, help='Number of training epochs')
+parser.add_argument('--no_pitch_embedding', action='store_true', help='disable pitch embedding')
 args = parser.parse_args()
 
 nb_epochs = args.epochs
@@ -129,8 +130,10 @@ fpad1 = np.concatenate([features[0:1, 0:2, :], features[:-1, -2:, :]], axis=0)
 fpad2 = np.concatenate([features[1:, :2, :], features[0:1, -2:, :]], axis=0)
 features = np.concatenate([fpad1, features, fpad2], axis=1)
 
-# pitch feature uses as well as ceptrals
+# pitch feature uses as well as cepstrals
 periods = (.1 + 50*features[:,:,36:37]+100).astype('int16')
+if args.no_pitch_embedding:
+    periods[:] = 0
 # sanity check training data aginst pitch embedding range
 assert np.any(periods >= 0), "pitch embedding < 0"
 assert np.any(periods < 256), "pitch embeddeding > 255"

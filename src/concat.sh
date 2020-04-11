@@ -1,6 +1,8 @@
-# Place in 16k-LP7 from TSPSpeech.iso and run to concatenate wave files
-# into one headerless training file
-for i in */*.wav
+#!/bin/bash
+# Concatenate .wav files into one headerless .sw training file
+# usage: ./concat.sh concatfile.sw
+
+for i in `find . -name '*.wav'`
 do
 sox $i -r 16000 -c 1 -t sw -
-done > input.s16
+done > $1

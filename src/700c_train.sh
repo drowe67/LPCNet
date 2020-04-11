@@ -24,14 +24,14 @@ train=${datestamp}_train
 synth_10ms() {
     test=$3
     c2sim ~/Downloads/${test}.sw --rateKWov ${test}.f32 ${1}
-    test_lpcnet --mag 2 --frame_size 80 --pre 0 --no_pitch_embedding ${test}.f32 ${datestamp}_${test}_${2}.sw
+    test_lpcnet --mag 2 --frame_size 80 --pre 0 ${test}.f32 ${datestamp}_${test}_${2}.sw
 }
 
 # synth_40ms "filename"
 synth_40ms() {
     # no prediction, Codec 2 700C at 40ms frame rate (700 bits/s) from c2dec
     c2enc 700C ~/Downloads/${1}.sw - --eq --var | c2dec 700C - /dev/null --mlfeat ${1}_dec4.f32
-    test_lpcnet --mag 2 --frame_size 80 --pre 0 --no_pitch_embedding ${1}_dec4.f32 ${datestamp}_${1}_40.sw
+    test_lpcnet --mag 2 --frame_size 80 --pre 0  ${1}_dec4.f32 ${datestamp}_${1}_40.sw
 }
     
 # experient "c2sim arg for experiment" "experiment label"
@@ -43,7 +43,7 @@ experiment() {
     c2sim ${train}.sw --ten_ms_centre ${train}_10ms.sw --rateKWov ${train}.f32 ${1}
     sw2packedulaw --frame_size 80 ${train}_10ms.sw ${train}.f32 ${train}_10ms.pulaw
     
-    train_lpcnet.py ${train}.f32 ${train}_10ms.pulaw ${datestamp}_${2} --epochs ${epochs} --frame_size 80 --no_pitch_embedding
+    train_lpcnet.py ${train}.f32 ${train}_10ms.pulaw ${datestamp}_${2} --epochs ${epochs} --frame_size 80
     dump_lpcnet.py ${datestamp}_${2}_${epochs}.h5
     cp nnet_data.c src
     make test_lpcnet

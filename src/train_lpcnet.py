@@ -153,7 +153,7 @@ del in_exc
 
 # dump models to disk as we go
 #checkpoint = ModelCheckpoint('lpcnet20h_384_10_G16_{epoch:02d}.h5')
-checkpoint = ModelCheckpoint(prefix + '_{epoch:02d}.h5')
+checkpoint = ModelCheckpoint(prefix + '_{epoch:d}.h5')
 
 # use this to reload a partially trained model
 #model.load_weights('lpcnet_190203_07.h5')

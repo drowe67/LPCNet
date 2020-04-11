@@ -11,12 +11,12 @@ if [ "$#" -ne 1 ]; then
     exit 0
 fi
 
-train1=all_speech_8k
+train1=all_speechcat_8k
 train2=train_8k
 test1=all_8k
 test2=all_speech_subset_8k
 datestamp=$1
-epochs=01
+epochs=5
 log=${1}.txt
 train=${datestamp}_train
 
@@ -52,18 +52,19 @@ experiment() {
     synth_10ms "${1}" "${2}" "${test2}"
 }
 
-rm -f $log
+(
+    rm -f $log
 
-# assemble some training speech
-sox -r 8000 -c 1 ~/Downloads/${train1}.sw \
+    # assemble some training speech
+    sox -r 8000 -c 1 ~/Downloads/${train1}.sw \
     -r 8000 -c 1 ~/Downloads/${train2}.sw \
     -t sw -r 8000 -c 1 ${train}.sw
-    
-(
+    #cp ~/Downloads/${train1}.sw ${train}.sw  
+
     experiment "" "none"           # no prediction
 
-    #synth_40 ${test1}    
-    #synth_40 ${test2}
+    #synth_40ms ${test1}    
+    #synth_40ms ${test2}
     
     #experiment "--first"  "first" # first order predictor
     #experiment "--lpc 10" "lpc"   # standard LPC (albiet 10th order)

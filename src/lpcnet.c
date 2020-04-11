@@ -162,6 +162,7 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, float *features, int 
     /* FIXME: Do proper rounding once the Python code rounds properly. */
 
     if (lpcnet->pitch_embedding) {
+	fprintf(stderr, "embedding\n");
 	pitch = (int)floor(.1 + 50*features[36]+100);
 	assert(pitch >=0); assert(pitch <= 255);    
 	/* latest networks (using the codec 2 pitch estimator) are trained
@@ -170,8 +171,9 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, float *features, int 
 	   values down to 32, which upsets the pitch embed matrix */
 	if (pitch < 40) pitch = 40;
     }
-    else
+    else {
 	pitch = 0;
+    }
     
     pitch_gain = lpcnet->old_gain[FEATURES_DELAY-1];
     memmove(&lpcnet->old_gain[1], &lpcnet->old_gain[0], (FEATURES_DELAY-1)*sizeof(lpcnet->old_gain[0]));

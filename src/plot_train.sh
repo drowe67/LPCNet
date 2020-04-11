@@ -6,5 +6,5 @@
 # plot graphs of loss and spares categorical accuracy to get a feel
 # for progress while training
 
-grep loss $1 | sed -n 's/.*===\].*loss: \(.*\) - val_loss: \(.*\)/\1 \2/p' > loss.txt
-python3 plot_train.py loss.txt
+grep loss $1 | sed -n 's/.*===\].*step - loss: \(.*\)/\1/p' > loss.txt
+python3 ~/LPCNet/src/plot_train.py loss.txt

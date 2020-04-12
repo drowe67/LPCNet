@@ -132,11 +132,12 @@ features = np.concatenate([fpad1, features, fpad2], axis=1)
 
 # pitch feature uses as well as cepstrals
 periods = (.1 + 50*features[:,:,36:37]+100).astype('int16')
+print(periods.shape)
 if args.no_pitch_embedding:
     periods[:] = 0
 # sanity check training data aginst pitch embedding range
-assert np.any(periods >= 0), "pitch embedding < 0"
-assert np.any(periods < 256), "pitch embeddeding > 255"
+assert np.all(periods >= 40), "pitch embedding < 40"
+assert np.all(periods < 256), "pitch embeddeding > 255"
 
 """
 # plot pitch to sanity check

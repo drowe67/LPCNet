@@ -13,18 +13,20 @@ fi
 
 train1=all_speechcat_8k
 train2=train_8k
-test1=all_8k
-test2=all_speech_subset_8k
+test1=all_speech_subset_8k
+test2=all_8k
+test3="birch canadian glue oak separately wanted wia peter"
 datestamp=$1
 epochs=5
 log=${1}.txt
 train=${datestamp}_train
 
-# synth_10ms "c2sim arg for experiment" "experiment label" "filename"
+# synth_10ms "c2sim arg for experiment" "experiment label" "path/filename.sw"
 synth_10ms() {
-    test=$3
-    c2sim ~/Downloads/${test}.sw --rateKWov ${test}.f32 ${1}
-    test_lpcnet --mag 2 --frame_size 80 --pre 0 ${test}.f32 ${datestamp}_${test}_${2}.sw
+    path_filename=$3
+    filename=$(basename ${path_filename})
+    c2sim ${path_filename}.sw --rateKWov ${filename}.f32 ${1}
+    test_lpcnet --mag 2 --frame_size 80 --pre 0 ${filename}.f32 ${datestamp}_${filename}_${2}.sw
 }
 
 # synth_40ms "filename"
@@ -34,6 +36,16 @@ synth_40ms() {
     test_lpcnet --mag 2 --frame_size 80 --pre 0  ${1}_dec4.f32 ${datestamp}_${1}_40.sw
 }
     
+synth_test_file() {
+    synth_10ms "${1}" "${2}" ~/Downloads/${test1}
+    synth_10ms "${1}" "${2}" ~/Downloads/${test2}
+    for w in ${test3}
+    do
+	sox ../wav/${w}.wav -r 8000 -t sw ${w}_8k.sw
+	synth_10ms "${1}" "${2}" "${w}_8k"
+    done
+}
+
 # experient "c2sim arg for experiment" "experiment label"
 experiment() {
     echo "------------------------------------------------------------------------------"
@@ -48,9 +60,9 @@ experiment() {
     cp nnet_data.c src
     make test_lpcnet
 
-    synth_10ms "${1}" "${2}" "${test1}"
-    synth_10ms "${1}" "${2}" "${test2}"
+    synth_test_file "${1}" "${2}"
 }
+
 
 (
     rm -f $log
@@ -63,12 +75,11 @@ experiment() {
 
     experiment "" "none"           # no prediction
 
-    #synth_40ms ${test1}    
-    #synth_40ms ${test2}
+    synth_40ms ${test1}    
+    synth_40ms ${test2}
     
-    #experiment "--first"  "first" # first order predictor
-    #experiment "--lpc 10" "lpc"   # standard LPC (albiet 10th order)
+    experiment "--first"  "first" # first order predictor
+    experiment "--lpc 10" "lpc"   # standard LPC (albiet 10th order)
 
 ) |& tee $log
-
 

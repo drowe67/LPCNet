@@ -17,7 +17,7 @@ test1=all_speech_subset_8k
 test2=all_8k
 test3="birch canadian glue oak separately wanted wia peter"
 datestamp=$1
-epochs=5
+epochs=10
 log=${1}.txt
 train=${datestamp}_train
 
@@ -66,19 +66,20 @@ experiment() {
 
 (
     rm -f $log
-
+    
     # assemble some training speech
     sox -r 8000 -c 1 ~/Downloads/${train1}.sw \
     -r 8000 -c 1 ~/Downloads/${train2}.sw \
     -t sw -r 8000 -c 1 ${train}.sw
     #cp ~/Downloads/${train1}.sw ${train}.sw  
-
+    : '
     experiment "" "none"           # no prediction
 
     synth_40ms ${test1}    
     synth_40ms ${test2}
     
     experiment "--first"  "first" # first order predictor
+    '
     experiment "--lpc 10" "lpc"   # standard LPC (albiet 10th order)
 
 ) |& tee $log

@@ -16,7 +16,7 @@ train2=train_8k
 test1=all_8k
 test2=all_speech_subset_8k
 datestamp=$1
-epochs=05
+epochs=5
 log=${1}.txt
 train=${datestamp}_train
 
@@ -35,8 +35,9 @@ experiment() {
     
     c2sim ${train}.sw --ten_ms_centre ${train}_10ms.sw --rateKWov ${train}.f32 ${1}
     sw2packedulaw --frame_size 80 ${train}_10ms.sw ${train}.f32 ${train}_10ms.pulaw
-    
+
     train_lpcnet.py ${train}.f32 ${train}_10ms.pulaw ${datestamp}_${2} --epochs ${epochs} --frame_size 80
+    
     dump_lpcnet.py ${datestamp}_${2}_${epochs}.h5
     cp nnet_data.c src
     make test_lpcnet

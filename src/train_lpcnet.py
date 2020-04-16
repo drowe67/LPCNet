@@ -62,6 +62,8 @@ parser.add_argument('packed_ulaw_file', help='file of 4 multiplexed ulaw samples
 parser.add_argument('prefix', help='.h5 file prefix to easily identify each experiment')
 parser.add_argument('--frame_size', type=int, default=160, help='frames size in samples')
 parser.add_argument('--epochs', type=int, default=20, help='Number of training epochs')
+parser.add_argument('--no_pitch_embedding', action='store_true', help='disable pitch embedding')
+parser.add_argument('--load_h5', help='disable pitch embedding')
 args = parser.parse_args()
 
 nb_epochs = args.epochs
@@ -70,6 +72,10 @@ model, _, _ = lpcnet.new_lpcnet_model(frame_size=args.frame_size, training=True)
 
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['sparse_categorical_accuracy'])
 model.summary()
+
+if args.load_h5:
+    print("loading: %s" % (args.load_h5))
+    model.load_weights(args.load_h5)
 
 feature_file = args.feature_file
 pcm_file = args.packed_ulaw_file           
@@ -129,11 +135,15 @@ fpad1 = np.concatenate([features[0:1, 0:2, :], features[:-1, -2:, :]], axis=0)
 fpad2 = np.concatenate([features[1:, :2, :], features[0:1, -2:, :]], axis=0)
 features = np.concatenate([fpad1, features, fpad2], axis=1)
 
-# pitch feature uses as well as ceptrals
+# pitch feature uses as well as cepstrals
 periods = (.1 + 50*features[:,:,36:37]+100).astype('int16')
+print(periods.shape)
+if args.no_pitch_embedding:
+    print("no_pitch_embedding")
+    periods[:] = 0
 # sanity check training data aginst pitch embedding range
-assert np.any(periods >= 0), "pitch embedding < 0"
-assert np.any(periods < 256), "pitch embeddeding > 255"
+assert np.all(periods >= 40), "pitch embedding < 40"
+assert np.all(periods < 256), "pitch embeddeding > 255"
 
 """
 # plot pitch to sanity check
@@ -150,9 +160,8 @@ del in_exc
 
 # dump models to disk as we go
 #checkpoint = ModelCheckpoint('lpcnet20h_384_10_G16_{epoch:02d}.h5')
-checkpoint = ModelCheckpoint(prefix + '_{epoch:02d}.h5')
+checkpoint = ModelCheckpoint(prefix + '_{epoch:d}.h5')
 
 # use this to reload a partially trained model
-#model.load_weights('lpcnet_190203_07.h5')
 model.compile(optimizer=Adam(0.001, amsgrad=True, decay=5e-5), loss='sparse_categorical_crossentropy')
 model.fit([in_data, features, periods], out_exc, batch_size=batch_size, epochs=nb_epochs, callbacks=[checkpoint, lpcnet.Sparsify(2000, 40000, 400, (0.05, 0.05, 0.2))])

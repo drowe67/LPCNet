@@ -98,8 +98,13 @@ set(LPCNET_ROOT http://rowetel.com/downloads/deep/)
 set(LPCNET_FILE lpcnet_191005_v1.0.tgz)
 set(LPCNET_URL ${LPCNET_ROOT}${LPCNET_FILE})
 
+if(EXISTS ${CMAKE_BINARY_DIR}/${LPCNET_FILE})
+    set(lpcnet_SOURCE_DIR ${CMAKE_BINARY_DIR}/src)
+    file(MAKE_DIRECTORY ${lpcnet_SOURCE_DIR})
+    execute_process(COMMAND tar -xzf ${CMAKE_BINARY_DIR}/${LPCNET_FILE} -C ${CMAKE_BINARY_DIR}/src)
+
 # Work around not having the FetchContent module.
-if(CMAKE_VERSION VERSION_LESS 3.11.4)
+elseif(CMAKE_VERSION VERSION_LESS 3.11.4)
     set(lpcnet_SOURCE_DIR ${CMAKE_BINARY_DIR}/src)
     if(NOT EXISTS ${lpcnet_SOURCE_DIR})
         file(DOWNLOAD ${LPCNET_URL}

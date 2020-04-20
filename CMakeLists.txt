@@ -37,7 +37,7 @@ endif("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 # file at some point.
 #
 set(LPCNET_VERSION_MAJOR 0)
-set(LPCNET_VERSION_MINOR 1)
+set(LPCNET_VERSION_MINOR 2)
 # Set to patch level if needed, otherwise leave FALSE.
 # Must be positive (non-zero) if set, since 0 == FALSE in CMake.
 set(LPCNET_VERSION_PATCH FALSE)

@@ -26,7 +26,7 @@ const char simd[]="AVX2";
 #else
 const char simd[]="AVX";
 #endif
-#elif __ARM_NEON__
+#elif __ARM_NEON__ || __aarch64__
 #include "vec_neon.h"
 const char simd[]="NEON";
 #else

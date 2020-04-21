@@ -49,7 +49,7 @@ target_link_libraries(dump_data lpcnetfreedv m codec2)
 add_executable(test_lpcnet test_lpcnet.c)
 target_link_libraries(test_lpcnet lpcnetfreedv m codec2)
 
-if(AVX OR AVX2)
+if(AVX OR AVX2 OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
     add_executable(test_vec test_vec.c)
     target_link_libraries(test_vec m)
 else()

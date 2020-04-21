@@ -52,6 +52,9 @@ message(STATUS "LPCNet version: ${LPCNET_VERSION}")
 # Set default flags
 set(CMAKE_C_FLAGS "-Wall -W -Wextra -Wno-unused-function -O3 -g -I. -MD ${CMAKE_C_FLAGS} -DENABLE_ASSERTIONS")
 
+# Arch specific stuff here
+message(STATUS "Host system arch is: ${CMAKE_SYSTEM_PROCESSOR}")
+
 # Detection of available CPU optimizations
 if(NOT DISABLE_CPU_OPTIMIZATION)
     if(UNIX AND NOT APPLE)
@@ -87,7 +90,7 @@ elseif(${AVX} OR ${AVX} GREATER 0)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx")
 endif()
 
-# RPi
+# RPi / ARM 32bit
 if(${NEON} OR ${NEON} GREATER 0)
     message(STATUS "neon processor flags found or enabled.")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfpu=neon -march=armv8-a -mtune=cortex-a53")

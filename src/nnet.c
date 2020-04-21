@@ -43,7 +43,7 @@
 
 #ifdef __AVX__
 #include "vec_avx.h"
-#elif __ARM_NEON__
+#elif __ARM_NEON__ || __aarch64__
 #include "vec_neon.h"
 #else
 #warning Compiling without any vectorization. This code will be very slow

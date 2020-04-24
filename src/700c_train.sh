@@ -48,23 +48,24 @@ experiment() {
 
 rm -f $log
 
-# assemble some training speech
-sox -r 8000 -c 1 ~/Downloads/${train1}.sw \
-    -r 8000 -c 1 ~/Downloads/${train2}.sw \
-    -t sw -r 8000 -c 1 ${train}.sw
-    
 (
-    : '
-    experiment "" "none"           # no prediction
+    date
 
-    # no prediction, Codec 2 700C at 40ms frame rate (700 bits/s) from c2dec
+    # assemble some training speech
+    sox -r 8000 -c 1 ~/Downloads/${train1}.sw \
+	-r 8000 -c 1 ~/Downloads/${train2}.sw \
+	-t sw -r 8000 -c 1 ${train}.sw    
+
+    # LPCNet with 10ms frames (similar to training data) 
+    experiment "--lpc 10" "lpc"   # standard LPC (albiet 10th order)
+
+    # Codec 2 700C at 40ms frame rate (700 bits/s) from c2dec
+    c2enc 700C ~/Downloads/${test1}.sw - --eq --var | c2dec 700C - /dev/null --mlfeat ${test1}_dec4.f32
+    test_lpcnet --mag 2 --frame_size 80 --pre 0 ${test1}_dec4.f32 ${datestamp}_${test1}_40.sw
     c2enc 700C ~/Downloads/${test2}.sw - --eq --var | c2dec 700C - /dev/null --mlfeat ${test2}_dec4.f32
     test_lpcnet --mag 2 --frame_size 80 --pre 0 ${test2}_dec4.f32 ${datestamp}_${test2}_40.sw
     
-    experiment "--first"  "first" # first order predictor
-    '
-    experiment "--lpc 10" "lpc"   # standard LPC (albiet 10th order)
-
+    date
 ) |& tee $log
 
 

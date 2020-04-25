@@ -163,7 +163,7 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, float *features, int 
 
     if (lpcnet->pitch_embedding) {
 	pitch = (int)floor(.1 + 50*features[36]+100);
-	//fprintf(stderr, "pitch: %d\n", pitch);
+	//fprintf(stderr, "count: %d [36] %f pitch: %d\n", lpcnet->frame_count, features[36], pitch);
 	assert(pitch >=0); assert(pitch <= 255);    
 	/* latest networks (using the codec 2 pitch estimator) are trained
 	   with pitch estimates between 40 and 255, but due to the pitch

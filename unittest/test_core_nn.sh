@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 # test_core_nn.sh
 #
 
@@ -60,7 +60,7 @@ if [ ! -z $SYNTH_mag ]; then
     ../build_linux/src/dump_data --mag --test --c2pitch ../wav/c01_01.wav c01_01.f32
     diff c01_01_mag.f32 c01_01.f32 || { echo "ERROR in synth .f32 output! Exiting..."; exit 1; }
     echo "mag .f32 OK"
-    ../build_linux/src/test_lpcnet --mag -n lpcnet_190804a.f32 c01_01.f32 c01_01_out.raw
+    ../build_linux/src/test_lpcnet --mag 1 -n lpcnet_190804a.f32 c01_01.f32 c01_01_out.raw
     diff c01_01_190804a_targ.raw c01_01_out.raw || { echo "ERROR in synth .raw output! Exiting..."; exit 1; }
     echo "mag .raw OK"
 fi

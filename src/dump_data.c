@@ -453,6 +453,7 @@ int main(int argc, char **argv) {
 	assert(pitch_index < 2*PITCH_MAX_PERIOD);
 	assert(pitch_index >= 2*PITCH_MIN_PERIOD);
         features[2*NB_BANDS] = 0.01*(pitch_index-200);
+	//fprintf(stderr, "count: %d [36] %f pitch_index: %d\n", count, features[36], pitch_index);
         if (c2voicing_en) features[2*NB_BANDS+1] = voicing;
     }
     fwrite(features, sizeof(float), NB_FEATURES, ffeat);

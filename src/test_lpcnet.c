@@ -36,26 +36,37 @@
 int main(int argc, char **argv) {
     FILE *fin, *fout;
     LPCNetState *net;
-    int logmag = 0;
-
+    int mag = 0;
+    int frame_size = FRAME_SIZE;
+    
     net = lpcnet_create();
     
     int o = 0;
     int opt_idx = 0;
     while( o != -1 ) {
         static struct option long_opts[] = {
-            {"mag", no_argument, 0, 'i'},
-            {"nnet", required_argument, 0, 'n'},
+            {"frame_size", required_argument, 0, 'f'},
             {"logstates", required_argument, 0, 'l'},
-            {0, 0, 0, 0}
+            {"mag", required_argument, 0, 'i'},
+            {"nnet", required_argument, 0, 'n'},
+            {"no_pitch_embedding", no_argument, 0, 'e'},
+            {"pre", required_argument, 0, 'p'},
+           {0, 0, 0, 0}
         };
         
 	o = getopt_long(argc,argv,"ihn:l:",long_opts,&opt_idx);
         
 	switch(o){
+	case 'e':
+	    lpcnet_set_pitch_embedding(net, 0);
+	    break;
+	case 'f':
+	    frame_size = atoi(optarg);
+	    fprintf(stderr, "frame_size: %d\n", frame_size);
+	    break;
 	case 'i':
-	    logmag = 1;
-	    fprintf(stderr, "logmag: %d\n", logmag);
+	    mag = atoi(optarg);
+	    fprintf(stderr, "mag: %d\n", mag);
 	    break;
 	case 'l':
 	    fprintf(stderr, "logstates file: %s\n", optarg);
@@ -64,6 +75,10 @@ int main(int argc, char **argv) {
 	case 'n':
 	    fprintf(stderr, "loading nnet: %s\n", optarg);
 	    nnet_read(optarg);
+	    break;
+	case 'p':
+	    if (atoi(optarg) == 0)
+		lpcnet_set_preemph(net, 0.0);
 	    break;
 	case '?':
 	    goto helpmsg;
@@ -74,7 +89,9 @@ int main(int argc, char **argv) {
 
     if ((argc - dx) < 2) {
     helpmsg:
-        fprintf(stderr, "usage: test_lpcnet [--mag] [--logstates statesfile] [--nnet lpcnet_xxx.f32] <features.f32> <output.pcm>\n");
+        fprintf(stderr, "usage: test_lpcnet [--mag 1|2] [--logstates statesfile] [--nnet lpcnet_xxx.f32]"
+		" [--framesize samples] [--pre 0|1] <features.f32> <output.s16>\n");
+	fprintf(stderr, "--mag -i 0-cepstrals, 1-logmag, 2-disable LPC (WaveRNN)\n");
         return 0;
     }
 
@@ -99,13 +116,12 @@ int main(int argc, char **argv) {
     while (1) {
         float in_features[NB_TOTAL_FEATURES];
         float features[NB_FEATURES];
-        short pcm[FRAME_SIZE];
+        short pcm[frame_size];
         int nread = fread(in_features, sizeof(features[0]), NB_TOTAL_FEATURES, fin);
         if (nread != NB_TOTAL_FEATURES) break;
         RNN_COPY(features, in_features, NB_FEATURES);
-        RNN_CLEAR(&features[18], 18);
-        lpcnet_synthesize(net, pcm, features, FRAME_SIZE, logmag);
-        fwrite(pcm, sizeof(pcm[0]), FRAME_SIZE, fout);
+        lpcnet_synthesize(net, pcm, features, frame_size, mag);
+        fwrite(pcm, sizeof(pcm[0]), frame_size, fout);
         if (fout == stdout) fflush(stdout);
     }
     fclose(fin);

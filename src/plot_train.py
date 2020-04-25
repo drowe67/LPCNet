@@ -3,11 +3,10 @@ import numpy as np
 import sys
 
 loss = np.loadtxt(sys.argv[1])
-delta_loss = (loss[1:,0]-loss[:-1,0])/loss[1:,0]
+delta_loss = (loss[1:]-loss[:-1])/loss[1:]
 
 plt.figure(1)
-plt.plot(loss[:,0],'r')
-plt.plot(loss[:,1],'g')
+plt.plot(loss[:],'r')
 plt.title('loss')
 plt.show(block=False)
 plt.figure(2)

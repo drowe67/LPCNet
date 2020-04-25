@@ -11,12 +11,12 @@ if [ "$#" -ne 1 ]; then
     exit 0
 fi
 
-train1=all_speechcat_8k
-train2=train_8k
-test1=all_8k
+train1=dev-clean-8k
+test1=test-clean-8k
 test2=all_speech_subset_8k
+test3=all_8k
 datestamp=$1
-epochs=5
+epochs=30
 log=${1}.txt
 train=${datestamp}_train
 
@@ -44,6 +44,7 @@ experiment() {
 
     synth "${1}" "${2}" "${test1}"
     synth "${1}" "${2}" "${test2}"
+    synth "${1}" "${2}" "${test3}"
 }
 
 rm -f $log
@@ -53,7 +54,6 @@ rm -f $log
 
     # assemble some training speech
     sox -r 8000 -c 1 ~/Downloads/${train1}.sw \
-	-r 8000 -c 1 ~/Downloads/${train2}.sw \
 	-t sw -r 8000 -c 1 ${train}.sw    
 
     # LPCNet with 10ms frames (similar to training data) 
@@ -64,6 +64,8 @@ rm -f $log
     test_lpcnet --mag 2 --frame_size 80 --pre 0 ${test1}_dec4.f32 ${datestamp}_${test1}_40.sw
     c2enc 700C ~/Downloads/${test2}.sw - --eq --var | c2dec 700C - /dev/null --mlfeat ${test2}_dec4.f32
     test_lpcnet --mag 2 --frame_size 80 --pre 0 ${test2}_dec4.f32 ${datestamp}_${test2}_40.sw
+    c2enc 700C ~/Downloads/${test3}.sw - --eq --var | c2dec 700C - /dev/null --mlfeat ${test3}_dec4.f32
+    test_lpcnet --mag 2 --frame_size 80 --pre 0 ${test3}_dec4.f32 ${datestamp}_${test3}_40.sw
     
     date
 ) |& tee $log

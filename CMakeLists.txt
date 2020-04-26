@@ -10,6 +10,7 @@ project(LPCNet C)
 option(DISABLE_CPU_OPTIMIZATION "Disable CPU optimization discovery." OFF)
 option(AVX2 "Enable AVX2 CPU optimizations." OFF)
 option(AVX "Enable AVX CPU optimizations." OFF)
+option(SSE "Enable SSE CPU optimizations." OFF)
 option(NEON "Enable NEON CPU optimizations for RPi." OFF)
 
 include(GNUInstallDirs)
@@ -63,6 +64,8 @@ if(NOT DISABLE_CPU_OPTIMIZATION)
             OUTPUT_VARIABLE AVX2)
         execute_process(COMMAND grep -c "avx " /proc/cpuinfo
             OUTPUT_VARIABLE AVX)
+        execute_process(COMMAND grep -c "sse4_1 " /proc/cpuinfo
+            OUTPUT_VARIABLE SSE)
         execute_process(COMMAND grep -c "neon" /proc/cpuinfo
             OUTPUT_VARIABLE NEON)
     elseif(APPLE)
@@ -88,6 +91,10 @@ elseif(${AVX} OR ${AVX} GREATER 0)
 # AVX2 machines will also match on AVX
     message(STATUS "avx processor flags found or enabled.")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx")
+elseif(${SSE} OR ${SSE} GREATER 0)
+# AVX and AVX2 machines will also match on SSE
+    message(STATUS "sse processor flags found or enabled.")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.1")
 endif()
 
 # RPi / ARM 32bit

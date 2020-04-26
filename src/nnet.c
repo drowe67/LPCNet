@@ -43,6 +43,8 @@
 
 #ifdef __AVX__
 #include "vec_avx.h"
+#elif __SSE__
+#include "vec_sse.h"
 #elif __ARM_NEON__ || __aarch64__
 #include "vec_neon.h"
 #else

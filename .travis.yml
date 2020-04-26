@@ -27,9 +27,17 @@ script:
     - cmake -DCODEC2_BUILD_DIR=$CODEC2DIR/build_linux .. && make
     # simple sanity check
     - cd src && sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s > /dev/null
-    # some LPCNet ctests
-    - ls -l
+    # run LPCNet ctests
     - cd $BUILDDIR && ctest --output-on-failure
+    # speed test (50 second file)
+    - cd $BUILDDIR/src
+    - time sox ../../wav/all.wav -t raw -r 16000 - | ./dump_data --c2pitch --test - - | ./test_lpcnet - /dev/null
+    # rebuild for SSE, run ctests and speed test
+    - cd $BUILDDIR && rm -Rf *
+    - cmake -DDISABLE_CPU_OPTIMIZATION=ON -DSSE=ON -DCODEC2_BUILD_DIR=~/codec2/build_linux .. && make
+    - ctest --output-on-failuretest
+    - cd $BUILDDIR/src
+    - time sox ../../wav/all.wav -t raw -r 16000 - | ./dump_data --c2pitch --test - - | ./test_lpcnet - /dev/null    
     # Re-build codec2 with LPCNet and test FreeDV 2020 support
     - cd $CODEC2DIR/build_linux
     - make clean

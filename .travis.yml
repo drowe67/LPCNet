@@ -34,7 +34,7 @@ script:
     - time sox ../../wav/all.wav -t raw -r 16000 - | ./dump_data --c2pitch --test - - | ./test_lpcnet - /dev/null
     # rebuild for SSE, run ctests and speed test
     - cd $BUILDDIR && rm -Rf *
-    - cmake -DDISABLE_CPU_OPTIMIZATION=ON -DSSE=ON -DCODEC2_BUILD_DIR=~/codec2/build_linux .. && make
+    - cmake -DDISABLE_CPU_OPTIMIZATION=ON -DSSE=ON -DCODEC2_BUILD_DIR=$CODEC2DIR/build_linux .. && make
     - ctest --output-on-failuretest
     - cd $BUILDDIR/src
     - time sox ../../wav/all.wav -t raw -r 16000 - | ./dump_data --c2pitch --test - - | ./test_lpcnet - /dev/null    

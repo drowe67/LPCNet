@@ -87,7 +87,8 @@ static DenoiseState *rnnoise_create() {
 }
 
 static void rnnoise_destroy(DenoiseState *st) {
-  free(st);
+    freq_close();
+    free(st);
 }
 
 static short float2short(float x)

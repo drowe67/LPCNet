@@ -140,6 +140,10 @@ static void check_init() {
   common.init = 1;
 }
 
+void freq_close() {
+    opus_fft_free(common.kfft,0);
+}
+
 void dct(float *out, const float *in) {
   int i;
   check_init();

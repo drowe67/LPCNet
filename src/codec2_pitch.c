@@ -113,6 +113,7 @@ int codec2_pitch_est(CODEC2_PITCH *pitch, float Sn[], float *f0, float *voicing)
 
 void codec2_pitch_destroy(CODEC2_PITCH *pitch)
 {
+    free(pitch->fft_fwd_cfg);
     nlp_destroy(pitch->nlp_states);
     free(pitch->w);
     free(pitch);

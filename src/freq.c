@@ -141,7 +141,10 @@ static void check_init() {
 }
 
 void freq_close() {
-    opus_fft_free(common.kfft,0);
+    if (common.init) {
+        opus_fft_free(common.kfft,0);
+        common.init = 0;
+    }
 }
 
 void dct(float *out, const float *in) {

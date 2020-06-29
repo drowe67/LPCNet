@@ -79,7 +79,7 @@ static __m128 exp4_approx(__m128 X)
    Y = _mm_castsi128_ps(_mm_and_si128(mask, _mm_add_epi32(I, _mm_castps_si128(Y))));
    return Y;
 }
-static __m256 exp8_approx(__m256 X)
+static inline __m256 exp8_approx(__m256 X)
 {
    __m256 Y;
    __m128 Xhi, Xlo, Yhi, Ylo;

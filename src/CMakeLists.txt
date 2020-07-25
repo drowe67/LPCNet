@@ -101,6 +101,9 @@ target_link_libraries(nnet2f32 lpcnetfreedv m)
 add_executable(sw2packedulaw sw2packedulaw.c)
 target_link_libraries(sw2packedulaw lpcnetfreedv m)
 
+add_executable(thash thash.c)
+target_link_libraries(thash lpcnetfreedv m)
+
 install(TARGETS lpcnet_enc lpcnet_dec
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )

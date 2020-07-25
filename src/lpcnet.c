@@ -274,8 +274,3 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, float *features, int 
     start = 0;
 }
 
-static char git_hash[] = GIT_HASH;
-char *lpcnet_get_hash(void) {
-    return git_hash;
-}
-

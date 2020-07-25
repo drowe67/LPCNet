@@ -80,3 +80,9 @@ void lpcnet_dec(LPCNetFreeDV *lf, char *frame, short* pcm)
 
 int lpcnet_samples_per_frame(LPCNetFreeDV *lf) { return FRAME_SIZE*lf->q->dec; } 
 int lpcnet_bits_per_frame(LPCNetFreeDV *lf) { return lf->q->bits_per_frame; } 
+
+static char git_hash[] = GIT_HASH;
+char *lpcnet_get_hash(void) {
+    return git_hash;
+}
+

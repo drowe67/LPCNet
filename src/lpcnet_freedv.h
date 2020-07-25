@@ -16,5 +16,6 @@ void lpcnet_enc(LPCNetFreeDV *lf, short *pcm, char *frame);
 void lpcnet_dec(LPCNetFreeDV *lf, char *frame, short* pcm);
 int lpcnet_bits_per_frame(LPCNetFreeDV *lf);
 int lpcnet_samples_per_frame(LPCNetFreeDV *lf);
+char *lpcnet_get_hash(void);
 
 #endif

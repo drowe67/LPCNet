@@ -50,6 +50,29 @@ if(LPCNET_VERSION_PATCH)
 endif()
 message(STATUS "LPCNet version: ${LPCNET_VERSION}")
 
+#
+# Find the git hash if this is a working copy.
+#
+if(EXISTS ${CMAKE_SOURCE_DIR}/.git)
+    find_package(Git QUIET)
+    if(Git_FOUND)
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" describe --always HEAD
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            RESULT_VARIABLE res
+            OUTPUT_VARIABLE FREEDV_HASH
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        message(STATUS "freedv-gui current git hash: ${FREEDV_HASH}")
+        add_definitions(-DGIT_HASH="${FREEDV_HASH}")
+    else()
+        message(WARNING "Git not found. Can not determine current commit hash.")
+        add_definitions(-DGIT_HASH="Unknown")
+    endif()
+else()
+        add_definitions(-DGIT_HASH="None")
+endif()
+
 # Set default flags
 set(CMAKE_C_FLAGS "-Wall -W -Wextra -Wno-unused-function -O3 -g -I. -MD ${CMAKE_C_FLAGS} -DENABLE_ASSERTIONS")
 

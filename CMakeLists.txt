@@ -21,7 +21,7 @@ mark_as_advanced(CLEAR
 )
 
 # Build universal ARM64 and x86_64 binaries on Mac.
-set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64e")
+set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
 
 #
 # Prevent in-source builds

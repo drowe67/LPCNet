@@ -20,6 +20,11 @@ mark_as_advanced(CLEAR
     CMAKE_INSTALL_LIBDIR
 )
 
+# Build universal ARM64 and x86_64 binaries on Mac.
+if(BUILD_OSX_UNIVERSAL)
+set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
+endif(BUILD_OSX_UNIVERSAL)
+
 #
 # Prevent in-source builds
 # If an in-source build is attempted, you will still need to clean up a few

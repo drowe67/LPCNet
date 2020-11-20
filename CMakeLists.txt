@@ -97,12 +97,20 @@ if(NOT DISABLE_CPU_OPTIMIZATION)
         execute_process(COMMAND grep -c "neon" /proc/cpuinfo
             OUTPUT_VARIABLE NEON)
     elseif(APPLE)
-        # Under OSX we need to look through a few sysctl entries to determine what our CPU supports.
-        message(STATUS "Looking for available CPU optimizations on an OSX system...")
-        execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.leaf7_features COMMAND grep -c AVX2
-            OUTPUT_VARIABLE AVX2)
-        execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c AVX
-            OUTPUT_VARIABLE AVX)
+        if(BUILD_OSX_UNIVERSAL)
+            # Presume AVX/AVX2 are enabled on the x86 side. The ARM side will auto-enable
+            # NEON optimizations by virtue of being aarch64.
+            set(AVX TRUE)
+            set(AVX2 TRUE)
+            set(SSE TRUE)
+        else()
+            # Under OSX we need to look through a few sysctl entries to determine what our CPU supports.
+            message(STATUS "Looking for available CPU optimizations on an OSX system...")
+            execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.leaf7_features COMMAND grep -c AVX2
+                OUTPUT_VARIABLE AVX2)
+            execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c AVX
+                OUTPUT_VARIABLE AVX)
+        endif(BUILD_OSX_UNIVERSAL)
     elseif(WIN32)
         message(STATUS "No detection capability on Windows, assuming AVX is available.")
         set(AVX TRUE)

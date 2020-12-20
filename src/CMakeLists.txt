@@ -23,6 +23,8 @@ add_library(lpcnetfreedv SHARED ${lpcnet_freedv_srcs})
 target_link_libraries(lpcnetfreedv codec2)
 set_target_properties(lpcnetfreedv PROPERTIES
     PUBLIC_HEADER lpcnet_freedv.h
+	VERSION ${LPCNET_VERSION}
+	SOVERSION ${LPCNET_SOVERSION}
 )
 target_include_directories(lpcnetfreedv INTERFACE
     $<INSTALL_INTERFACE:include/lpcnet>

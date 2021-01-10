@@ -222,6 +222,12 @@ if(UNIX AND NOT APPLE)
     SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Mooneer Salem <mooneer@gmail.com>") #required
     SET(CPACK_DEBIAN_PACKAGE_DEPENDS "")
     SET(CPACK_DEB_COMPONENT_INSTALL ON)
+    SET(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+    SET(CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS ON)
+    SET(CPACK_DEBIAN_LIB_PACKAGE_NAME "LPCNet")
     include(CPack)
+    cpack_add_component(lib REQUIRED)
+    cpack_add_component(dev DEPENDS lib)
+    cpack_add_component(tools DEPENDS lib)
 endif(UNIX AND NOT APPLE)
 

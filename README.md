@@ -42,6 +42,16 @@ $ ctest
 
 Note, due to precision/library issues several tests (1-3) will [only pass on some machines](https://github.com/drowe67/LPCNet/issues/17).
 
+## Building Debian packages
+
+To build Debian packages, simply run the "cpack" command after running "make". This will generate the following packages:
+
++ lpcnet: Contains the .so and .a files for linking/executing applications dependent on LPCNet.
+* lpcnet-dev: Contains the header files for development using LPCNet.
+* lpcnet-tools: Contains tools for use with LPCNet.
+
+Once generated, they can be installed with "dpkg -i".
+
 # Reading Further
 
 1. [Original LPCNet Repo with more instructions and background](https://github.com/mozilla/LPCNet/)

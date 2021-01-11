@@ -48,7 +48,7 @@ To build Debian packages, simply run the "cpack" command after running "make". T
 
 + lpcnet: Contains the .so and .a files for linking/executing applications dependent on LPCNet.
 * lpcnet-dev: Contains the header files for development using LPCNet.
-* lpcnet-tools: Contains tools for use with LCPNet.
+* lpcnet-tools: Contains tools for use with LPCNet.
 
 Once generated, they can be installed with "dpkg -i".
 

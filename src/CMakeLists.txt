@@ -12,6 +12,7 @@ set(lpcnet_freedv_srcs
     lpcnet_dump.c
     4stage_pred_vq.c
     4stage_direct_split_vq.c
+    4stage_direct_split_indopt_vq.c
     lpcnet.c
     lpcnet_freedv.c
     nnet.c

@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     int   *m = pred_m;
     float *vq = pred_vq;
     int   logmag = 0;
-    int   direct_split = 0;
+    int   vq_type = LPCNET_PRED;
     
     fin = stdin;
     fout = stdout;
@@ -70,7 +70,8 @@ int main(int argc, char **argv) {
         {"numstages",    required_argument, 0, 'n'},
         {"pitchquant",   required_argument, 0, 'o'},
         {"pred",         required_argument, 0, 'p'},
-        {"directsplit",  no_argument,       0, 's'},
+        {"split",        no_argument,       0, 's'},
+        {"indexopt",     no_argument,       0, 'x'},
         {"verbose",      no_argument,       0, 'v'},
         {0, 0, 0, 0}
     };
@@ -78,7 +79,7 @@ int main(int argc, char **argv) {
     int   c;
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "d:n:o:p:svi:u:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "d:n:o:p:sxvi:u:", long_options, &opt_index)) != -1) {
         switch (c) {
 	case 'i':
             if ((fin = fopen(optarg, "rb")) == NULL) {
@@ -109,9 +110,14 @@ int main(int argc, char **argv) {
             fprintf(stderr, "pred = %f\n", pred);
             break;
         case 's':
-            direct_split = 1;
+            vq_type = LPCNET_DIRECT_SPLIT;
             m = direct_split_m; vq = direct_split_vq; pred = 0.0; logmag = 1; weight = 1.0;
-            fprintf(stderr, "split VQ\n");
+            fprintf(stderr, "direct split VQ\n");
+            break;
+        case 'x':
+            vq_type = LPCNET_DIRECT_SPLIT_INDEX_OPT;
+            m = direct_split_indopt_m; vq = direct_split_indopt_vq; pred = 0.0; logmag = 1; weight = 1.0;
+            fprintf(stderr, "index optimised direct split VQ\n");
             break;
         case 'v':
             lpcnet_verbose = 1;
@@ -120,13 +126,15 @@ int main(int argc, char **argv) {
             fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n", argv[0]);
             fprintf(stderr,"  [-i --infile]\n  [-u --outfile]\n");
             fprintf(stderr,"  [-n --numstages]\n  [-o --pitchbits nBits]\n");
-            fprintf(stderr,"  [-p --pred predCoff] [-s --split]\n");
+            fprintf(stderr,"  [-p --pred predCoff]  Predictive quantiser prediction coeff\n");
+            fprintf(stderr,"  [-s --directsplit]    Use direct split quaniser\n");
+            fprintf(stderr,"  [-x --indexopt]       Use index optimised direct split quantiser\n");
             fprintf(stderr,"  [-v --verbose]\n");
             exit(1);
         }
     }
 
-    LPCNetFreeDV *lf = lpcnet_freedv_create(direct_split);
+    LPCNetFreeDV *lf = lpcnet_freedv_create(vq_type);
     LPCNET_QUANT *q = lf->q;
 
     q->weight = weight; q->pred = pred; q->mbest = mbest_survivors;

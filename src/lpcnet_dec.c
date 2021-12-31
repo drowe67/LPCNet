@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     int   *m = pred_m;
     float *vq = pred_vq;
     int   logmag = 0;
-    int   direct_split = 0;
+    int   vq_type = LPCNET_PRED;
 
     fin = stdin;
     fout = stdout;
@@ -77,7 +77,8 @@ int main(int argc, char **argv) {
         {"numstages",   required_argument, 0, 'n'},
         {"pitchquant",  required_argument, 0, 'o'},
         {"pred",        required_argument, 0, 'p'},
-        {"directsplit", no_argument,       0, 's'},
+        {"split",       no_argument,       0, 's'},
+        {"indexopt",    no_argument,       0, 'x'},
         {"verbose",     no_argument,       0, 'v'},
         {0, 0, 0, 0}
     };
@@ -85,7 +86,7 @@ int main(int argc, char **argv) {
     int   c;
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "b:d:n:o:p:svi:u:r:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "b:d:n:o:p:sxvi:u:r:", long_options, &opt_index)) != -1) {
         switch (c) {
  	case 'i':
             if ((fin = fopen(optarg, "rb")) == NULL) {
@@ -124,8 +125,14 @@ int main(int argc, char **argv) {
 	    nnet_read(optarg);
 	    break;            
         case 's':
-            direct_split = 1; m = direct_split_m; vq = direct_split_vq; pred = 0.0; logmag = 1; weight = 1.0;
-            fprintf(stderr, "split VQ\n");
+            vq_type = LPCNET_DIRECT_SPLIT;
+            m = direct_split_m; vq = direct_split_vq; pred = 0.0; logmag = 1; weight = 1.0;
+            fprintf(stderr, "direct split VQ\n");
+            break;
+        case 'x':
+            vq_type = LPCNET_DIRECT_SPLIT_INDEX_OPT;
+            m = direct_split_indopt_m; vq = direct_split_indopt_vq; pred = 0.0; logmag = 1; weight = 1.0;
+            fprintf(stderr, "index optimised direct split VQ\n");
             break;
         case 'v':
             lpcnet_verbose = 1;
@@ -142,7 +149,7 @@ int main(int argc, char **argv) {
         }
     }
     
-    LPCNetFreeDV *lf = lpcnet_freedv_create(direct_split);
+    LPCNetFreeDV *lf = lpcnet_freedv_create(vq_type);
     lpcnet_open_test_file(lf->net, "test_lpcnet_statesq.f32");
     LPCNET_QUANT *q = lf->q;
 

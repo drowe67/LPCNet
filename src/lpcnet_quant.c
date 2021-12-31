@@ -30,13 +30,24 @@ int lpcnet_verbose = 0;
 
 static int quantise(const float * cb, float vec[], float w[], int k, int m, float *se);
 
-LPCNET_QUANT *lpcnet_quant_create(int direct_split) {
+LPCNET_QUANT *lpcnet_quant_create(int vq_type) {
+    assert((vq_type == LPCNET_PRED) || (vq_type == LPCNET_DIRECT_SPLIT) ||
+           (vq_type == LPCNET_DIRECT_SPLIT_INDEX_OPT));
     LPCNET_QUANT *q = (LPCNET_QUANT*)malloc(sizeof(LPCNET_QUANT));
     if (q == NULL) return NULL;
-    if (direct_split) {
+    if ((vq_type == LPCNET_DIRECT_SPLIT) || (vq_type == LPCNET_DIRECT_SPLIT_INDEX_OPT)) {
         q->weight = 1.0; q->pred = 0.0; 
         q->mbest = DEFAULT_MBEST; q->pitch_bits = DEFAULT_PITCH_BITS; q->dec = DEFAULT_DEC;
-        q->num_stages = direct_split_num_stages; q->vq = direct_split_vq; q->m = direct_split_m; q->logmag = 1;
+        q->logmag = 1;
+        if (vq_type == LPCNET_DIRECT_SPLIT) {
+            q->num_stages = direct_split_num_stages;
+            q->m = direct_split_m; 
+            q->vq = direct_split_vq;
+        } else {
+            q->num_stages = direct_split_indopt_num_stages;
+            q->m = direct_split_indopt_m; 
+            q->vq = direct_split_indopt_vq;
+        }
     }
     else {
         q->weight = DEFAULT_WEIGHT; q->pred = DEFAULT_PRED; 

@@ -16,7 +16,6 @@ set(lpcnet_freedv_srcs
     lpcnet.c
     lpcnet_freedv.c
     nnet.c
-    nnet_rw.c
     ${lpcnet_SOURCE_DIR}/nnet_data.c
 )
 
@@ -49,7 +48,7 @@ export(TARGETS lpcnetfreedv
 add_executable(dump_data dump_data.c)
 target_link_libraries(dump_data lpcnetfreedv m codec2)
 
-add_executable(test_lpcnet test_lpcnet.c)
+add_executable(test_lpcnet test_lpcnet.c nnet_rw.c)
 target_link_libraries(test_lpcnet lpcnetfreedv m codec2)
 
 if(SSE OR AVX OR AVX2 OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
@@ -92,13 +91,13 @@ target_link_libraries(quant_dec lpcnetfreedv m codec2)
 add_executable(lpcnet_enc lpcnet_enc.c)
 target_link_libraries(lpcnet_enc lpcnetfreedv m codec2)
 
-add_executable(lpcnet_dec lpcnet_dec.c)
+add_executable(lpcnet_dec lpcnet_dec.c nnet_rw.c)
 target_link_libraries(lpcnet_dec lpcnetfreedv m codec2)
 
 add_executable(idct idct.c)
 target_link_libraries(idct lpcnetfreedv m codec2)
 
-add_executable(nnet2f32 nnet2f32.c)
+add_executable(nnet2f32 nnet2f32.c nnet_rw.c)
 target_link_libraries(nnet2f32 lpcnetfreedv m)
 
 add_executable(sw2packedulaw sw2packedulaw.c)

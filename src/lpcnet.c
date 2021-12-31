@@ -133,10 +133,7 @@ void lpcnet_destroy(LPCNetState *lpcnet)
 
 void lpcnet_open_test_file(LPCNetState *lpcnet, char file_name[]) {
     lpcnet->ftest = fopen(file_name, "wb");
-    if (lpcnet->ftest == NULL) {
-        fprintf(stderr, "Error opening LPCNet test file: %s\n", file_name);
-        exit(1);
-    }
+    assert(lpcnet->ftest != NULL);
 }
 
 void lpcnet_set_preemph(LPCNetState *lpcnet, float preemph) {

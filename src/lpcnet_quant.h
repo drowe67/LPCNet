@@ -2,12 +2,13 @@
   lpcnet_quant.h
   David Rowe Feb 2019
 
-  David's experimental quanisation functions for LPCNet.
+  David's experimental quantisation functions for LPCNet.
 */
 
 #ifndef __LPCNET_QUANT__
 #define __LPCNET_QUANT__
 
+#include <stdio.h>
 #include "lpcnet_freedv.h"
 
 #define NB_FEATURES    55   /* length of feature vector (only a subset used) */
@@ -15,7 +16,6 @@
 #define MAX_ENTRIES    4096 /* max number of vectors per stage               */
 #define MAX_STAGES     5    /* max number of VQ stages                       */
 
-#include <stdio.h>
 
 typedef struct {
     float weight;         /* weight applied to first cepstral              */

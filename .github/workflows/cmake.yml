@@ -19,7 +19,7 @@ jobs:
            sudo apt-get update
            sudo apt-get install octave octave-common octave-signal gnuplot sox p7zip-full
 
-    - name Build codec2
+    - name: Build codec2
       shell: bash
       run: |
            git clone https://github.com/drowe67/codec2.git 

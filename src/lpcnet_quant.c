@@ -205,6 +205,15 @@ void quant_pred_mbest(float vec_out[],
     if (lpcnet_fsv != NULL) fprintf(lpcnet_fsv, "%f\t%f\t", vec_in[0],sqrt(se1));
     if (lpcnet_verbose) fprintf(stderr, "    se1: %f\n", se1);
 
+//#define INSERT_ERROR
+#ifdef INSERT_ERROR
+    /* insert random errors in bits of first stage to test index optimisation */
+    for (s=0; s<num_stages; s++) {
+        for(int b=0; b<12; b++)
+            if ((float)rand()/RAND_MAX < 0.01)
+                indexes[s] ^= 1<<b;
+    }
+#endif    
     quant_pred_output(vec_out, indexes, err, pred, num_stages, vq, k);
     
     for(i=0; i<num_stages; i++)

@@ -5,7 +5,7 @@
   Tool for processing a .f32 file of LPCNet features to simulate quantisation:
 
   1/ Can decimate cepstrals to 20/30/40/... ms update rate and
-     liniearly interpolate back up to 10ms
+     linearly interpolate back up to 10ms
   2/ Quantise using multistage VQs
   3/ Replace the LPCNet pitch estimate with estimates from external files
   4/ Works from stdin -> stdout to facilitate streaming real time simulations.
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
     while ((c = getopt_long (argc, argv, "ad:q:vs:f:p:e:u:l:m:h:wg:o:ix:", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'a':
-            /* small cpectral vectors - zero out several bands */
+            /* small vec - zero out higher order bands */
             small_vec = 1;
             break;
        case 'f':
@@ -314,7 +314,7 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_FEATURES; i++)
             features_prev[dec][i] = features[i];
 
-        // clear outpout features to make sure we are not cheating.
+        // clear output features to make sure we are not cheating.
         // Note we cant clear quant_out as we need memory of last
         // frames output for pred quant
         

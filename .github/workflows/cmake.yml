@@ -19,27 +19,20 @@ jobs:
            sudo apt-get update
            sudo apt-get install octave octave-common octave-signal lgnuplot sox p7zip-full
 
-    - name: Create Build Directory
+    - name Build codec2
       shell: bash
-      run: mkdir $GITHUB_WORKSPACE/build_linux
-
-    - name: Configure codec2 CMake
-      shell: bash
-      working-directory: ${{github.workspace}}/build_linux
-      run: cmake $GITHUB_WORKSPACE
-
-    - name: Build codec2
-      working-directory: ${{github.workspace}}/build_linux
-      shell: bash
-      run: make -j4
-
+      run: |
+           git clone https://github.com/drowe67/codec2.git 
+           cd codec2 && mkdir -p build_linux && cd build_linux 
+           cmake ..
+           make
+           pwd
+      
     - name: Build LPCNet
       shell: bash
       run: |
-           cd $HOME
-           git clone https://github.com/drowe67/LPCNet.git 
-           cd LPCNet && mkdir -p build_linux && cd build_linux 
-           cmake -DCODEC2_BUILD_DIR=$GITHUB_WORKSPACE/build_linux ..
+           mkdir -p build_linux && cd build_linux 
+           cmake -DCODEC2_BUILD_DIR=$GITHUB_WORKSPACE/codec2/build_linux ..
            make
            # simple test to make sure the code runs
            cd src && sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s > /dev/null

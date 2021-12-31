@@ -17,7 +17,7 @@ jobs:
       shell: bash
       run: |
            sudo apt-get update
-           sudo apt-get install octave octave-common octave-signal lgnuplot sox p7zip-full
+           sudo apt-get install octave octave-common octave-signal gnuplot sox p7zip-full
 
     - name: Create Build Directory
       shell: bash

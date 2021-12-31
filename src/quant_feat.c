@@ -64,11 +64,13 @@ int main(int argc, char *argv[]) {
     int   pitch_bits = 0;
     int   small_vec = 0;
     int   logmag = 0;
+    float ber = 0.0;
     
     for(i=0; i<MAX_STAGES*NB_BANDS*MAX_ENTRIES; i++) vq[i] = 0.0;
     
     static struct option long_options[] = {
         {"small",      required_argument, 0, 'a'},
+        {"ber",        required_argument, 0, 'b'},
         {"decimate",   required_argument, 0, 'd'},
         {"extpitch",   required_argument, 0, 'e'},
         {"first",      required_argument, 0, 'f'},
@@ -90,13 +92,17 @@ int main(int argc, char *argv[]) {
 
     int opt_index = 0;
     
-    while ((c = getopt_long (argc, argv, "ad:q:vs:f:p:e:u:l:m:h:wg:o:ix:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "ab:d:q:vs:f:p:e:u:l:m:h:wg:o:ix:", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'a':
             /* small vec - zero out higher order bands */
             small_vec = 1;
             break;
-       case 'f':
+        case 'b':
+            ber = atof(optarg);
+            fprintf(stderr, "BER = %f\n", ber);
+            break;
+        case 'f':
             /* start VQ at band first+1 */
             first = atoi(optarg);
             k = NB_BANDS-first;
@@ -195,6 +201,7 @@ int main(int argc, char *argv[]) {
             break;
          default:
             fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n  [-q --quant quantfile1,quantfile2,....]\n", argv[0]);
+            fprintf(stderr,"  [-b --ber BER Insert random bit errors in mag VQ indexes (default 0.0)]\n");
             fprintf(stderr,"  [-g --gain pitch gain bias]\n");
             fprintf(stderr,"  [-h --hard lowerLimitdB\n");
             fprintf(stderr,"  [-i --mag\n");
@@ -329,7 +336,8 @@ int main(int argc, char *argv[]) {
                 if (num_stages) {
                     if (mbest_survivors) {
                         /* mbest predictive VQ */
-                        quant_pred_mbest(&features_quant[first], indexes, &features[first], pred, num_stages, vq, m, k, mbest_survivors);
+                        quant_pred_mbest(&features_quant[first], indexes, &features[first], pred, num_stages,
+                                         vq, m, k, mbest_survivors, ber);
                     }
                     else {
                         /* standard predictive VQ */

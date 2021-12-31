@@ -67,7 +67,8 @@ void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output, need t
                       int num_stages,
                       float vq[],
                       int m[], int k,
-                      int mbest_survivors);
+                      int mbest_survivors,
+                      float ber);
 
 void quant_pred_output(float vec_out[],
                        int   indexes[],

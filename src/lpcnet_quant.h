@@ -2,18 +2,20 @@
   lpcnet_quant.h
   David Rowe Feb 2019
 
-  David's experimental quanisation functions for LPCNet.
+  David's experimental quantisation functions for LPCNet.
 */
 
 #ifndef __LPCNET_QUANT__
 #define __LPCNET_QUANT__
+
+#include <stdio.h>
+#include "lpcnet_freedv.h"
 
 #define NB_FEATURES    55   /* length of feature vector (only a subset used) */
 #define NB_BANDS       18   /* number of bands quantised                     */
 #define MAX_ENTRIES    4096 /* max number of vectors per stage               */
 #define MAX_STAGES     5    /* max number of VQ stages                       */
 
-#include <stdio.h>
 
 typedef struct {
     float weight;         /* weight applied to first cepstral              */
@@ -32,13 +34,16 @@ typedef struct {
     float features_lin[2][NB_FEATURES];   /* adjacent frames features for linear interpolation  */
 } LPCNET_QUANT;
 
-// Two sorts of VQs available
+// VQs available
 extern int   pred_num_stages;
 extern float pred_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
 extern int   pred_m[MAX_STAGES];
 extern int   direct_split_num_stages;
 extern float direct_split_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
 extern int   direct_split_m[MAX_STAGES];
+extern int   direct_split_indopt_num_stages;
+extern float direct_split_indopt_vq[MAX_STAGES*NB_BANDS*MAX_ENTRIES];
+extern int   direct_split_indopt_m[MAX_STAGES];
 
 LPCNET_QUANT *lpcnet_quant_create(int direct_split);
 void lpcnet_quant_destroy(LPCNET_QUANT *q);
@@ -62,7 +67,8 @@ void quant_pred_mbest(float vec_out[],  /* prev quant vector, and output, need t
                       int num_stages,
                       float vq[],
                       int m[], int k,
-                      int mbest_survivors);
+                      int mbest_survivors,
+                      float ber);
 
 void quant_pred_output(float vec_out[],
                        int   indexes[],

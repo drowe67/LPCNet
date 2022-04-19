@@ -12,9 +12,14 @@
   extern "C" {
 #endif
 
+// possible vq_type values in lpcnet_freedv_create()
+#define LPCNET_PRED                   0
+#define LPCNET_DIRECT_SPLIT           1
+#define LPCNET_DIRECT_SPLIT_INDEX_OPT 2
+      
 typedef struct LPCNetFreeDV LPCNetFreeDV;
 
-LPCNetFreeDV* lpcnet_freedv_create(int direct_split);
+LPCNetFreeDV* lpcnet_freedv_create(int vq_type);
 void lpcnet_freedv_destroy(LPCNetFreeDV *lf);
 void lpcnet_enc(LPCNetFreeDV *lf, short *pcm, char *frame);
 void lpcnet_dec(LPCNetFreeDV *lf, char *frame, short* pcm);

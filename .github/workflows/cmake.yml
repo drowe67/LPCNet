@@ -1,0 +1,39 @@
+name: CMake
+
+on: [pull_request]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Debug
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install packages
+      shell: bash
+      run: |
+           sudo apt-get update
+           sudo apt-get install octave octave-common octave-signal gnuplot sox p7zip-full
+
+    - name: Build codec2
+      shell: bash
+      run: |
+           git clone https://github.com/drowe67/codec2.git 
+           cd codec2 && mkdir -p build_linux && cd build_linux 
+           cmake ..
+           make
+           pwd
+      
+    - name: Build LPCNet
+      shell: bash
+      run: |
+           mkdir -p build_linux && cd build_linux 
+           cmake -DCODEC2_BUILD_DIR=$GITHUB_WORKSPACE/codec2/build_linux ..
+           make
+           # simple test to make sure the code runs
+           cd src && sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s > /dev/null
+

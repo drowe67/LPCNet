@@ -202,7 +202,7 @@ int main(int argc, char *argv[]) {
         if ((f % dec) == 0) {
             /* non-interpolated frame ----------------------------------------*/
 
-            quant_pred_mbest(features_quant_, indexes, features, pred, num_stages, vq, m, k, mbest_survivors);
+            quant_pred_mbest(features_quant_, indexes, features, pred, num_stages, vq, m, k, mbest_survivors, 0.0);
             pitch_ind = pitch_encode(features[2*NB_BANDS], pitch_bits);
             pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
             pack_frame(num_stages, m, indexes, pitch_bits, pitch_ind, pitch_gain_ind, frame);

@@ -61,8 +61,9 @@ int main(int argc, char **argv) {
     int   *m = pred_m;
     float *vq = pred_vq;
     int   logmag = 0;
-    int   direct_split = 0;
-
+    int   vq_type = LPCNET_PRED;
+    int   ber_st=0, ber_en=-1;
+    
     fin = stdin;
     fout = stdout;
 
@@ -72,12 +73,15 @@ int main(int argc, char **argv) {
         {"infile",      required_argument, 0, 'i'},
         {"outfile",     required_argument, 0, 'u'},
         {"ber",         required_argument, 0, 'b'},
+        {"ber_st",      required_argument, 0, 'c'},
+        {"ber_en",      required_argument, 0, 'e'},
         {"decimate",    required_argument, 0, 'd'},
         {"nnet",        required_argument, 0, 'r'},
         {"numstages",   required_argument, 0, 'n'},
         {"pitchquant",  required_argument, 0, 'o'},
         {"pred",        required_argument, 0, 'p'},
-        {"directsplit", no_argument,       0, 's'},
+        {"split",       no_argument,       0, 's'},
+        {"indexopt",    no_argument,       0, 'x'},
         {"verbose",     no_argument,       0, 'v'},
         {0, 0, 0, 0}
     };
@@ -85,7 +89,7 @@ int main(int argc, char **argv) {
     int   c;
     int opt_index = 0;
 
-    while ((c = getopt_long (argc, argv, "b:d:n:o:p:svi:u:r:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "b:c:e:d:n:o:p:sxvi:u:r:", long_options, &opt_index)) != -1) {
         switch (c) {
  	case 'i':
             if ((fin = fopen(optarg, "rb")) == NULL) {
@@ -103,9 +107,15 @@ int main(int argc, char **argv) {
             ber = atof(optarg);
             fprintf(stderr, "BER = %f\n", ber);
             break;
+        case 'c':
+            ber_st = atoi(optarg);
+            break;
         case 'd':
             dec = atoi(optarg);
             fprintf(stderr, "dec = %d\n", dec);
+            break;
+        case 'e':
+            ber_en = atoi(optarg);
             break;
         case 'n':
             num_stages = atoi(optarg);
@@ -124,8 +134,14 @@ int main(int argc, char **argv) {
 	    nnet_read(optarg);
 	    break;            
         case 's':
-            direct_split = 1; m = direct_split_m; vq = direct_split_vq; pred = 0.0; logmag = 1; weight = 1.0;
-            fprintf(stderr, "split VQ\n");
+            vq_type = LPCNET_DIRECT_SPLIT;
+            m = direct_split_m; vq = direct_split_vq; pred = 0.0; logmag = 1; weight = 1.0;
+            fprintf(stderr, "direct split VQ\n");
+            break;
+        case 'x':
+            vq_type = LPCNET_DIRECT_SPLIT_INDEX_OPT;
+            m = direct_split_indopt_m; vq = direct_split_indopt_vq; pred = 0.0; logmag = 1; weight = 1.0;
+            fprintf(stderr, "index optimised direct split VQ\n");
             break;
         case 'v':
             lpcnet_verbose = 1;
@@ -133,6 +149,8 @@ int main(int argc, char **argv) {
         default:
             fprintf(stderr,"usage: %s [Options]:\n", argv[0]);
             fprintf(stderr,"  [-b --ber BER]\n");
+            fprintf(stderr,"  [--ber_st bit   Bit in frame where we start inserting errors (default 0)]\n");
+            fprintf(stderr,"  [--ber_en bit   Bit in frame just after we stop inserting errors (default 51)]\n");
             fprintf(stderr,"  [-d --decimation 1/2/3...]\n");
             fprintf(stderr,"  [-n --numstages]\n  [-o --pitchbits nBits]\n");
             fprintf(stderr,"  [-p --pred predCoff]\n");
@@ -142,7 +160,7 @@ int main(int argc, char **argv) {
         }
     }
     
-    LPCNetFreeDV *lf = lpcnet_freedv_create(direct_split);
+    LPCNetFreeDV *lf = lpcnet_freedv_create(vq_type);
     lpcnet_open_test_file(lf->net, "test_lpcnet_statesq.f32");
     LPCNET_QUANT *q = lf->q;
 
@@ -161,14 +179,15 @@ int main(int argc, char **argv) {
     char frame[q->bits_per_frame];
     int bits_read = 0;
     short pcm[lpcnet_samples_per_frame(lf)];
-
+    if (ber_en == -1) ber_en = q->bits_per_frame-1;
+    
     do {
 
         bits_read = fread(frame, sizeof(char), q->bits_per_frame, fin);
-        nbits += bits_read;
+        nbits += ber_en - ber_st;
         if (ber != 0.0) {
             int i;
-            for(i=0; i<q->bits_per_frame; i++) {
+            for(i=ber_st; i<=ber_en; i++) {
                 float r = (float)rand()/RAND_MAX;
                 if (r < ber) {
                     frame[i] = (frame[i] ^ 1) & 0x1;
@@ -190,6 +209,7 @@ int main(int argc, char **argv) {
     lpcnet_freedv_destroy(lf);
     
     if (ber != 0.0)
-        fprintf(stderr, "nbits: %d nerr: %d BER: %4.3f\n", nbits, nerrs, (float)nerrs/nbits);
+        fprintf(stderr, "ber_st: %d ber_en: %d nbits: %d nerr: %d BER: %4.3f\n", ber_st, ber_en,
+                nbits, nerrs, (float)nerrs/nbits);
     return 0;
 }

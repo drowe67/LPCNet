@@ -30,13 +30,24 @@ int lpcnet_verbose = 0;
 
 static int quantise(const float * cb, float vec[], float w[], int k, int m, float *se);
 
-LPCNET_QUANT *lpcnet_quant_create(int direct_split) {
+LPCNET_QUANT *lpcnet_quant_create(int vq_type) {
+    assert((vq_type == LPCNET_PRED) || (vq_type == LPCNET_DIRECT_SPLIT) ||
+           (vq_type == LPCNET_DIRECT_SPLIT_INDEX_OPT));
     LPCNET_QUANT *q = (LPCNET_QUANT*)malloc(sizeof(LPCNET_QUANT));
     if (q == NULL) return NULL;
-    if (direct_split) {
+    if ((vq_type == LPCNET_DIRECT_SPLIT) || (vq_type == LPCNET_DIRECT_SPLIT_INDEX_OPT)) {
         q->weight = 1.0; q->pred = 0.0; 
         q->mbest = DEFAULT_MBEST; q->pitch_bits = DEFAULT_PITCH_BITS; q->dec = DEFAULT_DEC;
-        q->num_stages = direct_split_num_stages; q->vq = direct_split_vq; q->m = direct_split_m; q->logmag = 1;
+        q->logmag = 1;
+        if (vq_type == LPCNET_DIRECT_SPLIT) {
+            q->num_stages = direct_split_num_stages;
+            q->m = direct_split_m; 
+            q->vq = direct_split_vq;
+        } else {
+            q->num_stages = direct_split_indopt_num_stages;
+            q->m = direct_split_indopt_m; 
+            q->vq = direct_split_indopt_vq;
+        }
     }
     else {
         q->weight = DEFAULT_WEIGHT; q->pred = DEFAULT_PRED; 
@@ -125,7 +136,8 @@ void quant_pred_mbest(float vec_out[],
                       int num_stages,
                       float vq[],
                       int m[], int k,
-                      int mbest_survivors)
+                      int mbest_survivors,
+                      float ber)
 {
     float err[k], w[k], se1;
     int i,j,s,s1,ind;
@@ -194,6 +206,16 @@ void quant_pred_mbest(float vec_out[],
     if (lpcnet_fsv != NULL) fprintf(lpcnet_fsv, "%f\t%f\t", vec_in[0],sqrt(se1));
     if (lpcnet_verbose) fprintf(stderr, "    se1: %f\n", se1);
 
+    if (ber > 0.0) {
+        /* optionally insert random errors in indexes to test index optimisation */
+        for (s=0; s<num_stages; s++) {
+            int log2m = roundf(log2(m[s]));
+            for(int b=0; b<log2m; b++)
+                if ((float)rand()/RAND_MAX < ber)
+                    indexes[s] ^= 1<<b;
+        }
+    }
+    
     quant_pred_output(vec_out, indexes, err, pred, num_stages, vq, k);
     
     for(i=0; i<num_stages; i++)
@@ -365,7 +387,7 @@ int lpcnet_features_to_frame(LPCNET_QUANT *q, float features[], char frame[]) {
                 
     /* non-interpolated frame ----------------------------------------*/
 
-    quant_pred_mbest(q->features_quant, indexes, features, q->pred, q->num_stages, q->vq, q->m, k, q->mbest);
+    quant_pred_mbest(q->features_quant, indexes, features, q->pred, q->num_stages, q->vq, q->m, k, q->mbest, 0.0);
     pitch_ind = pitch_encode(features[2*NB_BANDS], q->pitch_bits);
     pitch_gain_ind =  pitch_gain_encode(features[2*NB_BANDS+1]);
     pack_frame(q->num_stages, q->m, indexes, q->pitch_bits, pitch_ind, pitch_gain_ind, frame);

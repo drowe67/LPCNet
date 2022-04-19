@@ -5,7 +5,7 @@
   Tool for processing a .f32 file of LPCNet features to simulate quantisation:
 
   1/ Can decimate cepstrals to 20/30/40/... ms update rate and
-     liniearly interpolate back up to 10ms
+     linearly interpolate back up to 10ms
   2/ Quantise using multistage VQs
   3/ Replace the LPCNet pitch estimate with estimates from external files
   4/ Works from stdin -> stdout to facilitate streaming real time simulations.
@@ -64,11 +64,13 @@ int main(int argc, char *argv[]) {
     int   pitch_bits = 0;
     int   small_vec = 0;
     int   logmag = 0;
+    float ber = 0.0;
     
     for(i=0; i<MAX_STAGES*NB_BANDS*MAX_ENTRIES; i++) vq[i] = 0.0;
     
     static struct option long_options[] = {
         {"small",      required_argument, 0, 'a'},
+        {"ber",        required_argument, 0, 'b'},
         {"decimate",   required_argument, 0, 'd'},
         {"extpitch",   required_argument, 0, 'e'},
         {"first",      required_argument, 0, 'f'},
@@ -90,13 +92,17 @@ int main(int argc, char *argv[]) {
 
     int opt_index = 0;
     
-    while ((c = getopt_long (argc, argv, "ad:q:vs:f:p:e:u:l:m:h:wg:o:ix:", long_options, &opt_index)) != -1) {
+    while ((c = getopt_long (argc, argv, "ab:d:q:vs:f:p:e:u:l:m:h:wg:o:ix:", long_options, &opt_index)) != -1) {
         switch (c) {
         case 'a':
-            /* small cpectral vectors - zero out several bands */
+            /* small vec - zero out higher order bands */
             small_vec = 1;
             break;
-       case 'f':
+        case 'b':
+            ber = atof(optarg);
+            fprintf(stderr, "BER = %f\n", ber);
+            break;
+        case 'f':
             /* start VQ at band first+1 */
             first = atoi(optarg);
             k = NB_BANDS-first;
@@ -195,6 +201,7 @@ int main(int argc, char *argv[]) {
             break;
          default:
             fprintf(stderr,"usage: %s [Options]:\n  [-d --decimation 1/2/3...]\n  [-q --quant quantfile1,quantfile2,....]\n", argv[0]);
+            fprintf(stderr,"  [-b --ber BER Insert random bit errors in mag VQ indexes (default 0.0)]\n");
             fprintf(stderr,"  [-g --gain pitch gain bias]\n");
             fprintf(stderr,"  [-h --hard lowerLimitdB\n");
             fprintf(stderr,"  [-i --mag\n");
@@ -314,7 +321,7 @@ int main(int argc, char *argv[]) {
         for(i=0; i<NB_FEATURES; i++)
             features_prev[dec][i] = features[i];
 
-        // clear outpout features to make sure we are not cheating.
+        // clear output features to make sure we are not cheating.
         // Note we cant clear quant_out as we need memory of last
         // frames output for pred quant
         
@@ -329,7 +336,8 @@ int main(int argc, char *argv[]) {
                 if (num_stages) {
                     if (mbest_survivors) {
                         /* mbest predictive VQ */
-                        quant_pred_mbest(&features_quant[first], indexes, &features[first], pred, num_stages, vq, m, k, mbest_survivors);
+                        quant_pred_mbest(&features_quant[first], indexes, &features[first], pred, num_stages,
+                                         vq, m, k, mbest_survivors, ber);
                     }
                     else {
                         /* standard predictive VQ */

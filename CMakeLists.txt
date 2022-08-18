@@ -171,20 +171,6 @@ else()
     endif()
 endif()
 
-# Find codec2
-if(CODEC2_BUILD_DIR)
-    find_package(codec2 REQUIRED
-        PATHS ${CODEC2_BUILD_DIR}
-        NO_DEFAULT_PATH
-        CONFIGS codec2.cmake
-    )
-    if(codec2_FOUND)
-        message(STATUS "Codec2 library found in build tree.")
-    endif()
-else()
-    find_package(codec2 REQUIRED)
-endif()
-
 add_subdirectory(src)
 
 # Ctests ----------------------------------------------------------------------

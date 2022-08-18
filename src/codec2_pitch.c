@@ -16,39 +16,12 @@
 
 #include "codec2_pitch.h"
 #include "codec2_kiss_fft.h"
+#include "from_codec2/sine.h"
+#include "from_codec2/nlp.h"
 
 #define FFT_ENC    512		/* size of FFT used for encoder         */
 #define P_MAX_S    0.0200	/* maximum pitch period in s            */
 #define N_S        0.01         /* internal proc frame length in secs   */
-#define MAX_AMP    160		/* maximum number of harmonics          */
-
-typedef struct {
-  float real;
-  float imag;
-} COMP;
-
-typedef struct {
-    int   Fs;            /* sample rate of this instance             */
-    int   n_samp;        /* number of samples per 10ms frame at Fs   */
-    int   max_amp;       /* maximum number of harmonics              */
-    int   m_pitch;       /* pitch estimation window size in samples  */
-    int   p_min;         /* minimum pitch period in samples          */
-    int   p_max;         /* maximum pitch period in samples          */
-    float Wo_min;        
-    float Wo_max;  
-    int   nw;            /* analysis window size in samples          */      
-    int   tw;            /* trapezoidal synthesis window overlap     */
-} C2CONST;
-
-/* Structure to hold Codec 2 model parameters for one frame */
-
-typedef struct {
-    float Wo;		  /* fundamental frequency estimate in radians  */
-    int   L;		  /* number of harmonics                        */
-    float A[MAX_AMP+1];	  /* amplitiude of each harmonic                */
-    float phi[MAX_AMP+1]; /* phase of each harmonic                     */
-    int   voiced;	  /* non-zero if this frame is voiced           */
-} MODEL;
 
 struct CODEC2_PITCH_S {
     C2CONST       c2const;
@@ -58,19 +31,6 @@ struct CODEC2_PITCH_S {
     float        *w;	                /* time domain hamming window */
     COMP          W[FFT_ENC];	        /* DFT of w[] */
 };
-
-/* prototypes for internal functions in libcodec2 */
-
-C2CONST c2const_create(int Fs, float framelength_ms);
-void make_analysis_window(C2CONST *c2const, kiss_fft_cfg fft_fwd_cfg, float w[], COMP W[]);
-void dft_speech(C2CONST *c2const, kiss_fft_cfg fft_fwd_cfg, COMP Sw[], float Sn[], float w[]);
-void *nlp_create(C2CONST *c2const);
-void nlp_destroy(void *nlp_state);
-float nlp(void *nlp_state, float Sn[], int n, 
-	  float *pitch_samples, COMP Sw[], COMP W[], float *prev_f0);
-void two_stage_pitch_refinement(C2CONST *c2const, MODEL *model, COMP Sw[]);
-void estimate_amplitudes(MODEL *model, COMP Sw[], COMP W[], int est_phase);
-float est_voicing_mbe(C2CONST *c2const, MODEL *model, COMP Sw[], COMP W[]);
 
 CODEC2_PITCH *codec2_pitch_create(int *Sn_size, int *new_samples_each_call)
 {

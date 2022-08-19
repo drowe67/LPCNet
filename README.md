@@ -5,12 +5,10 @@ Experimental version of LPCNet that has been used to develop FreeDV 2020 - a HF 
 ## Quickstart
 
 ```
-$ git clone https://github.com/drowe67/codec2.git
-$ cd codec2 && mkdir build_linux && cd build_linux && cmake ../ && make
 $ cd ~
 $ git clone https://github.com/drowe67/LPCNet.git
 $ cd LPCNet && mkdir build_linux && cd build_linux
-$ cmake -DCODEC2_BUILD_DIR=~/codec2/build_linux ..
+$ cmake ..
 $ make
 ```
 
@@ -30,7 +28,7 @@ sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s | ap
 
 Cmake will select the fastest SIMD available (AVX/SSSE/None), however you can manually select e.g.:
 ```
-make -DDISABLE_CPU_OPTIMIZATION=ON -DSSE=ON -DCODEC2_BUILD_DIR=~/codec2/build_linux ..
+make -DDISABLE_CPU_OPTIMIZATION=ON -DSSE=ON ..
 ```
 
 ## CTests

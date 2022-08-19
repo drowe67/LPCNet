@@ -179,16 +179,21 @@ include(CTest)
 enable_testing()
 
 add_test(NAME core_synthesis_default
-         COMMAND sh -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; SYNTH=1 ./test_core_nn.sh")
+         COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}/unittest; SYNTH=1 ./test_core_nn.sh")
 add_test(NAME core_synthesis_load_20h
-         COMMAND sh -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; SYNTH_20h=1 ./test_core_nn.sh")
+         COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}/unittest; SYNTH_20h=1 ./test_core_nn.sh")
 add_test(NAME core_synthesis_mag
-         COMMAND sh -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; SYNTH_mag=1 ./test_core_nn.sh")
+         COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}/unittest; SYNTH_mag=1 ./test_core_nn.sh")
 add_test(NAME nnet2f32
          COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}; ./src/nnet2f32 t.f32")
 add_test(NAME SIMD_functions
          COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}; ./src/test_vec")
 
+#
+# generate ctest script
+#
+configure_file(unittest/test_core_nn.sh.in unittest/test_core_nn.sh @ONLY)
+         
 # Packaging
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Next-Generation Digital Voice for Two-Way Radio")
 set(CPACK_PACKAGE_VENDOR "CMake")

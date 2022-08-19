@@ -29,7 +29,7 @@ struct CODEC2_PITCH_S {
     float         prev_f0;
     void         *nlp_states;
     float        *w;	                /* time domain hamming window */
-    COMP          W[FFT_ENC];	        /* DFT of w[] */
+    float         W[FFT_ENC];	        /* DFT of w[] */
 };
 
 CODEC2_PITCH *codec2_pitch_create(int *Sn_size, int *new_samples_each_call)

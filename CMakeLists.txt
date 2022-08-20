@@ -197,7 +197,10 @@ enable_testing()
 add_test(NAME feature_extraction
          COMMAND sh -c "PATH=$PATH:${CMAKE_CURRENT_BINARY_DIR}/src;
                         cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; 
-                        dump_data --test --c2pitch ${CMAKE_CURRENT_SOURCE_DIR}/wav/birch.wav birch.f32
+                        pwd;
+                        dump_data --test --c2pitch ${CMAKE_CURRENT_SOURCE_DIR}/wav/birch.wav birch.f32;
+                        md5sum birch.f32;
+                        md5sum birch_targ.f32;
                         diff birch_targ.f32 birch.f32")
 add_test(NAME nnet2f32
          COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}; ./src/nnet2f32 t.f32")

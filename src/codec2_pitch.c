@@ -17,10 +17,8 @@
 #include "codec2_pitch.h"
 #include "codec2_kiss_fft.h"
 
-#pragma GCC visibility push(hidden)
 #include "from_codec2/sine.h"
 #include "from_codec2/nlp.h"
-#pragma GCC visibility pop
 
 #define FFT_ENC    512		/* size of FFT used for encoder         */
 #define P_MAX_S    0.0200	/* maximum pitch period in s            */

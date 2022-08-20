@@ -43,7 +43,7 @@ endif("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 # file at some point.
 #
 set(LPCNET_VERSION_MAJOR 0)
-set(LPCNET_VERSION_MINOR 3)
+set(LPCNET_VERSION_MINOR 4)
 # Set to patch level if needed, otherwise leave FALSE.
 # Must be positive (non-zero) if set, since 0 == FALSE in CMake.
 set(LPCNET_VERSION_PATCH FALSE)
@@ -169,20 +169,6 @@ else()
     if(NOT lpcnet_POPULATED)
         FetchContent_Populate(lpcnet)
     endif()
-endif()
-
-# Find codec2
-if(CODEC2_BUILD_DIR)
-    find_package(codec2 REQUIRED
-        PATHS ${CODEC2_BUILD_DIR}
-        NO_DEFAULT_PATH
-        CONFIGS codec2.cmake
-    )
-    if(codec2_FOUND)
-        message(STATUS "Codec2 library found in build tree.")
-    endif()
-else()
-    find_package(codec2 REQUIRED)
 endif()
 
 add_subdirectory(src)

@@ -117,7 +117,6 @@ static void frame_analysis(DenoiseState *st, kiss_fft_cpx *X, float *Ex, const f
 static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X, 
                                   float *Ex, float *features, const float *in) {
   int i;
-  float E = 0;
   float Ly[NB_BANDS];
   float pitch_buf[PITCH_BUF_SIZE];
   int pitch_index;
@@ -152,7 +151,6 @@ static void compute_frame_features(DenoiseState *st, kiss_fft_cpx *X,
     Ly[i] = MAX16(logMax-8, MAX16(follow-2.5, Ly[i]));
     logMax = MAX16(logMax, Ly[i]);
     follow = MAX16(follow-2.5, Ly[i]);
-    E += Ex[i];
   }
 
   dct(features, Ly);

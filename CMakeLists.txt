@@ -195,13 +195,13 @@ enable_testing()
 # some basic tests - unfortunately the core NN synthsis is hard to test reliably as we get
 # different results on different runs due to numerical/precision issues
 add_test(NAME feature_extraction
-         COMMAND sh -c "PATH=$PATH:${CMAKE_CURRENT_BINARY_DIR}/src;
+         COMMAND sh -c "PATH=$PATH:${CMAKE_CURRENT_BINARY_DIR}/src:${CMAKE_CURRENT_BINARY_DIR}/unittest;
                         cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; 
                         pwd;
                         dump_data --test --c2pitch ${CMAKE_CURRENT_SOURCE_DIR}/wav/birch.wav birch.f32;
                         md5sum birch.f32;
                         md5sum birch_targ.f32;
-                        diff birch_targ.f32 birch.f32")
+                        diff32 birch_targ.f32 birch.f32")
 add_test(NAME nnet2f32
          COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}; ./src/nnet2f32 t.f32")
 add_test(NAME SIMD_functions

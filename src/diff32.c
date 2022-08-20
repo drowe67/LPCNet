@@ -7,6 +7,7 @@
 #include <getopt.h>
 
 #define NB_FEATURES 55
+#define THRESH 0.001
 
 int main(int argc, char *argv[]) {
     float fdiff, fdiff_tot=0.0;
@@ -64,13 +65,17 @@ int main(int argc, char *argv[]) {
             fdiff = fabs(f1[i]-f2[i]);
             fdiff_tot += fdiff;
             
-            if (isnan(fdiff) || (fdiff > 1E-3)) {
-                printf("f: %d i: %d %f %f %f\n", f, i, f1[i], f2[i], fdiff);
-                if (cont == 0) exit(0);
+            if (isnan(fdiff) || (fdiff > THRESH)) {
+                fprintf(stderr, "f: %d i: %d %f %f %f\n", f, i, f1[i], f2[i], fdiff);
+                if (cont == 0) exit(1);
             }
         }
         f++;
     }
     fprintf(stderr,"stride: %d f: %d fdiff_tot: %f\n", stride, f, fdiff_tot);
     fclose(file1); fclose(file2);
+    if (fdiff_tot < THRESH)
+        exit(0);
+    else
+        exit(1);
 }

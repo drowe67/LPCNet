@@ -1,4 +1,8 @@
-/* test tool to diffs two .f32 files */
+/* Test tool to diff two float (.f32) files that hold LPCNet
+   "features".  Each file can be seen as a matrix, where each row has
+   "stride" columns.  We calculate the "SNR" of each col measured
+   between the two files, as each col represents a specific feature
+   that will have it's own scaling. */
 
 #include <assert.h>
 #include <math.h>
@@ -6,11 +10,11 @@
 #include <stdlib.h>
 #include <getopt.h>
 
-#define NB_FEATURES 55
-#define THRESH 0.001
+#define NB_FEATURES   55
+#define FDIFF_THRESH  0.001
+#define SNR_THRESH    1000.0
 
 int main(int argc, char *argv[]) {
-    float fdiff, fdiff_tot=0.0;
     int f=0;
     unsigned int ret, i, stride = NB_FEATURES, cont = 0;
 
@@ -57,24 +61,38 @@ int main(int argc, char *argv[]) {
 	exit(1);
     }
 
-    float f1[stride],f2[stride];
+    float fdiff;
+    float f1[stride], f2[stride], s[stride], n[stride];
+    for(i=0; i<stride; i++) {s[i] = 0.0; n[i] = 0.0; }
+    
     while(fread(&f1,sizeof(float),stride,file1) == stride) {
         ret = fread(&f2,sizeof(float),stride,file2);
         if (ret != stride) break;
         for(i=0; i<stride; i++) {
+            s[i] += f1[i]*f1[i];
             fdiff = fabs(f1[i]-f2[i]);
-            fdiff_tot += fdiff;
-            
-            if (isnan(fdiff) || (fdiff > THRESH)) {
+            n[i] += fdiff*fdiff;
+
+            /* flag any gross errors straight away */
+            if (isnan(fdiff) || (fdiff > FDIFF_THRESH)) {
                 fprintf(stderr, "f: %d i: %d %f %f %f\n", f, i, f1[i], f2[i], fdiff);
                 if (cont == 0) exit(1);
             }
         }
         f++;
     }
-    fprintf(stderr,"stride: %d f: %d fdiff_tot: %f\n", stride, f, fdiff_tot);
+
     fclose(file1); fclose(file2);
-    if (fdiff_tot < THRESH)
+
+    /* calculate per col SNRs, as each feature might have a different scaling */
+    float snr_min = 0.0;
+    for(i=0; i<stride; i++) {
+        float snr = s[i]/(n[i]+1E-12);
+        if (snr < snr_min) snr_min = snr;
+        fprintf(stderr, "i: %d s: %f n: %f SNR: %f %f\n",  i, s[i], n[i], snr, snr_min);
+    }   
+    
+    if (snr_min < SNR_THRESH)
         exit(0);
     else
         exit(1);

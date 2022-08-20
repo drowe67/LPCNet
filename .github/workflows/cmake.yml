@@ -34,4 +34,4 @@ jobs:
            mkdir -p build_linux && cd build_linux 
            cmake -DCODEC2_BUILD_DIR=$GITHUB_WORKSPACE/codec2/build_linux ..
            make
-           ctest
+           ctest --output-on-failure

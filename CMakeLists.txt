@@ -192,16 +192,26 @@ add_subdirectory(src)
 include(CTest)
 enable_testing()
 
-add_test(NAME core_synthesis_default
-         COMMAND sh -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; SYNTH=1 ./test_core_nn.sh")
-add_test(NAME core_synthesis_load_20h
-         COMMAND sh -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; SYNTH_20h=1 ./test_core_nn.sh")
-add_test(NAME core_synthesis_mag
-         COMMAND sh -c "cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; SYNTH_mag=1 ./test_core_nn.sh")
+# some basic tests - unfortunately the core NN synthsis is hard to test reliably as we get
+# different results on different runs due to numerical/precision issues
+add_test(NAME feature_extraction
+         COMMAND sh -c "PATH=$PATH:${CMAKE_CURRENT_BINARY_DIR}/src:${CMAKE_CURRENT_BINARY_DIR}/unittest;
+                        cd ${CMAKE_CURRENT_SOURCE_DIR}/unittest; 
+                        pwd;
+                        dump_data --test --c2pitch ${CMAKE_CURRENT_SOURCE_DIR}/wav/birch.wav birch.f32;
+                        md5sum birch.f32;
+                        md5sum birch_targ.f32;
+                        diff32 --cont birch_targ.f32 birch.f32")
 add_test(NAME nnet2f32
          COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}; ./src/nnet2f32 t.f32")
 add_test(NAME SIMD_functions
          COMMAND sh -c "cd ${CMAKE_CURRENT_BINARY_DIR}; ./src/test_vec")
+add_test(NAME lpcnet_enc_dec
+         COMMAND sh -c "PATH=$PATH:${CMAKE_CURRENT_BINARY_DIR}/src;
+                        cd ${CMAKE_CURRENT_SOURCE_DIR};
+                        sox wav/wia.wav -t raw -r 16000 - | 
+                        lpcnet_enc -s | 
+                        lpcnet_dec -s > /dev/null")
 
 # Packaging
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Next-Generation Digital Voice for Two-Way Radio")

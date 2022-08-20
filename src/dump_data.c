@@ -438,7 +438,9 @@ int main(int argc, char **argv) {
       g = f*speech_gain + (1-f)*old_speech_gain;
       x[i] *= g;
     }
-    for (i=0;i<FRAME_SIZE;i++) x[i] += rand()/(float)RAND_MAX - .5;
+    if (training) {
+        for (i=0;i<FRAME_SIZE;i++) x[i] += rand()/(float)RAND_MAX - .5;
+    }
     compute_frame_features(st, X, P, Ex, Ep, Exp, features, x, logmag);
 
     if (c2pitch_en) {

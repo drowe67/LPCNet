@@ -25,6 +25,9 @@ jobs:
            mkdir -p build_linux && cd build_linux 
            cmake ..
            make
-           # simple test to make sure the code runs
-           cd src && sox ../../wav/wia.wav -t raw -r 16000 - | ./lpcnet_enc -s | ./lpcnet_dec -s > /dev/null
 
+    - name: Run ctests
+      shell: bash
+      run: |
+           cd build_linux 
+           ctest -V --output-on-failure

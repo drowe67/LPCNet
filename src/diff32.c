@@ -85,14 +85,14 @@ int main(int argc, char *argv[]) {
     fclose(file1); fclose(file2);
 
     /* calculate per col SNRs, as each feature might have a different scaling */
-    float snr_min = 0.0;
+    float snr_min = 1E32;
     for(i=0; i<stride; i++) {
         float snr = s[i]/(n[i]+1E-12);
-        if (snr < snr_min) snr_min = snr;
-        fprintf(stderr, "i: %d s: %f n: %f SNR: %f %f\n",  i, s[i], n[i], snr, snr_min);
+        if ((s[i] != 0) && (snr < snr_min)) snr_min = snr;
+        fprintf(stderr, "i: %d s: %e n: %e SNR: %e %e\n",  i, s[i], n[i], snr, snr_min);
     }   
     
-    if (snr_min < SNR_THRESH)
+    if (snr_min > SNR_THRESH)
         exit(0);
     else
         exit(1);

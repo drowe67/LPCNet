@@ -1,4 +1,18 @@
- #ifndef CODEC2_RENAMES_H
+/*---------------------------------------------------------------------------*\
+
+  FILE........: codec2_renames.h
+  AUTHOR......: Mooneer Salem
+  DATE CREATED: August 20, 2022
+
+  Applies renames for Codec2 functions brought into LPCNet to avoid multiple
+  symbol errors when linking Codec2 and anything that uses it.
+
+  NOTE: this file needs to be included near the top of each Codec2 .c file
+  prior to including any Codec2 related .h files.
+
+\*---------------------------------------------------------------------------*/
+
+#ifndef CODEC2_RENAMES_H
 #define CODEC2_RENAMES_H
 
 #define codec2_fftr __codec2__codec2_fftr
@@ -34,6 +48,5 @@
 #define make_synthesis_window __codec2__make_synthesis_window
 #define synthesise __codec2__synthesise
 #define codec2_rand __codec2__codec2_rand
-
 
 #endif /* CODEC2_RENAMES_H */

@@ -25,6 +25,7 @@
   along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "codec2_renames.h"
 #include "defines.h"
 #include "nlp.h"
 #include "dump.h"

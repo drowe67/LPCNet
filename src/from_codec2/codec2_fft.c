@@ -5,6 +5,7 @@
  *      Author: danilo
  */
 
+#include "codec2_renames.h"
 #include "codec2_fft.h"
 
 #include "debug_alloc.h"

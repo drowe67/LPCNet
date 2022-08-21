@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <math.h>
 
+#include "codec2_renames.h"
 #include "defines.h"
 #include "sine.h"
 #include "kiss_fft.h"

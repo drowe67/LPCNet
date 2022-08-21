@@ -30,9 +30,9 @@ set(lpcnet_freedv_srcs
 
 # Set visibility of files brought in from Codec2 so that they're not visible to 
 # users (such as Codec2 itself).
-#foreach(CODEC2_FILE IN LISTS codec2_import_srcs)
-#    set_source_files_properties(${CODEC2_FILE} PROPERTIES COMPILE_FLAGS -fvisibility=hidden)
-#endforeach()
+foreach(CODEC2_FILE IN LISTS codec2_import_srcs)
+    set_source_files_properties(${CODEC2_FILE} PROPERTIES COMPILE_FLAGS -fvisibility=hidden)
+endforeach()
 
 add_library(lpcnetfreedv SHARED ${lpcnet_freedv_srcs} ${codec2_import_srcs})
 set_target_properties(lpcnetfreedv PROPERTIES

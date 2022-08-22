@@ -14,8 +14,11 @@
 #include <string.h>
 #include <math.h>
 
+#include "from_codec2/codec2_renames.h"
+
 #include "codec2_pitch.h"
 #include "codec2_kiss_fft.h"
+
 #include "from_codec2/sine.h"
 #include "from_codec2/nlp.h"
 

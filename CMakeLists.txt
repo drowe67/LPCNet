@@ -120,23 +120,25 @@ if(NOT DISABLE_CPU_OPTIMIZATION)
     endif()
 endif()
 
+set(LPCNET_C_PROC_FLAGS "")
+
 if(${AVX2} OR ${AVX2} GREATER 0)
     message(STATUS "avx2 processor flags found or enabled.")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx2 -mfma")
+    set(LPCNET_C_PROC_FLAGS -mavx2 -mfma)
 elseif(${AVX} OR ${AVX} GREATER 0)
 # AVX2 machines will also match on AVX
     message(STATUS "avx processor flags found or enabled.")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx")
+    set(LPCNET_C_PROC_FLAGS -mavx)
 elseif(${SSE} OR ${SSE} GREATER 0)
 # AVX and AVX2 machines will also match on SSE
     message(STATUS "sse processor flags found or enabled.")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.1")
+    set(LPCNET_C_PROC_FLAGS -msse4.1)
 endif()
 
 # RPi / ARM 32bit
 if(${NEON} OR ${NEON} GREATER 0)
     message(STATUS "neon processor flags found or enabled.")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfpu=neon -march=armv8-a -mtune=cortex-a53")
+    set(LPCNET_C_PROC_FLAGS -mfpu=neon -march=armv8-a -mtune=cortex-a53)
 endif()
 
 # grab latest NN model (or substitute your own)

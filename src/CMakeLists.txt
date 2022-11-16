@@ -1,4 +1,17 @@
-add_subdirectory(from_codec2)
+# Files brought in from Codec2 that are mandatory for LPCNet.
+set(codec2_import_srcs
+    from_codec2/sine.c
+    from_codec2/nlp.c
+    from_codec2/codec2_fft.c
+    from_codec2/kiss_fft.c
+    from_codec2/kiss_fftr.c
+)
+
+# Set visibility of files brought in from Codec2 so that they're not visible to 
+# users (such as Codec2 itself).
+foreach(CODEC2_FILE IN LISTS codec2_import_srcs)
+    set_source_files_properties(${CODEC2_FILE} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden -include ${CMAKE_CURRENT_SOURCE_DIR}/from_codec2/codec2_renames.h")
+endforeach()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}
     ${lpcnet_SOURCE_DIR})
@@ -21,10 +34,12 @@ set(lpcnet_freedv_srcs
     ${lpcnet_SOURCE_DIR}/nnet_data.c
 )
 
-add_library(lpcnetfreedv SHARED ${lpcnet_freedv_srcs})
-target_compile_options(lpcnetfreedv PRIVATE ${LPCNET_C_PROC_FLAGS})
+foreach(LPCNET_FILE IN LISTS lpcnet_freedv_srcs)
+    set_source_files_properties(${LPCNET_FILE} PROPERTIES COMPILE_FLAGS ${LPCNET_C_PROC_FLAGS})
+endforeach()
 
-target_link_libraries(lpcnetfreedv PRIVATE lpcnet_from_codec2)
+add_library(lpcnetfreedv SHARED ${lpcnet_freedv_srcs} ${codec2_import_srcs})
+
 set_target_properties(lpcnetfreedv PROPERTIES
     PUBLIC_HEADER lpcnet_freedv.h
 	VERSION ${LPCNET_VERSION}

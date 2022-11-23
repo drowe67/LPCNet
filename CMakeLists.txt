@@ -5,6 +5,12 @@
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "Minimum OS X deployment version")
 
 cmake_minimum_required(VERSION 3.0)
+
+# Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+	cmake_policy(SET CMP0135 NEW)
+endif()
+
 project(LPCNet C)
 
 option(DISABLE_CPU_OPTIMIZATION "Disable CPU optimization discovery." OFF)

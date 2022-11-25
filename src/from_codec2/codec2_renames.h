@@ -49,4 +49,8 @@
 #define synthesise __codec2__synthesise
 #define codec2_rand __codec2__codec2_rand
 
+#define hs_pitch_refinement __codec2__hs_pitch_refinement
+#define post_process_sub_multiples __codec2__post_process_sub_multiples
+#define nlp_fir __codec2__nlp_fir
+
 #endif /* CODEC2_RENAMES_H */

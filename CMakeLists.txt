@@ -5,13 +5,19 @@
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "Minimum OS X deployment version")
 
 cmake_minimum_required(VERSION 3.0)
+
+# Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+	cmake_policy(SET CMP0135 NEW)
+endif()
+
 project(LPCNet C)
 
 option(DISABLE_CPU_OPTIMIZATION "Disable CPU optimization discovery." OFF)
 option(AVX2 "Enable AVX2 CPU optimizations." OFF)
-option(AVX "Enable AVX CPU optimizations." OFF)
-option(SSE "Enable SSE CPU optimizations." OFF)
-option(NEON "Enable NEON CPU optimizations for RPi." OFF)
+option(AVX "Enable AVX CPU optimizations." ON)
+option(SSE "Enable SSE CPU optimizations." ON)
+option(NEON "Enable NEON CPU optimizations for RPi." ON)
 
 include(GNUInstallDirs)
 mark_as_advanced(CLEAR
@@ -89,54 +95,73 @@ if(NOT DISABLE_CPU_OPTIMIZATION)
     if(UNIX AND NOT APPLE)
         message(STATUS "Looking for available CPU optimizations on Linux/BSD system...")
         execute_process(COMMAND grep -c "avx2" /proc/cpuinfo
-            OUTPUT_VARIABLE AVX2)
+            OUTPUT_VARIABLE AVX2_PRESENT)
         execute_process(COMMAND grep -c "avx " /proc/cpuinfo
-            OUTPUT_VARIABLE AVX)
+            OUTPUT_VARIABLE AVX_PRESENT)
         execute_process(COMMAND grep -c "sse4_1 " /proc/cpuinfo
-            OUTPUT_VARIABLE SSE)
+            OUTPUT_VARIABLE SSE_PRESENT)
         execute_process(COMMAND grep -c "neon" /proc/cpuinfo
-            OUTPUT_VARIABLE NEON)
+            OUTPUT_VARIABLE NEON_PRESENT)
     elseif(APPLE)
         if(BUILD_OSX_UNIVERSAL)
-            # Presume AVX/AVX2 are enabled on the x86 side. The ARM side will auto-enable
-            # NEON optimizations by virtue of being aarch64.
-            set(AVX TRUE)
-            set(AVX2 TRUE)
-            set(SSE TRUE)
+            # Presume AVX and SSE are enabled on the x86 side. (AVX2 is not guaranteed depending
+            # on model.) The ARM side will auto-enable NEON optimizations by virtue of being aarch64.
+            set(AVX_PRESENT TRUE)
+            set(SSE_PRESENT TRUE)
+            set(NEON_PRESENT TRUE)
         else()
             # Under OSX we need to look through a few sysctl entries to determine what our CPU supports.
             message(STATUS "Looking for available CPU optimizations on an OSX system...")
             execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.leaf7_features COMMAND grep -c AVX2
-                OUTPUT_VARIABLE AVX2)
+                OUTPUT_VARIABLE AVX2_PRESENT)
             execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c AVX
-                OUTPUT_VARIABLE AVX)
+                OUTPUT_VARIABLE AVX_PRESENT)
+            execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c SSE4.1
+                OUTPUT_VARIABLE SSE_PRESENT)
+                
+            # Unlike with the above, NEON *is* guaranteed if on ARM as there were never any ARM32 Macs 
+            # available. We don't need any specific compiler flags for this, though.
+            set(NEON_PRESENT TRUE)
         endif(BUILD_OSX_UNIVERSAL)
     elseif(WIN32)
         message(STATUS "No detection capability on Windows, assuming AVX is available.")
-        set(AVX TRUE)
+        set(AVX_PRESENT TRUE)
     else()
         message(STATUS "System is not *nix, processor specific optimizations cannot be determined.")
         message("   You can try setting them manually, e.g.: -DAVX2=1 or -DAVX=1 or -DNEON=1")
+        
+        # Presume all optimizations are available as the user will need to set them themselves.
+        set(AVX2_PRESENT TRUE)
+        set(AVX_PRESENT TRUE)
+        set(SSE_PRESENT TRUE)
+        set(NEON_PRESENT TRUE)
     endif()
+else()
+    # Presume all optimizations are available as the user is likely setting them themselves
+    # (e.g. cross-compiling)
+    set(AVX2_PRESENT TRUE)
+    set(AVX_PRESENT TRUE)
+    set(SSE_PRESENT TRUE)
+    set(NEON_PRESENT TRUE)
 endif()
 
-if(${AVX2} OR ${AVX2} GREATER 0)
+set(LPCNET_C_PROC_FLAGS "")
+
+if(${AVX2} AND (${AVX2_PRESENT} OR ${AVX2_PRESENT} GREATER 0))
     message(STATUS "avx2 processor flags found or enabled.")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx2 -mfma")
-elseif(${AVX} OR ${AVX} GREATER 0)
+    set(LPCNET_C_PROC_FLAGS -mavx2 -mfma)
+elseif(${AVX} AND (${AVX_PRESENT} OR ${AVX_PRESENT} GREATER 0))
 # AVX2 machines will also match on AVX
     message(STATUS "avx processor flags found or enabled.")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx")
-elseif(${SSE} OR ${SSE} GREATER 0)
+    set(LPCNET_C_PROC_FLAGS -mavx)
+elseif(${SSE} AND (${SSE_PRESENT} OR ${SSE_PRESENT} GREATER 0))
 # AVX and AVX2 machines will also match on SSE
     message(STATUS "sse processor flags found or enabled.")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.1")
-endif()
-
-# RPi / ARM 32bit
-if(${NEON} OR ${NEON} GREATER 0)
+    set(LPCNET_C_PROC_FLAGS -msse4.1)
+elseif(${NEON} AND (${NEON_PRESENT} OR ${NEON_PRESENT} GREATER 0))
+    # RPi / ARM 32bit
     message(STATUS "neon processor flags found or enabled.")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfpu=neon -march=armv8-a -mtune=cortex-a53")
+    set(LPCNET_C_PROC_FLAGS -mfpu=neon -march=armv8-a -mtune=cortex-a53)
 endif()
 
 # grab latest NN model (or substitute your own)

@@ -70,7 +70,12 @@ target_link_libraries(dump_data lpcnetfreedv m)
 add_executable(test_lpcnet test_lpcnet.c nnet_rw.c)
 target_link_libraries(test_lpcnet lpcnetfreedv m)
 
-if(SSE OR AVX OR AVX2 OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+if(
+    (${SSE} AND (${SSE_PRESENT} OR ${SSE_PRESENT} GREATER 0)) OR
+    (${AVX} AND (${AVX_PRESENT} OR ${AVX_PRESENT} GREATER 0)) OR
+    (${AVX2} AND (${AVX2_PRESENT} OR ${AVX2_PRESENT} GREATER 0)) OR
+    (${NEON} AND (${NEON_PRESENT} OR ${NEON_PRESENT} GREATER 0)) OR
+    CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
     add_executable(test_vec test_vec.c)
     target_link_libraries(test_vec m)
 else()

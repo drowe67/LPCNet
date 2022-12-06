@@ -34,9 +34,11 @@ set(lpcnet_freedv_srcs
     ${lpcnet_SOURCE_DIR}/nnet_data.c
 )
 
+if(LPCNET_C_PROC_FLAGS)
 foreach(LPCNET_FILE IN LISTS lpcnet_freedv_srcs)
     set_source_files_properties(${LPCNET_FILE} PROPERTIES COMPILE_FLAGS ${LPCNET_C_PROC_FLAGS})
 endforeach()
+endif(LPCNET_C_PROC_FLAGS)
 
 add_library(lpcnetfreedv SHARED ${lpcnet_freedv_srcs} ${codec2_import_srcs})
 
@@ -78,6 +80,10 @@ if(
     CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
     add_executable(test_vec test_vec.c)
     target_link_libraries(test_vec m)
+    
+    if(LPCNET_C_PROC_FLAGS)
+        set_source_files_properties(test_vec.c PROPERTIES COMPILE_FLAGS ${LPCNET_C_PROC_FLAGS})
+    endif(LPCNET_C_PROC_FLAGS)
 else()
     message(WARNING "No SSE/AVX/AVX2 CPU flags identified, not building test_vec.")
 endif()

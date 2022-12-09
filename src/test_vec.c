@@ -34,7 +34,7 @@ const char simd[]="SSE";
 const char simd[]="NEON";
 #else
 const char simd[]="none";
-
+#include "vec.h"
 #endif
 
 #undef celt_exp2
@@ -45,7 +45,6 @@ const char simd[]="none";
 #undef vec_sigmoid
 #undef sgemv_accum16
 #undef sparse_sgemv_accum16
-#include "vec.h"
 
 #define ROW_STEP 16
 #define ROWS     ROW_STEP*10

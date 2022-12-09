@@ -18,6 +18,8 @@
 #define vec_sigmoid vec_sigmoid_fast
 #define sgemv_accum16 sgemv_accum16_fast
 #define sparse_sgemv_accum16 sparse_sgemv_accum16_fast
+#define sgemv_accum8x4 sgemv_accum8x4_fast
+#define sparse_sgemv_accum8x4 sparse_sgemv_accum8x4_fast
 
 #ifdef __AVX__
 #include "vec_avx.h"
@@ -34,7 +36,6 @@ const char simd[]="SSE";
 const char simd[]="NEON";
 #else
 const char simd[]="none";
-#include "vec.h"
 #endif
 
 #undef celt_exp2
@@ -45,6 +46,12 @@ const char simd[]="none";
 #undef vec_sigmoid
 #undef sgemv_accum16
 #undef sparse_sgemv_accum16
+#undef sgemv_accum8x4 
+#undef sparse_sgemv_accum8x4 
+
+/* Override auto-detection of architecture so we have the non-optimized versions too. */
+#define NO_OPTIMIZATIONS
+#include "vec.h"
 
 #define ROW_STEP 16
 #define ROWS     ROW_STEP*10

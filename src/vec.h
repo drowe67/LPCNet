@@ -35,14 +35,15 @@
 #include "arch.h"
 
 
-#if defined(__AVX__) || defined(__SSE2__)
+#if !defined(NO_OPTIMIZATIONS) && (defined(__AVX__) || defined(__SSE2__))
 #include "vec_avx.h"
-#elif defined(__ARM_NEON__) || defined(__ARM_NEON)
+#elif !defined(NO_OPTIMIZATIONS) && (defined(__ARM_NEON__) || defined(__ARM_NEON))
 #include "vec_neon.h"
 #else
 
 #define MAX_INPUTS (2048)
 
+#undef NO_OPTIMIZATIONS
 #define NO_OPTIMIZATIONS
 
 #ifndef DISABLE_DOT_PROD

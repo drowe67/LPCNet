@@ -29,87 +29,164 @@
 /* NEON support for ARM machines */
 
 #include <arm_neon.h>
+
+#ifndef DISABLE_DOT_PROD
+#define DOT_PROD
+#endif
+typedef signed char qweight;
+
+
 #ifndef LPCNET_TEST
-static float celt_exp2(float x)
-{
-    int integer;
-    float frac;
-    union {
-	float f;
-	opus_uint32 i;
-    } res;
-    integer = floor(x);
-    if (integer < -50)
-	return 0;
-    frac = x-integer;
-    /* K0 = 1, K1 = log(2), K2 = 3-4*log(2), K3 = 3*log(2) - 2 */
-    res.f = 0.99992522f + frac * (0.69583354f
-				  + frac * (0.22606716f + 0.078024523f*frac));
-    res.i = (res.i + (integer<<23)) & 0x7fffffff;
-    return res.f;
-}
-#define celt_exp_neon(x) celt_exp2((x)*1.44269504f)
+static inline OPUS_INLINE float32x4_t exp4_approx(float32x4_t x) {
+  int32x4_t i;
+  float32x4_t xf;
 
-static float tansig_approx(float x)
+  x = vmaxq_f32(vminq_f32(x, vdupq_n_f32(88.f)), vdupq_n_f32(-88.f));
+
+  /* express exp(x) as exp2(x/log(2)), add 127 for the exponent later */
+  x = vmlaq_f32(vdupq_n_f32(127.f), x, vdupq_n_f32(1.44269504f));
+
+  /* split into integer and fractional parts */
+  i = vcvtq_s32_f32(x);
+  xf = vcvtq_f32_s32(i);
+  x = vsubq_f32(x, xf);
+
+  float32x4_t K0 = vdupq_n_f32(0.99992522f);
+  float32x4_t K1 = vdupq_n_f32(0.69583354f);
+  float32x4_t K2 = vdupq_n_f32(0.22606716f);
+  float32x4_t K3 = vdupq_n_f32(0.078024523f);
+  float32x4_t Y = vmlaq_f32(K0, x, vmlaq_f32(K1, x, vmlaq_f32(K2, K3, x)));
+
+  /* compute 2^i */
+  float32x4_t exponent = vreinterpretq_f32_s32(vshlq_n_s32(i, 23));
+
+  Y = vmulq_f32(Y, exponent);
+  return Y;
+}
+
+static inline float32x4_t tanh4_approx(float32x4_t X)
+{
+  const float32x4_t N0 = vdupq_n_f32(952.52801514f);
+  const float32x4_t N1 = vdupq_n_f32(96.39235687f);
+  const float32x4_t N2 = vdupq_n_f32(0.60863042f);
+  const float32x4_t D0 = vdupq_n_f32(952.72399902f);
+  const float32x4_t D1 = vdupq_n_f32(413.36801147f);
+  const float32x4_t D2 = vdupq_n_f32(11.88600922f);
+  const float32x4_t max_out = vdupq_n_f32(1.f);
+  const float32x4_t min_out = vdupq_n_f32(-1.f);
+  float32x4_t X2, num, den;
+  X2 = vmulq_f32(X, X);
+  num = vmlaq_f32(N0, X2, vmlaq_f32(N1, N2, X2));
+  den = vmlaq_f32(D0, X2, vmlaq_f32(D1, D2, X2));
+  num = vmulq_f32(num, X);
+  den = vrecpeq_f32(den);
+  num = vmulq_f32(num, den);
+  return vmaxq_f32(min_out, vminq_f32(max_out, num));
+}
+
+static inline float32x4_t sigmoid4_approx(float32x4_t X)
+{
+  const float32x4_t N0 = vdupq_n_f32(238.13200378f);
+  const float32x4_t N1 = vdupq_n_f32(6.02452230f);
+  const float32x4_t N2 = vdupq_n_f32(0.00950985f);
+  const float32x4_t D0 = vdupq_n_f32(952.72399902f);
+  const float32x4_t D1 = vdupq_n_f32(103.34200287f);
+  const float32x4_t D2 = vdupq_n_f32(0.74287558f);
+  const float32x4_t half = vdupq_n_f32(0.5f);
+  const float32x4_t max_out = vdupq_n_f32(1.f);
+  const float32x4_t min_out = vdupq_n_f32(0.f);
+  float32x4_t X2, num, den;
+  X2 = vmulq_f32(X, X);
+  num = vmlaq_f32(N0, X2, vmlaq_f32(N1, N2, X2));
+  den = vmlaq_f32(D0, X2, vmlaq_f32(D1, D2, X2));
+  num = vmulq_f32(num, X);
+  den = vrecpeq_f32(den);
+  num = vmlaq_f32(half, num, den);
+  return vmaxq_f32(min_out, vminq_f32(max_out, num));
+}
+
+static inline float celt_exp(float x)
+{
+   float out[4];
+   float32x4_t X, Y;
+   X = vdupq_n_f32(x);
+   Y = exp4_approx(X);
+   vst1q_f32(out, Y);
+   return out[0];
+}
+
+static inline float tanh_approx(float x)
+{
+   float out[4];
+   float32x4_t X, Y;
+   X = vdupq_n_f32(x);
+   Y = tanh4_approx(X);
+   vst1q_f32(out, Y);
+   return out[0];
+}
+
+static inline float sigmoid_approx(float x)
+{
+   float out[4];
+   float32x4_t X, Y;
+   X = vdupq_n_f32(x);
+   Y = sigmoid4_approx(X);
+   vst1q_f32(out, Y);
+   return out[0];
+}
+
+static inline void softmax(float *y, const float *x, int N)
 {
     int i;
-    float y, dy;
-    float sign=1;
-    /* Tests are reversed to catch NaNs */
-    if (!(x<8))
-        return 1;
-    if (!(x>-8))
-        return -1;
-#ifndef FIXED_POINT
-    /* Another check in case of -ffast-math */
-    if (celt_isnan(x))
-	return 0;
+    for (i=0;i<N-3;i+=4)
+    {
+        float32x4_t X, Y;
+        X = vld1q_f32(&x[i]);
+        Y = exp4_approx(X);
+        vst1q_f32(&y[i], Y);
+    }
+    for (;i<N;i++)
+        y[i] = celt_exp(x[i]);
+}
+
+static inline void vec_tanh(float *y, const float *x, int N)
+{
+    int i;
+    for (i=0;i<N-3;i+=4)
+    {
+        float32x4_t X, Y;
+        X = vld1q_f32(&x[i]);
+        Y = tanh4_approx(X);
+        vst1q_f32(&y[i], Y);
+    }
+    for (;i<N;i++)
+    {
+        float ex2;
+        ex2 = celt_exp(2*x[i]);
+        y[i] = (ex2-1)/(ex2+1);
+    }
+}
+
+static inline void vec_sigmoid(float *y, const float *x, int N)
+{
+    int i;
+    for (i=0;i<N-3;i+=4)
+    {
+        float32x4_t X, Y;
+        X = vld1q_f32(&x[i]);
+        Y = sigmoid4_approx(X);
+        vst1q_f32(&y[i], Y);
+    }
+    for (;i<N;i++)
+    {
+        float ex;
+        ex = celt_exp(x[i]);
+        y[i] = (ex)/(ex+1);
+    }
+}
 #endif
-    if (x<0)
-    {
-	x=-x;
-	sign=-1;
-    }
-    i = (int)floor(.5f+25*x);
-    x -= .04f*i;
-    y = tansig_table[i];
-    dy = 1-y*y;
-    y = y + x*dy*(1 - y*x);
-    return sign*y;
-}
 
-static OPUS_INLINE float sigmoid_approx(float x)
-{
-    return .5f + .5f*tansig_approx(.5f*x);
-}
-
-static void softmax(float *y, const float *x, int N)
-{
-    int i;
-    for (i=0;i<N;i++)
-        y[i] = celt_exp_neon(x[i]);
-}
-
-static void vec_tanh(float *y, const float *x, int N)
-{
-    int i;
-    for (i=0;i<N;i++)
-    {
-        y[i] = tansig_approx(x[i]);
-    }
-}
-
-static void vec_sigmoid(float *y, const float *x, int N)
-{
-    int i;
-    for (i=0;i<N;i++)
-    {
-        y[i] = sigmoid_approx(x[i]);
-    }
-}
-#endif
-
-static void sgemv_accum16(float *out, const float *weights, int rows, int cols, int col_stride, const float *x)
+static inline void sgemv_accum16(float *out, const float *weights, int rows, int cols, int col_stride, const float *x)
 {
     int i, j;
     for (i=0;i<rows;i+=16)
@@ -153,7 +230,7 @@ static void sgemv_accum16(float *out, const float *weights, int rows, int cols, 
     }
 }
 
-static void sparse_sgemv_accum16(float *out, const float *w, int rows, const int *idx, const float *x)
+static inline void sparse_sgemv_accum16(float *out, const float *w, int rows, const int *idx, const float *x)
 {
     int i, j;
     for (i=0;i<rows;i+=16)
@@ -172,13 +249,13 @@ static void sparse_sgemv_accum16(float *out, const float *w, int rows, const int
       
 	for (j=0;j<cols;j++)
 	{
-	    float xj= x[*idx++];
+	    float32x4_t xj= vld1q_dup_f32(&x[*idx++]);
 	    float32x4_t wvec;
 	 
-	    wvec = vld1q_f32(&w[0]); y0_3 = vmlaq_n_f32(y0_3, wvec, xj);
-	    wvec = vld1q_f32(&w[4]); y4_7 = vmlaq_n_f32(y4_7, wvec, xj);
-	    wvec = vld1q_f32(&w[8]); y8_11 = vmlaq_n_f32(y8_11, wvec, xj);
-	    wvec = vld1q_f32(&w[12]); y12_15 = vmlaq_n_f32(y12_15, wvec, xj);
+	    wvec = vld1q_f32(&w[0]); y0_3 = vmlaq_f32(y0_3, wvec, xj);
+	    wvec = vld1q_f32(&w[4]); y4_7 = vmlaq_f32(y4_7, wvec, xj);
+	    wvec = vld1q_f32(&w[8]); y8_11 = vmlaq_f32(y8_11, wvec, xj);
+	    wvec = vld1q_f32(&w[12]); y12_15 = vmlaq_f32(y12_15, wvec, xj);
 	 
 	    w += 16;
 	}
@@ -192,3 +269,310 @@ static void sparse_sgemv_accum16(float *out, const float *w, int rows, const int
       
     }
 }
+
+#define SCALE (128.f*127.f)
+#define SCALE_1 (1.f/128.f/127.f)
+
+#define MAX_INPUTS 2048
+#define MAX_OUTPUTS 8192
+
+#if __aarch64__
+
+#if __ARM_FEATURE_DOTPROD
+static inline int32x4_t vdotprod(int32x4_t acc, int8x16_t a, int8x16_t b) {
+  return vdotq_s32(acc, a, b);
+}
+#else
+static inline int32x4_t vdotprod(int32x4_t acc, int8x16_t a, int8x16_t b)
+{
+  return vpadalq_s16(acc, vpaddq_s16(vmull_s8(vget_low_s8(a), vget_low_s8(b)),  vmull_high_s8(a, b)));
+}
+#endif
+
+static inline void sgemv_accum8x4(float *_out, const qweight *w, int rows, int cols, int col_stride, const float *_x)
+{
+   int i, j;
+   signed char x[MAX_INPUTS];
+   const float32x4_t scale = vdupq_n_f32(SCALE);
+   const float32x4_t scale_1 = vdupq_n_f32(SCALE_1);
+   const float32x4_t const127 = vdupq_n_f32(127.);
+   (void)col_stride;
+   for (i=0;i<cols;i+=8) {
+      int32x4_t xi0, xi4;
+      int16x8_t x_short;
+      xi0 = vcvtnq_s32_f32(vmulq_f32(const127, vld1q_f32(&_x[i])));
+      xi4 = vcvtnq_s32_f32(vmulq_f32(const127, vld1q_f32(&_x[i+4])));
+      x_short = vcombine_s16(vmovn_s32(xi0), vmovn_s32(xi4));
+      vst1_s8(&x[i], vmovn_s16(x_short));
+   }
+   for (i=0;i<rows;i+=8)
+   {
+      int32x4_t acc0, acc1;
+      acc0 = vcvtnq_s32_f32(vmulq_f32(scale, vld1q_f32(&_out[i])));
+      acc1 = vcvtnq_s32_f32(vmulq_f32(scale, vld1q_f32(&_out[i+4])));
+      for (j=0;j<cols;j+=4)
+      {
+         int8x16_t vw0, vw1, vx;
+         vx = (int8x16_t)vld1q_dup_s32((int*)&x[j]);
+         vw0 = vld1q_s8(w);
+         vw1 = vld1q_s8(&w[16]);
+         acc0 = vdotprod(acc0, vw0, vx);
+         acc1 = vdotprod(acc1, vw1, vx);
+         w += 32;
+      }
+      vst1q_f32(&_out[i], vmulq_f32(scale_1, vcvtq_f32_s32(acc0)));
+      vst1q_f32(&_out[i+4], vmulq_f32(scale_1, vcvtq_f32_s32(acc1)));
+   }
+}
+
+static inline void sparse_sgemv_accum8x4(float *_out, const qweight *w, int rows, int cols, const int *idx, const float *_x)
+{
+   int i, j;
+   signed char x[MAX_INPUTS];
+   const float32x4_t scale = vdupq_n_f32(SCALE);
+   const float32x4_t scale_1 = vdupq_n_f32(SCALE_1);
+   const float32x4_t const127 = vdupq_n_f32(127.);
+   for (i=0;i<cols;i+=8) {
+      int32x4_t xi0, xi4;
+      int16x8_t x_short;
+      xi0 = vcvtnq_s32_f32(vmulq_f32(const127, vld1q_f32(&_x[i])));
+      xi4 = vcvtnq_s32_f32(vmulq_f32(const127, vld1q_f32(&_x[i+4])));
+      x_short = vcombine_s16(vmovn_s32(xi0), vmovn_s32(xi4));
+      vst1_s8(&x[i], vmovn_s16(x_short));
+   }
+   for (i=0;i<rows;i+=8)
+   {
+      int colblocks;
+      int32x4_t acc0, acc1;
+      acc0 = vcvtnq_s32_f32(vmulq_f32(scale, vld1q_f32(&_out[i])));
+      acc1 = vcvtnq_s32_f32(vmulq_f32(scale, vld1q_f32(&_out[i+4])));
+      colblocks = *idx++;
+      for (j=0;j<colblocks;j++)
+      {
+         int pos;
+         pos = (*idx++);
+         int8x16_t vw0, vw1, vx;
+         vx = (int8x16_t)vld1q_dup_s32((int*)&x[pos]);
+         vw0 = vld1q_s8(w);
+         vw1 = vld1q_s8(&w[16]);
+         acc0 = vdotprod(acc0, vw0, vx);
+         acc1 = vdotprod(acc1, vw1, vx);
+         w += 32;
+      }
+      vst1q_f32(&_out[i], vmulq_f32(scale_1, vcvtq_f32_s32(acc0)));
+      vst1q_f32(&_out[i+4], vmulq_f32(scale_1, vcvtq_f32_s32(acc1)));
+   }
+}
+
+#else
+
+#ifdef DOT_PROD
+
+#define SCALE (128.f*127.f)
+#define SCALE_1 (1.f/128.f/127.f)
+
+
+#ifdef USE_SU_BIAS
+
+static inline void sgemv_accum8x4(float *out, const qweight *w, int rows, int cols, int col_stride, const float *_x)
+{
+   int i, j;
+   unsigned char x[MAX_INPUTS];
+   (void)col_stride;
+   for (i=0;i<rows;i++) out[i] *= SCALE;
+   for (i=0;i<cols;i++) x[i] = 127+(int)floor(.5+127*_x[i]);
+   for (i=0;i<rows;i+=8)
+   {
+      for (j=0;j<cols;j+=4)
+      {
+         float * restrict y;
+         float xj0, xj1, xj2, xj3;
+         xj0 = x[j+0];
+         xj1 = x[j+1];
+         xj2 = x[j+2];
+         xj3 = x[j+3];
+         y = &out[i];
+         y[0] += (w[0]*xj0+w[1]*xj1+w[2]*xj2+w[3]*xj3);
+         y[1] += (w[4]*xj0+w[5]*xj1+w[6]*xj2+w[7]*xj3);
+         y[2] += (w[8]*xj0+w[9]*xj1+w[10]*xj2+w[11]*xj3);
+         y[3] += (w[12]*xj0+w[13]*xj1+w[14]*xj2+w[15]*xj3);
+         y[4] += (w[16]*xj0+w[17]*xj1+w[18]*xj2+w[19]*xj3);
+         y[5] += (w[20]*xj0+w[21]*xj1+w[22]*xj2+w[23]*xj3);
+         y[6] += (w[24]*xj0+w[25]*xj1+w[26]*xj2+w[27]*xj3);
+         y[7] += (w[28]*xj0+w[29]*xj1+w[30]*xj2+w[31]*xj3);
+         w += 32;
+      }
+   }
+   for (i=0;i<rows;i++) out[i] *= SCALE_1;
+}
+
+static inline void sparse_sgemv_accum8x4(float *out, const qweight *w, int rows, int cols, const int *idx, const float *_x)
+{
+   int i, j;
+   unsigned char x[MAX_INPUTS];
+   for (i=0;i<rows;i++) out[i] *= SCALE;
+   for (i=0;i<cols;i++) x[i] = 127+floor(.5+127*_x[i]);
+   for (i=0;i<rows;i+=8)
+   {
+      int colblocks;
+      colblocks = *idx++;
+      for (j=0;j<colblocks;j++)
+      {
+         int pos;
+         float * restrict y;
+         int xj0, xj1, xj2, xj3;
+         pos = (*idx++);
+         xj0 = x[pos+0];
+         xj1 = x[pos+1];
+         xj2 = x[pos+2];
+         xj3 = x[pos+3];
+         y = &out[i];
+         y[0] += (w[0]*xj0+w[1]*xj1+w[2]*xj2+w[3]*xj3);
+         y[1] += (w[4]*xj0+w[5]*xj1+w[6]*xj2+w[7]*xj3);
+         y[2] += (w[8]*xj0+w[9]*xj1+w[10]*xj2+w[11]*xj3);
+         y[3] += (w[12]*xj0+w[13]*xj1+w[14]*xj2+w[15]*xj3);
+         y[4] += (w[16]*xj0+w[17]*xj1+w[18]*xj2+w[19]*xj3);
+         y[5] += (w[20]*xj0+w[21]*xj1+w[22]*xj2+w[23]*xj3);
+         y[6] += (w[24]*xj0+w[25]*xj1+w[26]*xj2+w[27]*xj3);
+         y[7] += (w[28]*xj0+w[29]*xj1+w[30]*xj2+w[31]*xj3);
+         w += 32;
+      }
+   }
+   for (i=0;i<rows;i++) out[i] *= SCALE_1;
+}
+#else /*USE_SU_BIAS*/
+
+static inline void sgemv_accum8x4(float *out, const qweight *w, int rows, int cols, int col_stride, const float *_x)
+{
+   int i, j;
+   signed char x[MAX_INPUTS];
+   (void)col_stride;
+   for (i=0;i<rows;i++) out[i] *= SCALE;
+   for (i=0;i<cols;i++) x[i] = (int)floor(.5+127*_x[i]);
+   for (i=0;i<rows;i+=8)
+   {
+      for (j=0;j<cols;j+=4)
+      {
+         float * restrict y;
+         float xj0, xj1, xj2, xj3;
+         xj0 = x[j+0];
+         xj1 = x[j+1];
+         xj2 = x[j+2];
+         xj3 = x[j+3];
+         y = &out[i];
+         y[0] += (w[0]*xj0+w[1]*xj1+w[2]*xj2+w[3]*xj3);
+         y[1] += (w[4]*xj0+w[5]*xj1+w[6]*xj2+w[7]*xj3);
+         y[2] += (w[8]*xj0+w[9]*xj1+w[10]*xj2+w[11]*xj3);
+         y[3] += (w[12]*xj0+w[13]*xj1+w[14]*xj2+w[15]*xj3);
+         y[4] += (w[16]*xj0+w[17]*xj1+w[18]*xj2+w[19]*xj3);
+         y[5] += (w[20]*xj0+w[21]*xj1+w[22]*xj2+w[23]*xj3);
+         y[6] += (w[24]*xj0+w[25]*xj1+w[26]*xj2+w[27]*xj3);
+         y[7] += (w[28]*xj0+w[29]*xj1+w[30]*xj2+w[31]*xj3);
+         w += 32;
+      }
+   }
+   for (i=0;i<rows;i++) out[i] *= SCALE_1;
+}
+
+static inline void sparse_sgemv_accum8x4(float *out, const qweight *w, int rows, int cols, const int *idx, const float *_x)
+{
+   int i, j;
+   signed char x[MAX_INPUTS];
+   for (i=0;i<rows;i++) out[i] *= SCALE;
+   for (i=0;i<cols;i++) x[i] = floor(.5+127*_x[i]);
+   for (i=0;i<rows;i+=8)
+   {
+      int colblocks;
+      colblocks = *idx++;
+      for (j=0;j<colblocks;j++)
+      {
+         int pos;
+         float * restrict y;
+         int xj0, xj1, xj2, xj3;
+         pos = (*idx++);
+         xj0 = x[pos+0];
+         xj1 = x[pos+1];
+         xj2 = x[pos+2];
+         xj3 = x[pos+3];
+         y = &out[i];
+         y[0] += (w[0]*xj0+w[1]*xj1+w[2]*xj2+w[3]*xj3);
+         y[1] += (w[4]*xj0+w[5]*xj1+w[6]*xj2+w[7]*xj3);
+         y[2] += (w[8]*xj0+w[9]*xj1+w[10]*xj2+w[11]*xj3);
+         y[3] += (w[12]*xj0+w[13]*xj1+w[14]*xj2+w[15]*xj3);
+         y[4] += (w[16]*xj0+w[17]*xj1+w[18]*xj2+w[19]*xj3);
+         y[5] += (w[20]*xj0+w[21]*xj1+w[22]*xj2+w[23]*xj3);
+         y[6] += (w[24]*xj0+w[25]*xj1+w[26]*xj2+w[27]*xj3);
+         y[7] += (w[28]*xj0+w[29]*xj1+w[30]*xj2+w[31]*xj3);
+         w += 32;
+      }
+   }
+   for (i=0;i<rows;i++) out[i] *= SCALE_1;
+}
+#endif /*USE_SU_BIAS*/
+
+#else /*DOT_PROD*/
+
+#define sgemv_accum8x4 sgemv_accum
+
+
+static inline void sparse_sgemv_accum8x4(float *out, const qweight *w, int rows, int ignore, const int *idx, const float *x)
+{
+   int i, j;
+   (void)ignore;
+   for (i=0;i<rows;i+=8)
+   {
+      int cols;
+      cols = *idx++;
+      for (j=0;j<cols;j++)
+      {
+         int pos;
+         float * restrict y;
+         float xj0, xj1, xj2, xj3;
+         pos = (*idx++);
+         xj0 = x[pos+0];
+         xj1 = x[pos+1];
+         xj2 = x[pos+2];
+         xj3 = x[pos+3];
+         y = &out[i];
+         y[0] += w[0]*xj0;
+         y[1] += w[1]*xj0;
+         y[2] += w[2]*xj0;
+         y[3] += w[3]*xj0;
+         y[4] += w[4]*xj0;
+         y[5] += w[5]*xj0;
+         y[6] += w[6]*xj0;
+         y[7] += w[7]*xj0;
+
+         y[0] += w[8]*xj1;
+         y[1] += w[9]*xj1;
+         y[2] += w[10]*xj1;
+         y[3] += w[11]*xj1;
+         y[4] += w[12]*xj1;
+         y[5] += w[13]*xj1;
+         y[6] += w[14]*xj1;
+         y[7] += w[15]*xj1;
+
+         y[0] += w[16]*xj2;
+         y[1] += w[17]*xj2;
+         y[2] += w[18]*xj2;
+         y[3] += w[19]*xj2;
+         y[4] += w[20]*xj2;
+         y[5] += w[21]*xj2;
+         y[6] += w[22]*xj2;
+         y[7] += w[23]*xj2;
+
+         y[0] += w[24]*xj3;
+         y[1] += w[25]*xj3;
+         y[2] += w[26]*xj3;
+         y[3] += w[27]*xj3;
+         y[4] += w[28]*xj3;
+         y[5] += w[29]*xj3;
+         y[6] += w[30]*xj3;
+         y[7] += w[31]*xj3;
+         w += 32;
+      }
+   }
+}
+#endif /*DOT_PROD*/
+
+#endif /* __aarch64__ */

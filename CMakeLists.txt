@@ -136,13 +136,6 @@ if(NOT DISABLE_CPU_OPTIMIZATION)
         set(SSE_PRESENT TRUE)
         set(NEON_PRESENT TRUE)
     endif()
-else()
-    # Presume all optimizations are available as the user is likely setting them themselves
-    # (e.g. cross-compiling)
-    set(AVX2_PRESENT TRUE)
-    set(AVX_PRESENT TRUE)
-    set(SSE_PRESENT TRUE)
-    set(NEON_PRESENT TRUE)
 endif()
 
 set(LPCNET_C_PROC_FLAGS "")

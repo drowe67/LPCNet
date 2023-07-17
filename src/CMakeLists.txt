@@ -72,20 +72,24 @@ target_link_libraries(dump_data lpcnetfreedv m)
 add_executable(test_lpcnet test_lpcnet.c nnet_rw.c)
 target_link_libraries(test_lpcnet lpcnetfreedv m)
 
-if(
-    (${SSE} AND (${SSE_PRESENT} OR ${SSE_PRESENT} GREATER 0)) OR
-    (${AVX} AND (${AVX_PRESENT} OR ${AVX_PRESENT} GREATER 0)) OR
-    (${AVX2} AND (${AVX2_PRESENT} OR ${AVX2_PRESENT} GREATER 0)) OR
-    (${NEON} AND (${NEON_PRESENT} OR ${NEON_PRESENT} GREATER 0)) OR
-    CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-    add_executable(test_vec test_vec.c)
-    target_link_libraries(test_vec m)
-    
-    if(LPCNET_C_PROC_FLAGS)
-        set_source_files_properties(test_vec.c PROPERTIES COMPILE_FLAGS ${LPCNET_C_PROC_FLAGS})
-    endif(LPCNET_C_PROC_FLAGS)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "powerpc")
+    message(WARNING "Tests not implemented for PowerPC, not building test_vec.")
 else()
-    message(WARNING "No SSE/AVX/AVX2 CPU flags identified, not building test_vec.")
+    if(
+        (${SSE} AND (${SSE_PRESENT} OR ${SSE_PRESENT} GREATER 0)) OR
+        (${AVX} AND (${AVX_PRESENT} OR ${AVX_PRESENT} GREATER 0)) OR
+        (${AVX2} AND (${AVX2_PRESENT} OR ${AVX2_PRESENT} GREATER 0)) OR
+        (${NEON} AND (${NEON_PRESENT} OR ${NEON_PRESENT} GREATER 0)) OR
+        CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+        add_executable(test_vec test_vec.c)
+        target_link_libraries(test_vec m)
+
+        if(LPCNET_C_PROC_FLAGS)
+            set_source_files_properties(test_vec.c PROPERTIES COMPILE_FLAGS ${LPCNET_C_PROC_FLAGS})
+        endif(LPCNET_C_PROC_FLAGS)
+    else()
+        message(WARNING "No SSE/AVX/AVX2 CPU flags identified, not building test_vec.")
+    endif()
 endif()
 
 add_executable(quant_feat quant_feat.c)

@@ -2,6 +2,8 @@
 
 Experimental version of LPCNet that has been used to develop FreeDV 2020 - a HF radio Digital Voice mode for over the air experimentation with Neural Net speech coding.  Possibly the first use of Neural Net speech coding in real world operation.
 
+*Note: while this should be able to compile on any architecutre with a modern C compiler, this package only supports Intel and ARM architectures. Usage on others will likely exhibit extremely low performance and possibly have bugs.*
+
 ## Quickstart
 
 ```

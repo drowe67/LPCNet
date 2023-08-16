@@ -2,7 +2,7 @@
 #          flags manually on cmd line
 #       2/ Should we standardise on just AVX?  As machine we run on
 #          may be different to machine we build on
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "Minimum OS X deployment version")
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5" CACHE STRING "Minimum OS X deployment version")
 
 cmake_minimum_required(VERSION 3.0)
 
@@ -26,10 +26,11 @@ mark_as_advanced(CLEAR
     CMAKE_INSTALL_LIBDIR
 )
 
-# Build universal ARM64 and x86_64 binaries on Mac.
-if(BUILD_OSX_UNIVERSAL)
+# Build universal ARM64 and x86_64 binaries on Mac if not explicitly
+# told otherwise (i.e. if building for PPC).
+if(BUILD_OSX_UNIVERSAL AND NOT CMAKE_OSX_ARCHITECTURES)
 set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
-endif(BUILD_OSX_UNIVERSAL)
+endif(BUILD_OSX_UNIVERSAL AND NOT CMAKE_OSX_ARCHITECTURES)
 
 #
 # Prevent in-source builds
@@ -104,11 +105,17 @@ if(NOT DISABLE_CPU_OPTIMIZATION)
             OUTPUT_VARIABLE NEON_PRESENT)
     elseif(APPLE)
         if(BUILD_OSX_UNIVERSAL)
+            message(STATUS "Performing universal macOS build using architectures ${CMAKE_OSX_ARCHITECTURES}")
+
             # Presume AVX and SSE are enabled on the x86 side. (AVX2 is not guaranteed depending
             # on model.) The ARM side will auto-enable NEON optimizations by virtue of being aarch64.
-            set(AVX_PRESENT TRUE)
-            set(SSE_PRESENT TRUE)
-            set(NEON_PRESENT TRUE)
+            if(CMAKE_OSX_ARCHITECTURES MATCHES "[xX]86")
+                set(AVX_PRESENT TRUE)
+                set(SSE_PRESENT TRUE)
+            endif(CMAKE_OSX_ARCHITECTURES MATCHES "[xX]86")
+            if(CMAKE_OSX_ARCHITECTURES MATCHES "[Aa][Rr][Mm]")
+                set(NEON_PRESENT TRUE)
+            endif(CMAKE_OSX_ARCHITECTURES MATCHES "[Aa][Rr][Mm]")
         else()
             # Under OSX we need to look through a few sysctl entries to determine what our CPU supports.
             message(STATUS "Looking for available CPU optimizations on an OSX system...")

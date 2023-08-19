@@ -128,7 +128,8 @@ if(NOT DISABLE_CPU_OPTIMIZATION)
                 
             # Unlike with the above, NEON *is* guaranteed if on ARM as there were never any ARM32 Macs 
             # available. We don't need any specific compiler flags for this, though.
-            set(NEON_PRESENT TRUE)
+            execute_process(COMMAND sysctl -a COMMAND grep -c hw.optional.neon
+                OUTPUT_VARIABLE NEON_PRESENT)
         endif(BUILD_OSX_UNIVERSAL)
     elseif(WIN32)
         message(STATUS "No detection capability on Windows, assuming AVX is available.")
@@ -165,7 +166,7 @@ elseif(${SSE} AND (${SSE_PRESENT} OR ${SSE_PRESENT} GREATER 0))
 # AVX and AVX2 machines will also match on SSE
     message(STATUS "sse processor flags found or enabled.")
     set(LPCNET_C_PROC_FLAGS -msse4.1)
-elseif(${NEON} AND (${NEON_PRESENT} OR ${NEON_PRESENT} GREATER 0))
+elseif(${NEON} AND (${NEON_PRESENT} OR ${NEON_PRESENT} GREATER 0) AND NOT APPLE)
     # RPi / ARM 32bit
     message(STATUS "neon processor flags found or enabled.")
     set(LPCNET_C_PROC_FLAGS -mfpu=neon -march=armv8-a -mtune=cortex-a53)

@@ -29,7 +29,7 @@ const char simd[]="AVX2";
 const char simd[]="AVX";
 #endif
 #elif __SSE__
-#include "vec_sse.h"
+#include "vec_avx.h"
 const char simd[]="SSE";
 #elif __ARM_NEON__ || __aarch64__
 #include "vec_neon.h"

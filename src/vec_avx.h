@@ -41,7 +41,11 @@
 
 #else
 
+#if defined(_MSC_VER)
+#pragma message ("Only SSE and SSE2 are available. On newer machines, enable SSSE3/AVX/AVX2 to get better performance")
+#else
 #warning "Only SSE and SSE2 are available. On newer machines, enable SSSE3/AVX/AVX2 using -march= to get better performance"
+#endif
 
 #endif
 
@@ -81,7 +85,7 @@ static inline void mm256_storeu_ps(float *dst, mm256_emu src) {
 #define _mm256_storeu_ps(dst, src) mm256_storeu_ps(dst, src)
 
 
-static inline mm256_emu mm256_setzero_ps() {
+static inline mm256_emu mm256_setzero_ps(void) {
   mm256_emu ret;
   ret.lo = _mm_setzero_ps();
   ret.hi = ret.lo;

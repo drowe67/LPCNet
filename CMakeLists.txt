@@ -28,6 +28,11 @@ mark_as_advanced(CLEAR
 
 # Build universal ARM64 and x86_64 binaries on Mac if not explicitly
 # told otherwise (i.e. if building for PPC).
+if(CMAKE_OSX_ARCHITECTURES)
+    # Assume universal build if architectures are being overridden.
+    set(BUILD_OSX_UNIVERSAL 1)
+endif(CMAKE_OSX_ARCHITECTURES)
+
 if(BUILD_OSX_UNIVERSAL AND NOT CMAKE_OSX_ARCHITECTURES)
 set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
 endif(BUILD_OSX_UNIVERSAL AND NOT CMAKE_OSX_ARCHITECTURES)

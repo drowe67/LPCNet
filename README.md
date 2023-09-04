@@ -1,3 +1,10 @@
+# Status
+
+Note: This repo is not being actively maintained by the authors as the FreeDV 2020 mode for which it was developed does not perform well on HF channels and is not widely used. You are welcome to use this repo as is, or fork it, but regretably we are unavailable to assist with Issues or considering Pull Requests.  It has been an interesting experiment which we have now completed.  The only exceptions are:
+
+* Fixing any build problems on supported platforms (x86/ARM) and OSes (Linux/macOS and MinGW for Windows).
+* If you can demonstrate use of the code in this repo that we are not aware of.
+
 # LPCNet for FreeDV
 
 Experimental version of LPCNet that has been used to develop FreeDV 2020 - a HF radio Digital Voice mode for over the air experimentation with Neural Net speech coding.  Possibly the first use of Neural Net speech coding in real world operation.

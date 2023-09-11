@@ -26,16 +26,27 @@ mark_as_advanced(CLEAR
     CMAKE_INSTALL_LIBDIR
 )
 
-# Build universal ARM64 and x86_64 binaries on Mac if not explicitly
-# told otherwise (i.e. if building for PPC).
-if(CMAKE_OSX_ARCHITECTURES)
-    # Assume universal build if architectures are being overridden.
-    set(BUILD_OSX_UNIVERSAL 1)
-endif(CMAKE_OSX_ARCHITECTURES)
-
 if(BUILD_OSX_UNIVERSAL AND NOT CMAKE_OSX_ARCHITECTURES)
 set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
 endif(BUILD_OSX_UNIVERSAL AND NOT CMAKE_OSX_ARCHITECTURES)
+
+if(APPLE)
+    function(can_enable_for_architecture ARCH RET)
+        if(BUILD_OSX_UNIVERSAL)
+            if(CMAKE_OSX_ARCHITECTURES MATCHES ${ARCH})
+                set(${RET} TRUE PARENT_SCOPE)
+            else()
+                set(${RET} FALSE PARENT_SCOPE)
+            endif()
+        else()
+            if(CMAKE_SYSTEM_PROCESSOR MATCHES ${ARCH})
+                set(${RET} TRUE PARENT_SCOPE)
+            else()
+                set(${RET} FALSE PARENT_SCOPE)
+            endif()
+        endif()
+    endfunction()
+endif(APPLE)
 
 #
 # Prevent in-source builds
@@ -114,27 +125,28 @@ if(NOT DISABLE_CPU_OPTIMIZATION)
 
             # Presume AVX and SSE are enabled on the x86 side. (AVX2 is not guaranteed depending
             # on model.) The ARM side will auto-enable NEON optimizations by virtue of being aarch64.
-            if(CMAKE_OSX_ARCHITECTURES MATCHES "[xX]86")
+            can_enable_for_architecture("[xX]86" IS_X86)
+            if(IS_X86)
                 set(AVX_PRESENT TRUE)
                 set(SSE_PRESENT TRUE)
-            endif(CMAKE_OSX_ARCHITECTURES MATCHES "[xX]86")
-            if(CMAKE_OSX_ARCHITECTURES MATCHES "[Aa][Rr][Mm]")
-                set(NEON_PRESENT TRUE)
-            endif(CMAKE_OSX_ARCHITECTURES MATCHES "[Aa][Rr][Mm]")
+            endif()
+            can_enable_for_architecture("[Aa][Rr][Mm]" NEON_PRESENT)
         else()
             # Under OSX we need to look through a few sysctl entries to determine what our CPU supports.
             message(STATUS "Looking for available CPU optimizations on an OSX system...")
-            execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.leaf7_features COMMAND grep -c AVX2
-                OUTPUT_VARIABLE AVX2_PRESENT)
-            execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c AVX
-                OUTPUT_VARIABLE AVX_PRESENT)
-            execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c SSE4.1
-                OUTPUT_VARIABLE SSE_PRESENT)
+            can_enable_for_architecture("[xX]86" IS_X86)
+            if(IS_X86)
+                execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.leaf7_features COMMAND grep -c AVX2
+                    OUTPUT_VARIABLE AVX2_PRESENT)
+                execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c AVX
+                    OUTPUT_VARIABLE AVX_PRESENT)
+                execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c SSE4.1
+                    OUTPUT_VARIABLE SSE_PRESENT)
+            endif()
                 
             # Unlike with the above, NEON *is* guaranteed if on ARM as there were never any ARM32 Macs 
             # available. We don't need any specific compiler flags for this, though.
-            execute_process(COMMAND sysctl -a COMMAND grep -c hw.optional.neon
-                OUTPUT_VARIABLE NEON_PRESENT)
+            can_enable_for_architecture("[Aa][Rr][Mm]" NEON_PRESENT)
         endif(BUILD_OSX_UNIVERSAL)
     elseif(WIN32)
         message(STATUS "No detection capability on Windows, assuming AVX is available.")

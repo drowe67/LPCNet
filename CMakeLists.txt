@@ -92,8 +92,19 @@ message(STATUS "Host system arch is: ${CMAKE_SYSTEM_PROCESSOR}")
 
 # Detection of available CPU optimizations
 if(NOT DISABLE_CPU_OPTIMIZATION)
-    if(UNIX AND NOT APPLE)
-        message(STATUS "Looking for available CPU optimizations on Linux/BSD system...")
+    if((CMAKE_SYSTEM_NAME STREQUAL "FreeBSD") OR
+       (CMAKE_SYSTEM_NAME STREQUAL "DragonFly") OR
+       (CMAKE_SYSTEM_NAME STREQUAL "OpenBSD"))
+        message(STATUS "Looking for available CPU optimizations on FreeBSD/DragonFlyBSD/OpenBSD system...")
+        execute_process(COMMAND grep -c "AVX2" /var/run/dmesg.boot
+            OUTPUT_VARIABLE AVX2_PRESENT)
+        execute_process(COMMAND grep -c "AVX," /var/run/dmesg.boot
+            OUTPUT_VARIABLE AVX_PRESENT)
+        execute_process(COMMAND grep -c "SSE4.1," /var/run/dmesg.boot
+            OUTPUT_VARIABLE SSE_PRESENT)
+        # currently AdvSIMD/SIMD (neon) not supported
+    elseif(UNIX AND NOT APPLE)
+        message(STATUS "Looking for available CPU optimizations on Linux/NetBSD system...")
         execute_process(COMMAND grep -c "avx2" /proc/cpuinfo
             OUTPUT_VARIABLE AVX2_PRESENT)
         execute_process(COMMAND grep -c "avx " /proc/cpuinfo

@@ -2,7 +2,7 @@
 #          flags manually on cmd line
 #       2/ Should we standardise on just AVX?  As machine we run on
 #          may be different to machine we build on
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9" CACHE STRING "Minimum OS X deployment version")
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5" CACHE STRING "Minimum OS X deployment version")
 
 cmake_minimum_required(VERSION 3.0)
 
@@ -26,10 +26,27 @@ mark_as_advanced(CLEAR
     CMAKE_INSTALL_LIBDIR
 )
 
-# Build universal ARM64 and x86_64 binaries on Mac.
-if(BUILD_OSX_UNIVERSAL)
+if(BUILD_OSX_UNIVERSAL AND NOT CMAKE_OSX_ARCHITECTURES)
 set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
-endif(BUILD_OSX_UNIVERSAL)
+endif(BUILD_OSX_UNIVERSAL AND NOT CMAKE_OSX_ARCHITECTURES)
+
+if(APPLE)
+    function(can_enable_for_architecture ARCH RET)
+        if(BUILD_OSX_UNIVERSAL)
+            if(CMAKE_OSX_ARCHITECTURES MATCHES ${ARCH})
+                set(${RET} TRUE PARENT_SCOPE)
+            else()
+                set(${RET} FALSE PARENT_SCOPE)
+            endif()
+        else()
+            if(CMAKE_SYSTEM_PROCESSOR MATCHES ${ARCH})
+                set(${RET} TRUE PARENT_SCOPE)
+            else()
+                set(${RET} FALSE PARENT_SCOPE)
+            endif()
+        endif()
+    endfunction()
+endif(APPLE)
 
 #
 # Prevent in-source builds
@@ -104,24 +121,32 @@ if(NOT DISABLE_CPU_OPTIMIZATION)
             OUTPUT_VARIABLE NEON_PRESENT)
     elseif(APPLE)
         if(BUILD_OSX_UNIVERSAL)
+            message(STATUS "Performing universal macOS build using architectures ${CMAKE_OSX_ARCHITECTURES}")
+
             # Presume AVX and SSE are enabled on the x86 side. (AVX2 is not guaranteed depending
             # on model.) The ARM side will auto-enable NEON optimizations by virtue of being aarch64.
-            set(AVX_PRESENT TRUE)
-            set(SSE_PRESENT TRUE)
-            set(NEON_PRESENT TRUE)
+            can_enable_for_architecture("[xX]86" IS_X86)
+            if(IS_X86)
+                set(AVX_PRESENT TRUE)
+                set(SSE_PRESENT TRUE)
+            endif()
+            can_enable_for_architecture("[Aa][Rr][Mm]" NEON_PRESENT)
         else()
             # Under OSX we need to look through a few sysctl entries to determine what our CPU supports.
             message(STATUS "Looking for available CPU optimizations on an OSX system...")
-            execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.leaf7_features COMMAND grep -c AVX2
-                OUTPUT_VARIABLE AVX2_PRESENT)
-            execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c AVX
-                OUTPUT_VARIABLE AVX_PRESENT)
-            execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c SSE4.1
-                OUTPUT_VARIABLE SSE_PRESENT)
+            can_enable_for_architecture("[xX]86" IS_X86)
+            if(IS_X86)
+                execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.leaf7_features COMMAND grep -c AVX2
+                    OUTPUT_VARIABLE AVX2_PRESENT)
+                execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c AVX
+                    OUTPUT_VARIABLE AVX_PRESENT)
+                execute_process(COMMAND sysctl -a COMMAND grep machdep.cpu.features COMMAND grep -c SSE4.1
+                    OUTPUT_VARIABLE SSE_PRESENT)
+            endif()
                 
             # Unlike with the above, NEON *is* guaranteed if on ARM as there were never any ARM32 Macs 
             # available. We don't need any specific compiler flags for this, though.
-            set(NEON_PRESENT TRUE)
+            can_enable_for_architecture("[Aa][Rr][Mm]" NEON_PRESENT)
         endif(BUILD_OSX_UNIVERSAL)
     elseif(WIN32)
         message(STATUS "No detection capability on Windows, assuming AVX is available.")
@@ -158,7 +183,7 @@ elseif(${SSE} AND (${SSE_PRESENT} OR ${SSE_PRESENT} GREATER 0))
 # AVX and AVX2 machines will also match on SSE
     message(STATUS "sse processor flags found or enabled.")
     set(LPCNET_C_PROC_FLAGS -msse4.1)
-elseif(${NEON} AND (${NEON_PRESENT} OR ${NEON_PRESENT} GREATER 0))
+elseif(${NEON} AND (${NEON_PRESENT} OR ${NEON_PRESENT} GREATER 0) AND NOT APPLE)
     # RPi / ARM 32bit
     message(STATUS "neon processor flags found or enabled.")
     set(LPCNET_C_PROC_FLAGS -mfpu=neon -march=armv8-a -mtune=cortex-a53)

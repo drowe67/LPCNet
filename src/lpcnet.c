@@ -146,7 +146,6 @@ void lpcnet_set_pitch_embedding(LPCNetState *lpcnet, int val) {
 
 void lpcnet_synthesize(LPCNetState *lpcnet, short *output, float *features, int N, int mag)
 {
-    static int count = 0;
     int i;
     float condition[FEATURE_DENSE2_OUT_SIZE];
     float lpc[LPC_ORDER];
@@ -264,7 +263,6 @@ void lpcnet_synthesize(LPCNetState *lpcnet, short *output, float *features, int 
             exc_f = ulaw2lin(exc);
             fwrite(&exc_f, sizeof(float), 1, lpcnet->ftest);
             fwrite(&pcm, sizeof(float), 1, lpcnet->ftest);
-            count++;
         }
         output[i] = (int)floor(.5 + pcm);
     }

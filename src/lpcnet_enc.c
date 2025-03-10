@@ -147,7 +147,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "\n");
 
     char frame[lpcnet_bits_per_frame(lf)];
-    int f=0;
     int bits_written=0;
     short pcm[lpcnet_samples_per_frame(lf)];
 
@@ -160,7 +159,6 @@ int main(int argc, char **argv) {
 
         fflush(stdin);
         fflush(stdout);
-        f++;
     }
 
     lpcnet_freedv_destroy(lf);
